@@ -5,13 +5,10 @@ import { uploadToCloudinary } from "../middleware/uploadApplicationFiles.js";
 const fetchInternships = async (req, res) => {
   try {
     const query = `
-      SELECT 
-        i.*,
-        c.company_name,
-        c.location
+       SELECT i.*, c.company_name, c.location
       FROM internship i
       JOIN company c ON i.company_id = c.company_id
-      ORDER BY i.created_at DESC
+      WHERE i.status = 'approved'
     `;
 
     const [internships] = await db.query(query);
@@ -36,12 +33,10 @@ const applyInternships = async (req, res) => {
     const { statement } = req.body;
 
     if (!req.files?.cv || !req.files?.academic_doc) {
-      return res
-        .status(400)
-        .json({
-          success: false,
-          message: "CV and academic document are required",
-        });
+      return res.status(400).json({
+        success: false,
+        message: "CV and academic document are required",
+      });
     }
 
     // upload files to cloudinary
@@ -97,12 +92,10 @@ const cancelApplication = async (req, res) => {
     );
 
     if (existing.length === 0) {
-      return res
-        .status(404)
-        .json({
-          success: false,
-          message: "Application not found or you are not authorized",
-        });
+      return res.status(404).json({
+        success: false,
+        message: "Application not found or you are not authorized",
+      });
     }
 
     // Delete the application

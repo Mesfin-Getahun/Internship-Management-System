@@ -1,8 +1,3 @@
-const companyEvaluation = async (req, res) => {
-  try {
-  } catch (error) {}
-};
-
 const assignMentor = async (req, res) => {
   try {
     const { studentId, mentorId } = req.body;
@@ -16,6 +11,11 @@ const assignMentor = async (req, res) => {
   } catch (error) {
     res.json({ success: false, message: error.message });
   }
+};
+
+const companyEvaluation = async (req, res) => {
+  try {
+  } catch (error) {}
 };
 
 const deleteMentor = async (req, res) => {
@@ -32,17 +32,17 @@ const changeMentor = async (req, res) => {
   }
 };
 
-const evaluation = async (req, res) => {
-  try {
-  } catch (error) {
-    res.json({ success: false, message: error.message });
-  }
-};
+// const evaluation = async (req, res) => {
+//   try {
+//   } catch (error) {
+//     res.json({ success: false, message: error.message });
+//   }
+// };
 
 export {
   assignMentor,
   companyEvaluation,
   deleteMentor,
   changeMentor,
-  evaluation,
+  
 };
