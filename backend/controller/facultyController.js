@@ -56,6 +56,54 @@ const companyEvaluation = async (req, res) => {
   }
 };
 
+const getStudents = async (req, res) => {
+  try {
+    const faculty = req.user.faculty_name;
+
+    const [students] = await db.query(
+      `
+      SELECT 
+        s.student_id,
+        s.full_name,
+        s.email,
+        s.department,
+        s.profile_status,
+
+        si.internship_id,
+        i.title AS internship_title,
+        si.status AS internship_status
+
+      FROM student s
+      LEFT JOIN student_internship si
+        ON s.student_id = si.student_id
+      LEFT JOIN internship i
+        ON si.internship_id = i.internship_id
+      WHERE s.faculty = ?
+      ORDER BY s.full_name
+      `,
+      [faculty]
+    );
+
+    res.status(200).json({
+      success: true,
+      count: students.length,
+      students,
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({
+      success: false,
+      message: "Unable to fetch students",
+    });
+  }
+};
+// this is how frontend access active intern and not yet students
+// if (student.internship_id === null) {
+//   // Not placed yet
+// } else {
+//   // Placed
+// }
+
 const deleteMentor = async (req, res) => {
   try {
   } catch (error) {
@@ -70,4 +118,10 @@ const changeMentor = async (req, res) => {
   }
 };
 
-export { assignMentor, companyEvaluation, deleteMentor, changeMentor };
+export {
+  assignMentor,
+  companyEvaluation,
+  deleteMentor,
+  changeMentor,
+  getStudents,
+};

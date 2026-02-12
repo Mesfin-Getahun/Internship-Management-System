@@ -26,6 +26,71 @@ const fetchInternships = async (req, res) => {
   }
 };
 
+const suggestedInternships = async (req, res) => {
+  try {
+    const student_id = req.user.student_id;
+
+    const [[student]] = await db.query(
+      "SELECT department, skills, preferred_location FROM student WHERE student_id = ?",
+      [student_id]
+    );
+
+    const studentSkills =
+      student.skills?.split(",").map((s) => s.trim().toLowerCase()) || [];
+
+    const [internships] = await db.query(
+      `
+      SELECT i.*, c.company_name
+      FROM internship i
+      JOIN company c ON i.company_id = c.company_id
+      WHERE i.status = 'approved'
+      AND i.department = ?
+      `,
+      [student.department]
+    );
+
+    const suggestions = internships.map((internship) => {
+      const internshipSkills =
+        internship.skills?.split(",").map((s) => s.trim().toLowerCase()) || [];
+
+      const matchedSkills = studentSkills.filter((skill) =>
+        internshipSkills.includes(skill)
+      );
+
+      let score = matchedSkills.length * 2;
+
+      if (
+        student.preferred_location &&
+        internship.location === student.preferred_location
+      ) {
+        score += 1;
+      }
+
+      return {
+        internship_id: internship.internship_id,
+        title: internship.title,
+        company: internship.company_name,
+        location: internship.location,
+        matched_skills: matchedSkills,
+        match_score: score,
+      };
+    });
+
+    suggestions.sort((a, b) => b.match_score - a.match_score);
+
+    res.json({
+      success: true,
+      suggestions,
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to fetch internship suggestions",
+    });
+  }
+};
+
 const applyInternships = async (req, res) => {
   try {
     const student_id = req.user.student_id;
@@ -192,4 +257,5 @@ export {
   feedbacks,
   updateProfile,
   cancelApplication,
+  suggestedInternships,
 };
