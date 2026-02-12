@@ -1,5 +1,9 @@
 import db from "../config/mysql.js";
 import bcrypt from "bcryptjs";
+import fs from "fs";
+import generateAssessmentPDF from "../utils/generateAssessmentPDF.js";
+import generateAttendancePDF from "../utils/generateAttendancePDF.js";
+import uploadPDF from "../utils/uploadPDF.js";
 
 const postInternship = async (req, res) => {
   try {
@@ -7,12 +11,10 @@ const postInternship = async (req, res) => {
 
     // Basic validation
     if (!title || !description || !start_date || !end_date) {
-      return res
-        .status(400)
-        .json({
-          success: false,
-          message: "All required fields must be filled",
-        });
+      return res.status(400).json({
+        success: false,
+        message: "All required fields must be filled",
+      });
     }
 
     // Insert into database
@@ -274,12 +276,10 @@ const viewApplication = async (req, res) => {
     const [application] = await db.query(query, [id, company_id]);
 
     if (application.length === 0) {
-      return res
-        .status(404)
-        .json({
-          success: false,
-          message: "Application not found or access denied",
-        });
+      return res.status(404).json({
+        success: false,
+        message: "Application not found or access denied",
+      });
     }
 
     res.status(200).json({ success: true, application: application[0] });
@@ -317,12 +317,10 @@ const accept = async (req, res) => {
       [student_id, internship_id, company_id]
     );
 
-    res
-      .status(200)
-      .json({
-        success: true,
-        message: "Application accepted and internship assigned",
-      });
+    res.status(200).json({
+      success: true,
+      message: "Application accepted and internship assigned",
+    });
   } catch (error) {
     console.error(error);
     res
@@ -376,7 +374,7 @@ const assignMentor = async (req, res) => {
 
     if (!student_internship_id || !company_mentor_id) {
       return res.status(400).json({
-        success:false,
+        success: false,
         message: "Student internship ID and company mentor ID are required",
       });
     }
@@ -388,7 +386,9 @@ const assignMentor = async (req, res) => {
     );
 
     if (existing.length === 0) {
-      return res.status(404).json({success:false, message: "Student internship not found" });
+      return res
+        .status(404)
+        .json({ success: false, message: "Student internship not found" });
     }
 
     // Optional: check if company_mentor exists
@@ -398,7 +398,9 @@ const assignMentor = async (req, res) => {
     );
 
     if (mentor.length === 0) {
-      return res.status(404).json({success:false, message: "Company mentor not found" });
+      return res
+        .status(404)
+        .json({ success: false, message: "Company mentor not found" });
     }
 
     // Assign the mentor
@@ -407,18 +409,88 @@ const assignMentor = async (req, res) => {
       [company_mentor_id, student_internship_id]
     );
 
-    res.status(200).json({success:true, message: "Mentor assigned successfully" });
+    res
+      .status(200)
+      .json({ success: true, message: "Mentor assigned successfully" });
   } catch (error) {
     console.error("Assign mentor error:", error);
-    res.status(500).json({success:false, message: "Failed to assign mentor" });
+    res
+      .status(500)
+      .json({ success: false, message: "Failed to assign mentor" });
   }
 };
 
 const postEvaluation = async (req, res) => {
   try {
-  } catch (error) {}
-};
+    const { student_id, internship_id, assessment, attendanceData } = req.body;
 
+    /* ================= FETCH STUDENT ================= */
+    const [[student]] = await db.query(
+      "SELECT * FROM student WHERE student_id = ?",
+      [student_id]
+    );
+
+    if (!student) {
+      return res.status(404).json({ message: "Student not found" });
+    }
+
+    /* ================= GENERATE PDFs ================= */
+    const assessmentPath = await generateAssessmentPDF({
+      student,
+      assessment,
+    });
+
+    const attendancePath = await generateAttendancePDF({
+      student,
+      attendanceData,
+    });
+
+    /* ================= UPLOAD TO CLOUDINARY ================= */
+    const assessmentURL = await uploadPDF(
+      assessmentPath,
+      "internship/assessment"
+    );
+
+    const attendanceURL = await uploadPDF(
+      attendancePath,
+      "internship/attendance"
+    );
+
+    /* ================= CALCULATE TOTAL ================= */
+    const totalMark =
+      Object.values(assessment.general).reduce((a, b) => a + b, 0) +
+      Object.values(assessment.personal).reduce((a, b) => a + b, 0) +
+      Object.values(assessment.professional).reduce((a, b) => a + b, 0);
+
+    /* ================= SAVE TO DATABASE ================= */
+    await db.query(
+      `
+      INSERT INTO internship_evaluation
+      (student_id, internship_id, assessment_pdf_url, attendance_pdf_url, total_mark)
+      VALUES (?, ?, ?, ?, ?)
+      `,
+      [student_id, internship_id, assessmentURL, attendanceURL, totalMark]
+    );
+
+    /* ================= CLEAN LOCAL FILES ================= */
+    fs.unlinkSync(assessmentPath);
+    fs.unlinkSync(attendancePath);
+
+    res.status(201).json({
+      success: true,
+      message: "Evaluation submitted successfully",
+      assessment_pdf: assessmentURL,
+      attendance_pdf: attendanceURL,
+      total_mark: totalMark,
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to submit evaluation",
+    });
+  }
+};
 
 export {
   postInternship,
