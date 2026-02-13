@@ -11,6 +11,8 @@ const ThemeToggle = () => {
       onClick={toggleTheme}
       className="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors duration-200"
       title="Toggle Light/Dark"
+      aria-label={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
+      aria-pressed={theme === "dark"}
     >
       <FontAwesomeIcon icon={theme === "dark" ? faSun : faMoon} />
     </button>
