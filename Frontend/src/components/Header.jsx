@@ -15,25 +15,46 @@ const Header = () => {
   const [activeSection, setActiveSection] = useState("home");
 
   useEffect(() => {
-    const handleScroll = () => {
-      const sections = navLinks.map(link => link.href.replace("#", ""));
+    const sections = navLinks
+      .map(link => {
+        const id = link.href.replace("#", "");
+        const element = document.getElementById(id);
+        return { id, element };
+      })
+      .filter(section => section.element);
+
+    let ticking = false;
+
+    const updateActiveSection = () => {
       const scrollPosition = window.scrollY + 100;
 
-      for (const section of sections) {
-        const element = document.getElementById(section);
-        if (element) {
-          const { offsetTop, offsetHeight } = element;
-          if (scrollPosition >= offsetTop && scrollPosition < offsetTop + offsetHeight) {
-            setActiveSection(section);
-            break;
-          }
+      for (const { id, element } of sections) {
+        if (!element) {
+          continue;
         }
+        const { offsetTop, offsetHeight } = element;
+        if (scrollPosition >= offsetTop && scrollPosition < offsetTop + offsetHeight) {
+          setActiveSection(id);
+          break;
+        }
+      }
+
+      ticking = false;
+    };
+
+    const handleScroll = () => {
+      if (!ticking) {
+        window.requestAnimationFrame(updateActiveSection);
+        ticking = true;
       }
     };
 
-    window.addEventListener("scroll", handleScroll);
-    handleScroll(); // Check initial position
-    return () => window.removeEventListener("scroll", handleScroll);
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    updateActiveSection(); // Check initial position
+
+   return () => {
+      window.removeEventListener("scroll", handleScroll);
+    };
   }, []);
 
   const handleClick = (e, href) => {
