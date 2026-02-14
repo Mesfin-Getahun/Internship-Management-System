@@ -1,9 +1,8 @@
 import db from "../config/mysql.js";
 import bcrypt from "bcryptjs";
-import fs from "fs";
 import generateAssessmentPDF from "../utils/generateAssessmentPDF.js";
 import generateAttendancePDF from "../utils/generateAttendancePDF.js";
-import uploadPDF from "../utils/uploadPDF.js";
+import { uploadToCloudinary } from "../utils/cloudinaryUpload.js";
 
 const postInternship = async (req, res) => {
   try {
@@ -431,28 +430,31 @@ const postEvaluation = async (req, res) => {
     );
 
     if (!student) {
-      return res.status(404).json({ message: "Student not found" });
+      return res.status(404).json({
+        success: false,
+        message: "Student not found",
+      });
     }
 
-    /* ================= GENERATE PDFs ================= */
-    const assessmentPath = await generateAssessmentPDF({
+    /* ================= GENERATE PDFs (BUFFER) ================= */
+    const assessmentBuffer = await generateAssessmentPDF({
       student,
       assessment,
     });
 
-    const attendancePath = await generateAttendancePDF({
+    const attendanceBuffer = await generateAttendancePDF({
       student,
       attendanceData,
     });
 
     /* ================= UPLOAD TO CLOUDINARY ================= */
-    const assessmentURL = await uploadPDF(
-      assessmentPath,
+    const assessmentURL = await uploadToCloudinary(
+      assessmentBuffer,
       "internship/assessment"
     );
 
-    const attendanceURL = await uploadPDF(
-      attendancePath,
+    const attendanceURL = await uploadToCloudinary(
+      attendanceBuffer,
       "internship/attendance"
     );
 
@@ -471,10 +473,6 @@ const postEvaluation = async (req, res) => {
       `,
       [student_id, internship_id, assessmentURL, attendanceURL, totalMark]
     );
-
-    /* ================= CLEAN LOCAL FILES ================= */
-    fs.unlinkSync(assessmentPath);
-    fs.unlinkSync(attendancePath);
 
     res.status(201).json({
       success: true,

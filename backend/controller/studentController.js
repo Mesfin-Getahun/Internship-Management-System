@@ -1,6 +1,6 @@
 import db from "../config/mysql.js";
 import bcrypt from "bcryptjs";
-import { uploadToCloudinary } from "../middleware/uploadApplicationFiles.js";
+import { uploadToCloudinary } from "../utils/cloudinaryUpload.js";
 
 const fetchInternships = async (req, res) => {
   try {
@@ -104,38 +104,35 @@ const applyInternships = async (req, res) => {
       });
     }
 
-    // upload files to cloudinary
-    const cvUpload = await uploadToCloudinary(
+    // ✅ upload files to cloudinary
+    const cvUrl = await uploadToCloudinary(
       req.files.cv[0].buffer,
       "internship_applications/cv"
     );
 
-    const academicUpload = await uploadToCloudinary(
+    const academicUrl = await uploadToCloudinary(
       req.files.academic_doc[0].buffer,
       "internship_applications/academic"
     );
 
+    // ✅ store URLs directly
     await db.query(
       `INSERT INTO application
        (student_id, internship_id, applied_date, status, statement, cv_file, academic_doc)
        VALUES (?, ?, CURDATE(), 'pending', ?, ?, ?)`,
-      [
-        student_id,
-        internship_id,
-        statement,
-        cvUpload.secure_url,
-        academicUpload.secure_url,
-      ]
+      [student_id, internship_id, statement, cvUrl, academicUrl]
     );
 
-    res
-      .status(201)
-      .json({ success: true, message: "Application submitted successfully" });
+    res.status(201).json({
+      success: true,
+      message: "Application submitted successfully",
+    });
   } catch (error) {
     console.error(error);
-    res
-      .status(500)
-      .json({ success: false, message: "Failed to apply for internship" });
+    res.status(500).json({
+      success: false,
+      message: "Failed to apply for internship",
+    });
   }
 };
 
@@ -236,12 +233,151 @@ const updateProfile = async (req, res) => {
 
 const myInternship = async (req, res) => {
   try {
-  } catch (error) {}
+    const studentId = req.user.student_id;
+
+    const [rows] = await db.query(
+      `
+      SELECT 
+        i.internship_id,
+        i.title,
+        i.description,
+        i.start_date,
+        i.end_date,
+        i.skills,
+        c.company_name,
+        si.status
+      FROM student_internship si
+      JOIN internship i 
+        ON si.internship_id = i.internship_id
+      JOIN company c
+        ON i.company_id = c.company_id
+      WHERE si.student_id = ?
+        AND si.status = 'accepted'
+      LIMIT 1
+      `,
+      [studentId]
+    );
+
+    if (rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: "You do not have an active internship",
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      internship: rows[0],
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to fetch active internship",
+    });
+  }
 };
+
+// const uploadInternshipReport = async (req, res) => {
+//   try {
+//     const student_id = req.user.student_id;
+
+//     if (!req.file) {
+//       return res.status(400).json({
+//         success: false,
+//         message: "PDF report is required",
+//       });
+//     }
+
+//     // 1️⃣ get active internship
+//     const [rows] = await db.query(
+//       `SELECT internship_id
+//        FROM application
+//        WHERE student_id = ?
+//          AND status = 'accepted'
+//        LIMIT 1`,
+//       [student_id]
+//     );
+
+//     if (rows.length === 0) {
+//       return res.status(403).json({
+//         success: false,
+//         message: "No active internship found",
+//       });
+//     }
+
+//     const internship_id = rows[0].internship_id;
+
+//     // 2️⃣ upload PDF to cloudinary
+//     const reportUrl = await uploadToCloudinary(
+//       req.file.buffer,
+//       "internship_reports"
+//     );
+
+//     // 3️⃣ save report
+//     await db.query(
+//       `INSERT INTO internship_report
+//        (student_id, internship_id, report_url)
+//        VALUES (?, ?, ?)`,
+//       [student_id, internship_id, reportUrl]
+//     );
+
+//     res.status(201).json({
+//       success: true,
+//       message: "Internship report uploaded successfully",
+//       reportUrl,
+//     });
+//   } catch (error) {
+//     console.error(error);
+//     res.status(500).json({
+//       success: false,
+//       message: "Failed to upload internship report",
+//     });
+//   }
+// };
 
 const uploadInternshipReport = async (req, res) => {
   try {
-  } catch (error) {}
+    const student_id = req.user.student_id;
+
+    if (!req.file) {
+      return res.status(400).json({ message: "Report PDF required" });
+    }
+
+    const reportUrl = await uploadToCloudinary(
+      req.file.buffer,
+      "internship_reports/original"
+    );
+
+    await db.query(
+      `INSERT INTO internship_report
+       (student_id, internship_id, report_url, status)
+       VALUES (?, ?, ?, 'submitted')`,
+      [student_id, req.body.internship_id, reportUrl]
+    );
+
+    res.json({ success: true, reportUrl });
+  } catch (err) {
+    res.status(500).json({ success: false });
+  }
+};
+
+const submitSignedReportToFaculty = async (req, res) => {
+  try {
+    const student_id = req.user.student_id;
+    const { report_id } = req.params;
+
+    await db.query(
+      `UPDATE internship_report
+       SET status = 'faculty_submitted', faculty_submitted_at = NOW()
+       WHERE report_id = ? AND student_id = ? AND status = 'signed'`,
+      [report_id, student_id]
+    );
+
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ success: false });
+  }
 };
 
 const feedbacks = async (req, res) => {
@@ -258,4 +394,5 @@ export {
   updateProfile,
   cancelApplication,
   suggestedInternships,
+  submitSignedReportToFaculty,
 };

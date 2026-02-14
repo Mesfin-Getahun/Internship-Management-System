@@ -104,6 +104,22 @@ const getStudents = async (req, res) => {
 //   // Placed
 // }
 
+const facultyViewReports = async (req, res) => {
+  const faculty = req.user.faculty_name;
+
+  const [reports] = await db.query(
+    `
+    SELECT r.*, s.full_name
+    FROM internship_report r
+    JOIN student s ON r.student_id = s.student_id
+    WHERE s.faculty = ? AND r.status = 'faculty_submitted'
+    `,
+    [faculty]
+  );
+
+  res.json({ success: true, reports });
+};
+
 const deleteMentor = async (req, res) => {
   try {
   } catch (error) {
@@ -124,4 +140,5 @@ export {
   deleteMentor,
   changeMentor,
   getStudents,
+  facultyViewReports,
 };
