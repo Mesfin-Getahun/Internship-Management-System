@@ -17,6 +17,8 @@ import {
   registerCompany,
 } from "./middleware/register.js";
 
+import router from "./middleware/login.js";
+
 const app = express();
 
 app.use(cors());
@@ -37,6 +39,8 @@ app.use("/api/registerCompanyMentor", createCompanyMentor);
 app.use("/api/registerCompany", registerCompany);
 app.use("/api/registerFaculty", createFaculty);
 //app.use("/api/registerUIL", UILroute);
+
+app.use("/api/login", router);
 
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));

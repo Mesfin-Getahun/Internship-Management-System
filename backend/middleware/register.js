@@ -45,6 +45,7 @@ export const registerStudent = async (req, res) => {
       message: "Student registered successfully",
     });
   } catch (error) {
+    console.log(error);
     res.status(500).json({ success: false, message: "Registration failed" });
   }
 };
@@ -68,6 +69,7 @@ export const registerCompany = async (req, res) => {
       message: "Company registration submitted for approval",
     });
   } catch (error) {
+    console.log(error);
     res.status(500).json({ success: false });
   }
 };
@@ -93,7 +95,7 @@ export const createCompanyMentor = async (req, res) => {
 };
 
 export const createFaculty = async (req, res) => {
-  const { faculty_id, full_name, email, password } = req.body;
+  const { faculty_id, faculty_name, email, password } = req.body;
 
   const hashedPassword = await bcrypt.hash(password, 10);
 

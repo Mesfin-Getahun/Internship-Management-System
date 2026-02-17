@@ -11,9 +11,10 @@ import {
   updateProfile,
   viewApplication,
 } from "../controller/companyController.js";
+import { authCompany } from "../middleware/auth.js";
 const companyRoute = express.Router();
 
-companyRoute.post("/postInternship", postInternship);
+companyRoute.post("/postInternship", authCompany, postInternship);
 companyRoute.post("/evaluation/:id", postEvaluation);
 companyRoute.delete("/deleteInternship/:id", deleteInternship);
 companyRoute.put("/updateInternship/:id", updateInternship);

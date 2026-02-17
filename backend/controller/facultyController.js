@@ -1,15 +1,73 @@
+import db from "../config/mysql.js";
+
 const assignMentor = async (req, res) => {
   try {
-    const { studentId, mentorId } = req.body;
+    const { student_id, mentor_id } = req.body;
 
-    await db.query(
-      "UPDATE student SET assigned_mentor = ? WHERE student_id = ?",
-      [mentorId, studentId]
+    // 1️⃣ Validate input
+    if (!student_id || !mentor_id) {
+      return res.status(400).json({
+        success: false,
+        message: "student_id and mentor_id are required",
+      });
+    }
+
+    // 2️⃣ Check if student exists
+    const [students] = await db.query(
+      "SELECT student_id FROM student WHERE student_id = ?",
+      [student_id]
     );
 
-    res.json({ success: true, message: "Mentor assigned successfully" });
+    if (students.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: "Student not found",
+      });
+    }
+
+    // 3️⃣ Check if mentor exists
+    const [mentors] = await db.query(
+      "SELECT mentor_id FROM mentor WHERE mentor_id = ?",
+      [mentor_id]
+    );
+
+    if (mentors.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: "Mentor not found",
+      });
+    }
+
+    // 4️⃣ Assign mentor
+    const [result] = await db.query(
+      "UPDATE student SET assigned_mentor = ? WHERE student_id = ?",
+      [mentor_id, student_id]
+    );
+
+    // 5️⃣ Extra safety check
+    if (result.affectedRows === 0) {
+      return res.status(400).json({
+        success: false,
+        message: "Mentor assignment failed",
+      });
+    }
+
+    // 6️⃣ Success response
+    return res.status(200).json({
+      success: true,
+      message: "Mentor assigned successfully",
+      data: {
+        student_id,
+        mentor_id,
+      },
+    });
   } catch (error) {
-    res.json({ success: false, message: error.message });
+    console.error("Assign mentor error:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Internal server error",
+    });
   }
 };
 

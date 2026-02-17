@@ -104,15 +104,27 @@ const applyInternships = async (req, res) => {
       });
     }
 
-    // ✅ upload files to cloudinary
+    // // ✅ upload files to cloudinary
+    // const cvUrl = await uploadToCloudinary(
+    //   req.files.cv[0].buffer,
+    //   "internship_applications/cv"
+    // );
+
+    // const academicUrl = await uploadToCloudinary(
+    //   req.files.academic_doc[0].buffer,
+    //   "internship_applications/academic"
+    // );
+
     const cvUrl = await uploadToCloudinary(
       req.files.cv[0].buffer,
-      "internship_applications/cv"
+      "internship_applications/cv",
+      req.files.cv[0].originalname
     );
 
     const academicUrl = await uploadToCloudinary(
       req.files.academic_doc[0].buffer,
-      "internship_applications/academic"
+      "internship_applications/academic",
+      req.files.academic_doc[0].originalname
     );
 
     // ✅ store URLs directly

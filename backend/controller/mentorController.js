@@ -1,22 +1,51 @@
 import { uploadToCloudinary } from "../utils/cloudinaryUpload.js";
+import db from "../config/mysql.js";
 
 const fetchStudents = async (req, res) => {
-  const mentorId = req.user.id;
+  const mentorId = req.user.mentor_id;
+
   try {
     const [students] = await db.query(
-      "SELECT student_id, student_name, email FROM student WHERE assigned_mentor = ?",
+      "SELECT student_id, full_name, email FROM student WHERE assigned_mentor = ?",
       [mentorId]
     );
 
     res.json({ success: true, students: students });
   } catch (error) {
+    console.log(error);
     res.status(500).json({ message: "Failed to fetch students" });
   }
 };
 
 const reviewReport = async (req, res) => {
+  const mentor_id = req.user.mentor_id;
   try {
-  } catch (error) {}
+    const [reports] = await db.query(
+      `
+      SELECT 
+        ir.report_id,
+        ir.report_url,
+        ir.internship_id,
+        s.student_id,
+        s.full_name,
+      
+      FROM internship_report ir
+      JOIN student s ON ir.mentor_id = s.assigned_mentor
+
+      WHERE s.assigned_mentor = ?
+      ORDER BY ir.submitted_date DESC
+      `,
+      [mentor_id]
+    );
+    res.status(200).json({
+      success: true,
+      count: reports.length,
+      reports,
+    });
+  } catch (error) {
+    console.log(error);
+    res.status(500).json({ success: false });
+  }
 };
 
 const mentorSignReport = async (req, res) => {
@@ -42,6 +71,7 @@ const mentorSignReport = async (req, res) => {
 
     res.json({ success: true, signedUrl });
   } catch (err) {
+    console.log(error);
     res.status(500).json({ success: false });
   }
 };

@@ -5,8 +5,9 @@ import generateAttendancePDF from "../utils/generateAttendancePDF.js";
 import { uploadToCloudinary } from "../utils/cloudinaryUpload.js";
 
 const postInternship = async (req, res) => {
+  const company_id = req.user.company_id;
   try {
-    const { title, description, image, start_date, end_date } = req.body;
+    const { title, description, image, start_date, end_date, skill } = req.body;
 
     // Basic validation
     if (!title || !description || !start_date || !end_date) {
@@ -19,8 +20,8 @@ const postInternship = async (req, res) => {
     // Insert into database
     const query = `
       INSERT INTO internship 
-      (title, description, image, start_date, end_date)
-      VALUES (?, ?, ?, ?, ?)
+      (title, description, image, start_date, end_date,skills,company_id)
+      VALUES (?, ?, ?, ?, ?,?,?)
     `;
 
     const [result] = await db.query(query, [
@@ -29,6 +30,8 @@ const postInternship = async (req, res) => {
       image || null,
       start_date,
       end_date,
+      skill,
+      company_id,
     ]);
 
     res.status(201).json({

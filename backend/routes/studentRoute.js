@@ -11,10 +11,11 @@ import {
 } from "../controller/studentController.js";
 import { uploadApplicationFiles } from "../middleware/uploadApplicationFiles.js";
 import { uploadPDF } from "../middleware/uploadPDF.js";
+import { authStudent } from "../middleware/auth.js";
 const studentRoute = express.Router();
 
 studentRoute.post(
-  "/applyInternship/:id",
+  "/applyInternship/:id",authStudent,
   uploadApplicationFiles,
   applyInternships
 );

@@ -5,10 +5,11 @@ import {
   reviewReport,
   mentorSignReport,
 } from "../controller/mentorController.js";
+import { authMentor } from "../middleware/auth.js";
 import { uploadPDF } from "../middleware/uploadPDF.js";
 const mentorRoute = express.Router();
 
-mentorRoute.get("/students", fetchStudents);
+mentorRoute.get("/students", authMentor, fetchStudents);
 mentorRoute.get("/reports", reviewReport);
 mentorRoute.post("/provideFeedback/:id", provideFeedback);
 mentorRoute.post(
