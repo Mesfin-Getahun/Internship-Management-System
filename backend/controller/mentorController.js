@@ -76,9 +76,141 @@ const mentorSignReport = async (req, res) => {
   }
 };
 
+const companyMentorFeedback = async (req, res) => {
+  try {
+    const mentor_id = req.user.mentor_id;
+
+    if (!mentor_id) {
+      return res.status(401).json({
+        success: false,
+        message: "Unauthorized",
+      });
+    }
+
+    const [feedback] = await db.query(
+      `
+      SELECT 
+        f.feedback_id,
+        f.feedback,
+        f.rating,
+        f.created_at,
+
+        s.student_id,
+        s.full_name AS student_name,
+        s.email AS student_email,
+
+        i.internship_id,
+        i.title AS internship_title,
+
+        cm.company_mentor_id,
+        cm.full_name AS company_mentor_name
+
+      FROM student s
+      JOIN mentor_feedback f 
+        ON s.student_id = f.student_id
+      JOIN internship i 
+        ON f.internship_id = i.internship_id
+      JOIN company_mentor cm 
+        ON f.company_mentor_id = cm.company_mentor_id
+
+      WHERE s.mentor_id = ?
+
+      ORDER BY f.created_at DESC
+      `,
+      [mentor_id]
+    );
+
+    res.status(200).json({
+      success: true,
+      count: feedback.length,
+      feedback,
+    });
+  } catch (error) {
+    console.error("Faculty view feedback error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to fetch feedback",
+    });
+  }
+};
+
+const getSingleFeedback = async (req, res) => {
+  try {
+    const mentor_id = req.user.mentor_id;
+    const { feedback_id } = req.params;
+
+    if (!feedback_id) {
+      return res.status(400).json({
+        success: false,
+        message: "Feedback ID is required",
+      });
+    }
+
+    const [rows] = await db.query(
+      `
+      SELECT
+        f.feedback_id,
+        f.feedback,
+        f.rating,
+        f.created_at,
+
+        s.student_id,
+        s.full_name AS student_name,
+        s.email AS student_email,
+
+        i.internship_id,
+        i.title AS internship_title,
+        i.start_date,
+        i.end_date,
+
+        cm.company_mentor_id,
+        cm.full_name AS company_mentor_name,
+        cm.email AS company_mentor_email
+
+      FROM mentor_feedback f
+      JOIN student s 
+        ON f.student_id = s.student_id
+      JOIN internship i 
+        ON f.internship_id = i.internship_id
+      JOIN company_mentor cm 
+        ON f.company_mentor_id = cm.company_mentor_id
+
+      WHERE f.feedback_id = ?
+        AND s.mentor_id = ?
+      `,
+      [feedback_id, mentor_id]
+    );
+
+    if (rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: "Feedback not found or access denied",
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      feedback: rows[0],
+    });
+  } catch (error) {
+    console.error("Fetch single feedback error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to fetch feedback detail",
+    });
+  }
+};
+
 const provideFeedback = async (req, res) => {
   try {
   } catch (error) {}
 };
 
-export { fetchStudents, provideFeedback, reviewReport, mentorSignReport };
+export {
+  fetchStudents,
+  provideFeedback,
+  reviewReport,
+  mentorSignReport,
+  companyMentorFeedback,
+  getSingleFeedback,
+};

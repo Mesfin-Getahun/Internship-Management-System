@@ -96,7 +96,7 @@ const authCompany = async (req, res, next) => {
 
     const [rows] = await db.query(
       "SELECT * FROM company WHERE company_id = ?",
-      [decoded.id]
+      [decoded.company_id]
     );
 
     // Exclude password before returning
@@ -119,6 +119,42 @@ const authCompany = async (req, res, next) => {
       .json({ success: false, message: "Invalid token or session expired" });
   }
 };
+
+// const authCompany = async (req, res, next) => {
+//   try {
+//     const authHeader = req.headers.authorization;
+
+//     if (!authHeader || !authHeader.startsWith("Bearer ")) {
+//       return res
+//         .status(401)
+//         .json({ success: false, message: "No token, authorization denied" });
+//     }
+
+//     const token = authHeader.split(" ")[1];
+
+//     const decoded = jwt.verify(token, process.env.JWT_SECRET);
+
+//     // ✅ use company_id, NOT id
+//     const [rows] = await db.query(
+//       "SELECT company_id, company_name, email FROM company WHERE company_id = ?",
+//       [decoded.company_id]
+//     );
+
+//     if (rows.length === 0) {
+//       return res
+//         .status(404)
+//         .json({ success: false, message: "Company not found" });
+//     }
+
+//     req.user = rows[0]; // attach company
+//     next();
+//   } catch (error) {
+//     console.error("Auth error:", error.message);
+//     return res
+//       .status(401)
+//       .json({ success: false, message: "Invalid token or session expired" });
+//   }
+// };
 
 const authAdmin = async (req, res, next) => {
   try {

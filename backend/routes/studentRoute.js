@@ -15,14 +15,15 @@ import { authStudent } from "../middleware/auth.js";
 const studentRoute = express.Router();
 
 studentRoute.post(
-  "/applyInternship/:id",authStudent,
+  "/applyInternship/:internship_id",
+  authStudent,
   uploadApplicationFiles,
   applyInternships
 );
 studentRoute.delete("/cancelApplication/:id", cancelApplication);
-studentRoute.get("/internships", fetchInternships); //authStudent
-studentRoute.get("/myInternship", myInternship);
-studentRoute.get("/viewFeedbacks", feedbacks);
+studentRoute.get("/internships", authStudent, fetchInternships); //authStudent
+studentRoute.get("/myInternship", authStudent, myInternship);
+studentRoute.get("/viewFeedbacks", authStudent, feedbacks);
 studentRoute.put("/updateProfile", updateProfile);
 studentRoute.post(
   "/uploadReport",

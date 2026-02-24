@@ -6,6 +6,7 @@ import {
   deleteMentor,
   getStudents,
   facultyViewReports,
+  evaluation,
 } from "../controller/facultyController.js";
 import { authFaculty } from "../middleware/auth.js";
 const facultyRoute = express.Router();
@@ -13,7 +14,7 @@ const facultyRoute = express.Router();
 facultyRoute.post("/assignMentor", assignMentor);
 facultyRoute.get("/companyEvaluation", companyEvaluation);
 facultyRoute.get("/students", authFaculty, getStudents);
-// facultyRoute.get("/companyEvaluation/:id", evaluation);
+facultyRoute.get("/companyEvaluation/:evaluation_id", evaluation);
 facultyRoute.delete("/deleteMentor/:id", deleteMentor);
 facultyRoute.put("/changeMentor/:id", changeMentor);
 facultyRoute.get("/reports", facultyViewReports);

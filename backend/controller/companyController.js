@@ -211,9 +211,9 @@ const getApplications = async (req, res) => {
       SELECT 
         a.application_id,
         a.status,
-        a.submitted_at,
+       
         a.cv_file,
-        a.cover_letter_file,
+        a.academic_doc,
 
         s.student_id,
         s.full_name AS student_name,
@@ -226,7 +226,7 @@ const getApplications = async (req, res) => {
       JOIN student s ON a.student_id = s.student_id
       JOIN internship i ON a.internship_id = i.internship_id
       WHERE i.company_id = ?
-      ORDER BY a.submitted_at DESC
+     
     `;
 
     const [applications] = await db.query(query, [company_id]);
@@ -305,7 +305,16 @@ const accept = async (req, res) => {
 
     // 2️⃣ Get student_id & internship_id from application
     const [rows] = await db.query(
-      "SELECT student_id, internship_id, company_id FROM application WHERE application_id = ?",
+      `
+      SELECT 
+        a.student_id,
+        a.internship_id,
+        i.company_id
+      FROM application a
+      JOIN internship i 
+        ON a.internship_id = i.internship_id
+      WHERE a.application_id = ?
+      `,
       [application_id]
     );
 
@@ -493,6 +502,57 @@ const postEvaluation = async (req, res) => {
   }
 };
 
+const activeInternships = async (req, res) => {
+  try {
+    const company_id = req.user.company_id;
+
+    if (!company_id) {
+      return res.status(401).json({
+        success: false,
+        message: "Unauthorized access",
+      });
+    }
+
+    const [rows] = await db.query(
+      `
+      SELECT 
+        i.internship_id,
+        i.title,
+        i.start_date,
+        i.end_date,
+        i.department,
+        i.location,
+
+        COUNT(si.student_id) AS active_students
+
+      FROM internship i
+      JOIN student_internship si 
+        ON i.internship_id = si.internship_id
+
+      WHERE 
+        i.company_id = ?
+        AND si.status = 'in progress'
+        AND CURDATE() BETWEEN i.start_date AND i.end_date
+
+      GROUP BY i.internship_id
+      `,
+      [company_id]
+    );
+
+    res.status(200).json({
+      success: true,
+      count: rows.length,
+      internships: rows,
+    });
+  } catch (error) {
+    console.error("Active internships error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to fetch active internships",
+    });
+  }
+};
+
 export {
   postInternship,
   accept,
@@ -504,4 +564,5 @@ export {
   assignMentor,
   updateProfile,
   viewApplication,
+  activeInternships,
 };

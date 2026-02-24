@@ -264,7 +264,7 @@ const myInternship = async (req, res) => {
       JOIN company c
         ON i.company_id = c.company_id
       WHERE si.student_id = ?
-        AND si.status = 'accepted'
+        AND si.status = 'in progress'
       LIMIT 1
       `,
       [studentId]
@@ -394,7 +394,41 @@ const submitSignedReportToFaculty = async (req, res) => {
 
 const feedbacks = async (req, res) => {
   try {
-  } catch (error) {}
+    const student_id = req.user.student_id; // from auth middleware
+
+    // fetch all feedback for this student
+    const [rows] = await db.query(
+      `SELECT 
+         feedback_id,
+         internship_id,
+         company_mentor_id,
+         feedback_type,
+         rating,
+         strengths,
+         weaknesses,
+         suggestions,
+         overall_comment,
+         created_at,
+         updated_at
+         
+       FROM mentor_feedback 
+       
+       WHERE student_id = ?
+       ORDER BY created_at DESC`,
+      [student_id]
+    );
+
+    res.json({
+      success: true,
+      feedbacks: rows,
+    });
+  } catch (error) {
+    console.error("Fetch feedback error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to fetch feedbacks",
+    });
+  }
 };
 
 export {

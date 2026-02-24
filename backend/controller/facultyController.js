@@ -192,6 +192,65 @@ const changeMentor = async (req, res) => {
   }
 };
 
+const evaluation = async (req, res) => {
+  try {
+    const { evaluation_id } = req.params;
+
+    // 1️⃣ Validate param
+    if (!evaluation_id) {
+      return res.status(400).json({
+        success: false,
+        message: "Evaluation ID is required",
+      });
+    }
+
+    // 2️⃣ Fetch evaluation with related data
+    const [rows] = await db.query(
+      `
+      SELECT 
+        ie.evaluation_id,
+        ie.total_mark,
+        ie.assessment_pdf_url,
+        ie.attendance_pdf_url,
+        ie.submitted_at,
+
+        s.student_id,
+        s.full_name AS student_name,
+        s.email AS student_email,
+
+        i.internship_id,
+        i.title AS internship_title
+
+      FROM internship_evaluation ie
+      JOIN student s ON ie.student_id = s.student_id
+      JOIN internship i ON ie.internship_id = i.internship_id
+      WHERE ie.evaluation_id = ?
+      `,
+      [evaluation_id]
+    );
+
+    // 3️⃣ Not found
+    if (rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: "Evaluation not found",
+      });
+    }
+
+    // 4️⃣ Success
+    res.status(200).json({
+      success: true,
+      evaluation: rows[0],
+    });
+  } catch (error) {
+    console.error("Fetch evaluation error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to fetch evaluation",
+    });
+  }
+};
+
 export {
   assignMentor,
   companyEvaluation,
@@ -199,4 +258,5 @@ export {
   changeMentor,
   getStudents,
   facultyViewReports,
+  evaluation,
 };

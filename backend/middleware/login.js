@@ -111,8 +111,14 @@ router.post("/", async (req, res) => {
 
       if (!match) return null;
 
+      // const token = jwt.sign(
+      //   { id: company.company_id, role: "company" },
+      //   process.env.JWT_SECRET,
+      //   { expiresIn: "1d" }
+      // );
+
       const token = jwt.sign(
-        { id: company.company_id, role: "company" },
+        { company_id: company.company_id },
         process.env.JWT_SECRET,
         { expiresIn: "1d" }
       );
