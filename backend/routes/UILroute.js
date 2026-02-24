@@ -15,10 +15,10 @@ const UILroute = express.Router();
 UILroute.get("/internships", allInternships);
 UILroute.get("/internships/pending", pendingInternships);
 UILroute.get("/companyRequest", companyRequest);
-UILroute.put("/rejectInternship/:id/reject", rejectInternship);
-UILroute.put("/approveCompany/:id/approve", approveInternship);
-UILroute.put("/acceptCompany/:id/approve", acceptCompany);
-UILroute.put("/rejectCompany/:id/reject", rejectCompany);
+UILroute.put("/rejectInternship/:internship_id", rejectInternship);
+UILroute.put("/approveInternship/:internship_id", approveInternship);
+UILroute.put("/acceptCompany/:company_id", acceptCompany);
+UILroute.put("/rejectCompany/:company_id", rejectCompany);
 UILroute.get("/companies/active", getActiveCompanies);
 
 export default UILroute;

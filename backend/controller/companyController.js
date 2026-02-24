@@ -1,13 +1,13 @@
 import db from "../config/mysql.js";
 import bcrypt from "bcryptjs";
-import fs from "fs";
 import generateAssessmentPDF from "../utils/generateAssessmentPDF.js";
 import generateAttendancePDF from "../utils/generateAttendancePDF.js";
-import uploadPDF from "../utils/uploadPDF.js";
+import { uploadToCloudinary } from "../utils/cloudinaryUpload.js";
 
 const postInternship = async (req, res) => {
+  const company_id = req.user.company_id;
   try {
-    const { title, description, image, start_date, end_date } = req.body;
+    const { title, description, image, start_date, end_date, skill } = req.body;
 
     // Basic validation
     if (!title || !description || !start_date || !end_date) {
@@ -20,8 +20,8 @@ const postInternship = async (req, res) => {
     // Insert into database
     const query = `
       INSERT INTO internship 
-      (title, description, image, start_date, end_date)
-      VALUES (?, ?, ?, ?, ?)
+      (title, description, image, start_date, end_date,skills,company_id)
+      VALUES (?, ?, ?, ?, ?,?,?)
     `;
 
     const [result] = await db.query(query, [
@@ -30,6 +30,8 @@ const postInternship = async (req, res) => {
       image || null,
       start_date,
       end_date,
+      skill,
+      company_id,
     ]);
 
     res.status(201).json({
@@ -209,9 +211,9 @@ const getApplications = async (req, res) => {
       SELECT 
         a.application_id,
         a.status,
-        a.submitted_at,
+       
         a.cv_file,
-        a.cover_letter_file,
+        a.academic_doc,
 
         s.student_id,
         s.full_name AS student_name,
@@ -224,7 +226,7 @@ const getApplications = async (req, res) => {
       JOIN student s ON a.student_id = s.student_id
       JOIN internship i ON a.internship_id = i.internship_id
       WHERE i.company_id = ?
-      ORDER BY a.submitted_at DESC
+     
     `;
 
     const [applications] = await db.query(query, [company_id]);
@@ -303,7 +305,16 @@ const accept = async (req, res) => {
 
     // 2️⃣ Get student_id & internship_id from application
     const [rows] = await db.query(
-      "SELECT student_id, internship_id, company_id FROM application WHERE application_id = ?",
+      `
+      SELECT 
+        a.student_id,
+        a.internship_id,
+        i.company_id
+      FROM application a
+      JOIN internship i 
+        ON a.internship_id = i.internship_id
+      WHERE a.application_id = ?
+      `,
       [application_id]
     );
 
@@ -431,28 +442,31 @@ const postEvaluation = async (req, res) => {
     );
 
     if (!student) {
-      return res.status(404).json({ message: "Student not found" });
+      return res.status(404).json({
+        success: false,
+        message: "Student not found",
+      });
     }
 
-    /* ================= GENERATE PDFs ================= */
-    const assessmentPath = await generateAssessmentPDF({
+    /* ================= GENERATE PDFs (BUFFER) ================= */
+    const assessmentBuffer = await generateAssessmentPDF({
       student,
       assessment,
     });
 
-    const attendancePath = await generateAttendancePDF({
+    const attendanceBuffer = await generateAttendancePDF({
       student,
       attendanceData,
     });
 
     /* ================= UPLOAD TO CLOUDINARY ================= */
-    const assessmentURL = await uploadPDF(
-      assessmentPath,
+    const assessmentURL = await uploadToCloudinary(
+      assessmentBuffer,
       "internship/assessment"
     );
 
-    const attendanceURL = await uploadPDF(
-      attendancePath,
+    const attendanceURL = await uploadToCloudinary(
+      attendanceBuffer,
       "internship/attendance"
     );
 
@@ -472,10 +486,6 @@ const postEvaluation = async (req, res) => {
       [student_id, internship_id, assessmentURL, attendanceURL, totalMark]
     );
 
-    /* ================= CLEAN LOCAL FILES ================= */
-    fs.unlinkSync(assessmentPath);
-    fs.unlinkSync(attendancePath);
-
     res.status(201).json({
       success: true,
       message: "Evaluation submitted successfully",
@@ -492,6 +502,57 @@ const postEvaluation = async (req, res) => {
   }
 };
 
+const activeInternships = async (req, res) => {
+  try {
+    const company_id = req.user.company_id;
+
+    if (!company_id) {
+      return res.status(401).json({
+        success: false,
+        message: "Unauthorized access",
+      });
+    }
+
+    const [rows] = await db.query(
+      `
+      SELECT 
+        i.internship_id,
+        i.title,
+        i.start_date,
+        i.end_date,
+        i.department,
+        i.location,
+
+        COUNT(si.student_id) AS active_students
+
+      FROM internship i
+      JOIN student_internship si 
+        ON i.internship_id = si.internship_id
+
+      WHERE 
+        i.company_id = ?
+        AND si.status = 'in progress'
+        AND CURDATE() BETWEEN i.start_date AND i.end_date
+
+      GROUP BY i.internship_id
+      `,
+      [company_id]
+    );
+
+    res.status(200).json({
+      success: true,
+      count: rows.length,
+      internships: rows,
+    });
+  } catch (error) {
+    console.error("Active internships error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to fetch active internships",
+    });
+  }
+};
+
 export {
   postInternship,
   accept,
@@ -503,4 +564,5 @@ export {
   assignMentor,
   updateProfile,
   viewApplication,
+  activeInternships,
 };

@@ -10,18 +10,33 @@ import {
   assignMentor,
   updateProfile,
   viewApplication,
+  activeInternships,
 } from "../controller/companyController.js";
+import { authCompany } from "../middleware/auth.js";
 const companyRoute = express.Router();
 
-companyRoute.post("/postInternship", postInternship);
-companyRoute.post("/evaluation/:id", postEvaluation);
-companyRoute.delete("/deleteInternship/:id", deleteInternship);
-companyRoute.put("/updateInternship/:id", updateInternship);
-companyRoute.get("/getApplications", getApplications);
-companyRoute.get("/viewApplication/:id", viewApplication);
-companyRoute.put("/accept/:id", accept); //authStudent
-companyRoute.put("/reject/:id", reject);
-companyRoute.post("/assignMentor", assignMentor);
-companyRoute.put("/updateProfile", updateProfile);
+companyRoute.post("/postInternship", authCompany, postInternship);
+companyRoute.post("/evaluation/:id", authCompany, postEvaluation);
+companyRoute.delete(
+  "/deleteInternship/:internship_id",
+  authCompany,
+  deleteInternship
+);
+companyRoute.put(
+  "/updateInternship/:internship_id",
+  authCompany,
+  updateInternship
+);
+companyRoute.get("/getApplications", authCompany, getApplications);
+companyRoute.get(
+  "/viewApplication/:application_id",
+  authCompany,
+  viewApplication
+);
+companyRoute.get("/activeInternships", authCompany, activeInternships);
+companyRoute.put("/accept/:application_id", authCompany, accept);
+companyRoute.put("/reject/:application_id", authCompany, reject);
+companyRoute.post("/assignMentor", authCompany, assignMentor);
+companyRoute.put("/updateProfile", authCompany, updateProfile);
 
 export default companyRoute;
