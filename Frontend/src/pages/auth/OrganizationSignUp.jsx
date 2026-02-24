@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import SignUpProgressBar from '../../components/signup/SignUpProgressBar';
 import OrgInfoStep from '../../components/signup/OrgInfoStep';
@@ -7,7 +6,7 @@ import InternshipCapabilityStep from '../../components/signup/InternshipCapabili
 import DocumentUploadStep from '../../components/signup/DocumentUploadStep';
 import SignUpSuccess from '../../components/signup/SignUpSuccess';
 
-const RegisterOrganization = () => {
+const OrganizationSignUp = () => {
   const [step, setStep] = useState(1);
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [formData, setFormData] = useState({
@@ -106,4 +105,4 @@ const RegisterOrganization = () => {
   );
 };
 
-export default RegisterOrganization;
+export default OrganizationSignUp;

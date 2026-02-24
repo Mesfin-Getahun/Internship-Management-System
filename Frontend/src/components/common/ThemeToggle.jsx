@@ -1,43 +1,20 @@
+import React from "react";
+import { useTheme } from "../../context/ThemeContext";
 
-import React from 'react';
+const ThemeToggle = () => {
+  const { theme, toggleTheme } = useTheme();
 
-const ThemeToggle = ({ isDarkMode, toggleTheme }) => {
-  // If props are not passed correctly, fallback to reading the document root
-  const isDark = typeof isDarkMode === 'boolean'
-    ? isDarkMode
-    : (typeof window !== 'undefined' && document.documentElement.classList.contains('dark')) || false;
-
-  const handleClick = () => {
-    // Prefer the parent-provided handler if available.
-    if (typeof toggleTheme === 'function') {
-      console.debug('ThemeToggle: calling toggleTheme prop');
-      toggleTheme();
-    }
-
-    // Also ensure the document root reflects the toggled state immediately so styles change
-    // even if the parent doesn't update the `dark` class synchronously.
-    if (typeof window !== 'undefined') {
-      const root = document.documentElement;
-      try {
-        if (isDark) {
-          root.classList.remove('dark');
-          localStorage.setItem('theme', 'light');
-        } else {
-          root.classList.add('dark');
-          localStorage.setItem('theme', 'dark');
-        }
-      } catch (e) {
-        // ignore storage errors
-      }
-    }
-  };
+  const isDark = theme === "dark";
 
   return (
     <button
-      onClick={handleClick}
-      className="fixed top-6 right-6 z-50 p-3 rounded-2xl bg-white dark:bg-slate-800 shadow-xl border border-slate-200 dark:border-slate-700 hover:scale-110 active:scale-95 transition-all duration-300 group"
+      onClick={toggleTheme}
+      className="fixed top-6 right-6 z-50 p-3 rounded-2xl 
+      bg-white dark:bg-slate-800 
+      shadow-xl border border-slate-200 dark:border-slate-700 
+      hover:scale-110 active:scale-95 
+      transition-all duration-300 group"
       aria-label="Toggle Theme"
-      aria-pressed={isDark}
     >
       {isDark ? (
         <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-amber-400 group-hover:rotate-45 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
