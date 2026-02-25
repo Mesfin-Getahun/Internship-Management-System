@@ -1,4 +1,0 @@
-@import "tailwindcss";
-
-/* THIS LINE IS MANDATORY */
-@custom-variant dark (&:where(.dark, .dark *));
