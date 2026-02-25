@@ -1,12 +1,27 @@
 
 import React from 'react';
 
-const StudentOverview = ({ isPlaced = false }) => {
+// Exported helper for tests: maps appState to a readable internship status label.
+export const getInternshipLabel = (appState = 'NOT_STARTED') => {
+  switch (appState) {
+    case 'PENDING_UIL':
+      return 'Pending UIL Approval';
+    case 'ACTIVATED':
+      return 'Active';
+    case 'COMPLETED':
+      return 'Completed';
+    default:
+      return 'Not Started';
+  }
+};
+
+const StudentOverview = ({ appState = 'NOT_STARTED', isPlaced = false }) => {
+  const placed = isPlaced || appState === 'ACTIVATED' || appState === 'COMPLETED';
   const stats = [
-    { label: 'Active Internship', val: isPlaced ? 'Yes' : 'No', icon: 'M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745V6a2 2 0 012-2h14a2 2 0 012 2v7.255z', color: isPlaced ? 'emerald' : 'slate' },
+    { label: 'Active Internship', val: placed ? 'Yes' : 'No', icon: 'M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745V6a2 2 0 012-2h14a2 2 0 012 2v7.255z', color: placed ? 'emerald' : 'slate' },
     { label: 'Applications Sent', val: '8', icon: 'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01', color: 'blue' },
     { label: 'Application Status', val: '2 Accepted', icon: 'M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z', color: 'amber' },
-    { label: 'Pending Reports', val: isPlaced ? '1' : '0', icon: 'M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z', color: 'red' }
+    { label: 'Internship Status', val: getInternshipLabel(appState), icon: 'M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745V6a2 2 0 012-2h14a2 2 0 012 2v7.255z', color: 'indigo' }
   ];
 
   return (

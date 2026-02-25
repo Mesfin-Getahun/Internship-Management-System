@@ -26,8 +26,9 @@ studentRoute.get("/myInternship", authStudent, myInternship);
 studentRoute.get("/viewFeedbacks", authStudent, feedbacks);
 studentRoute.put("/updateProfile", updateProfile);
 studentRoute.post(
-  "/uploadReport",
+  "/uploadReport/:internship_id",
   uploadPDF.single("report"),
+  authStudent,
   uploadInternshipReport
 );
 studentRoute.put("/submitToFaculty/:report_id", submitSignedReportToFaculty);

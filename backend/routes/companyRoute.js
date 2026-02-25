@@ -16,7 +16,7 @@ import { authCompany } from "../middleware/auth.js";
 const companyRoute = express.Router();
 
 companyRoute.post("/postInternship", authCompany, postInternship);
-companyRoute.post("/evaluation/:id", authCompany, postEvaluation);
+companyRoute.post("/evaluation/:internship_id", authCompany, postEvaluation);
 companyRoute.delete(
   "/deleteInternship/:internship_id",
   authCompany,

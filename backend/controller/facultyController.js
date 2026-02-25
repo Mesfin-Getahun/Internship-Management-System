@@ -73,7 +73,7 @@ const assignMentor = async (req, res) => {
 
 const companyEvaluation = async (req, res) => {
   try {
-    const company_id = req.user.company_id; // from auth middleware
+    const faculty_name = req.user.faculty_name;
 
     const [evaluations] = await db.query(
       `
@@ -83,21 +83,26 @@ const companyEvaluation = async (req, res) => {
         ie.assessment_pdf_url,
         ie.attendance_pdf_url,
         ie.submitted_at,
-
+    
         s.student_id,
         s.full_name,
         s.email,
-
+        s.department,
+    
         i.internship_id,
-        i.title AS internship_title
-
+        i.title AS internship_title,
+        i.company_id
+    
       FROM internship_evaluation ie
-      JOIN student s ON ie.student_id = s.student_id
-      JOIN internship i ON ie.internship_id = i.internship_id
-      WHERE i.company_id = ?
+      JOIN student s 
+          ON ie.student_id = s.student_id
+      JOIN internship i 
+          ON ie.internship_id = i.internship_id
+    
+      WHERE s.faculty = ?
       ORDER BY ie.submitted_at DESC
       `,
-      [company_id]
+      [faculty_name]
     );
 
     res.status(200).json({

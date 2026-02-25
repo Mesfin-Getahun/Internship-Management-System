@@ -2,28 +2,16 @@ import PDFDocument from "pdfkit";
 import fs from "fs";
 import path from "path";
 
-/**
- * attendanceData example:
- * {
- *   months: 2, // or 4
- *   records: {
- *     Month1: {
- *       Week1: { Mon: "P", Tue: "P", Wed: "A", Thu: "P", Fri: "P" },
- *       Week2: {...}
- *     },
- *     Month2: {...}
- *   }
- * }
- */
-
-const generateAttendancePDF = async ({
-  student,
-  company,
-  supervisor,
-  attendanceData,
-}) => {
+const generateAttendancePDF = async ({ student, company, attendanceData }) => {
   const doc = new PDFDocument({ margin: 40, size: "A4" });
-  const filePath = path.resolve(`./pdfs/${student.student_id}_attendance.pdf`);
+  // ✅ Create pdf directory safely
+  const pdfDir = path.resolve("./pdfs");
+  if (!fs.existsSync(pdfDir)) {
+    fs.mkdirSync(pdfDir, { recursive: true });
+  }
+
+  // ✅ Now student exists here
+  const filePath = path.join(pdfDir, `${student.student_id}_attendance.pdf`);
 
   const stream = fs.createWriteStream(filePath);
   doc.pipe(stream);

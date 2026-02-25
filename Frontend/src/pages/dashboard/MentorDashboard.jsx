@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import MentorSidebar from '../../components/dashboard/mentor/MentorSidebar.jsx';
@@ -35,10 +34,9 @@ const MentorDashboard = () => {
       <main className="flex-grow pl-72 pr-8 pt-28 pb-12 overflow-x-hidden">
         <div className="max-w-7xl mx-auto">
           <Routes>
-            <Route path="/" element={<Navigate to="overview" replace />} />
-            <Route path="overview" element={<MentorOverview />} />
-            <Route path="my-students" element={<MyStudents />} />
-            <Route path="monitor-progress" element={<ProgressTracker />} />
+            <Route path="/" element={<MentorOverview />} />
+            <Route path="students" element={<MyStudents />} />
+            <Route path="progress" element={<ProgressTracker />} />
             <Route 
               path="weekly-reports" 
               element={<PlaceholderScreen title="Weekly Reports Review" description="Verify student task logs and provide feedback on their weekly technical submissions." />} 
@@ -52,6 +50,7 @@ const MentorDashboard = () => {
               path="profile" 
               element={<PlaceholderScreen title="Mentor Profile" description="Manage your academic background, specialization areas, and portal security settings." />} 
             />
+            <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </div>
       </main>

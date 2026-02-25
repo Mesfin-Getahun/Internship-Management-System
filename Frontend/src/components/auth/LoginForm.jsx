@@ -1,34 +1,15 @@
-
 import React from 'react';
 
-const LoginForm = ({ role, email, password, setEmail, setPassword, onSubmit, onBackToRoles, onRegisterOrg }) => {
-  const displayRole = role?.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
-  const isAcademicRole = ['student', 'mentor', 'faculty'].includes(role?.toLowerCase());
-
+const LoginForm = ({ email, password, setEmail, setPassword, onSubmit, onRegisterOrg }) => {
   return (
-    <form className="p-8" onSubmit={onSubmit}>
-      <p className="text-slate-400 dark:text-slate-500 text-sm mb-6 text-center">
-        Enter your credentials to access your {displayRole} dashboard
-      </p>
-      
-      {isAcademicRole && (
-        <div className="mb-6 p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-800/50 rounded-xl">
-          <div className="flex items-start gap-3">
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-blue-600 dark:text-blue-400 mt-0.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-            <p className="text-xs text-blue-700 dark:text-blue-300 leading-relaxed">
-              <span className="font-bold">First time logging in?</span> Use your University ID as your username. Default password is provided by your department.
-            </p>
-          </div>
-        </div>
-      )}
-      
+    <form className="pt-8 pb-4 px-2" onSubmit={onSubmit}>
       <div className="mb-5">
-        <label className="block text-slate-700 dark:text-slate-300 font-semibold mb-2 text-sm">Email or Username</label>
-        <input 
-          type="text" 
-          placeholder="e.g. ID/2023/1234"
+        <label className="block text-slate-700 dark:text-slate-300 font-semibold mb-2 text-sm">
+          Email or Username
+        </label>
+        <input
+          type="text"
+          placeholder="welde@example.com"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           required
@@ -36,10 +17,13 @@ const LoginForm = ({ role, email, password, setEmail, setPassword, onSubmit, onB
         />
       </div>
 
-      <div className="mb-6">
-        <label className="block text-slate-700 dark:text-slate-300 font-semibold mb-2 text-sm">Password</label>
-        <input 
-          type="password" 
+      <div className="mb-4">
+        <label className="block text-slate-700 dark:text-slate-300 font-semibold mb-2 text-sm">
+          Password
+        </label>
+        <input
+          type="password"
+          autoComplete="current-password"
           placeholder="••••••••"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
@@ -48,26 +32,31 @@ const LoginForm = ({ role, email, password, setEmail, setPassword, onSubmit, onB
         />
       </div>
 
-      <button 
+      <button
         type="submit"
-        className="w-full py-4 bg-slate-800 dark:bg-blue-600 text-white rounded-xl font-bold hover:bg-slate-900 dark:hover:bg-blue-500 transition-all shadow-lg active:scale-95 mb-6"
+        className="w-full mt-2 py-3.5 bg-[#2563ff] text-white rounded-xl font-semibold hover:bg-blue-600 transition-all shadow-md active:scale-95 mb-4"
       >
-        Sign In as {displayRole}
+        Sign In
       </button>
 
-      <div className="text-center">
-        <a href="#" className="text-blue-600 dark:text-blue-400 font-semibold text-sm hover:underline">Forgot password?</a>
+      <div className="text-center mb-6">
+        <button
+          type="button"
+          className="text-blue-600 dark:text-blue-400 font-semibold text-sm hover:underline"
+        >
+          Forgot password?
+        </button>
       </div>
 
-      <div className="mt-8 pt-6 border-t border-slate-100 dark:border-slate-800 text-center">
+      <div className="pt-4 border-t border-slate-100 dark:border-slate-800 text-center">
         <p className="text-slate-500 dark:text-slate-400 text-sm">
-          {role === 'organization' ? "Not registered?" : "New to the system?"}
-          <button 
+          New to the system?
+          <button
             type="button"
-            onClick={role === 'organization' ? onRegisterOrg : onBackToRoles}
+            onClick={onRegisterOrg}
             className="ml-1 text-blue-600 dark:text-blue-400 font-bold hover:underline"
           >
-            {role === 'organization' ? 'Register Company' : 'View Instructions'}
+            Register Organization
           </button>
         </p>
       </div>

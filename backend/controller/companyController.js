@@ -3,6 +3,7 @@ import bcrypt from "bcryptjs";
 import generateAssessmentPDF from "../utils/generateAssessmentPDF.js";
 import generateAttendancePDF from "../utils/generateAttendancePDF.js";
 import { uploadToCloudinary } from "../utils/cloudinaryUpload.js";
+import fs from "fs";
 
 const postInternship = async (req, res) => {
   const company_id = req.user.company_id;
@@ -433,12 +434,24 @@ const assignMentor = async (req, res) => {
 
 const postEvaluation = async (req, res) => {
   try {
-    const { student_id, internship_id, assessment, attendanceData } = req.body;
+    const { assessment, attendanceData } = req.body;
+    const { internship_id } = req.params;
+    const company = req.user.company_name;
 
     /* ================= FETCH STUDENT ================= */
     const [[student]] = await db.query(
-      "SELECT * FROM student WHERE student_id = ?",
-      [student_id]
+      `
+      SELECT 
+          s.*,
+          cm.full_name AS supervisor
+      FROM student s
+      JOIN student_internship si 
+          ON s.student_id = si.student_id
+      JOIN company_mentor cm
+          ON si.company_mentor_id = cm.company_mentor_id
+      WHERE si.internship_id = ?
+      `,
+      [internship_id]
     );
 
     if (!student) {
@@ -448,27 +461,41 @@ const postEvaluation = async (req, res) => {
       });
     }
 
-    /* ================= GENERATE PDFs (BUFFER) ================= */
-    const assessmentBuffer = await generateAssessmentPDF({
+    const assessmentPath = await generateAssessmentPDF({
       student,
       assessment,
+      company,
     });
 
-    const attendanceBuffer = await generateAttendancePDF({
-      student,
-      attendanceData,
-    });
+    const assessmentBuffer = fs.readFileSync(assessmentPath);
 
-    /* ================= UPLOAD TO CLOUDINARY ================= */
     const assessmentURL = await uploadToCloudinary(
       assessmentBuffer,
-      "internship/assessment"
+      "internship/assessment",
+      `${student.student_id}_assessment.pdf`
     );
+
+    // const assessmentURL = await uploadToCloudinary(
+    //   assessmentPath,
+    //   "internship/assessment"
+    // );
+
+    const attendancePath = await generateAttendancePDF({
+      student,
+      attendanceData,
+      company,
+    });
+
+    const attendanceBuffer = fs.readFileSync(attendancePath);
 
     const attendanceURL = await uploadToCloudinary(
       attendanceBuffer,
-      "internship/attendance"
+      "internship/attendance",
+      `${student.student_id}_attendance.pdf`
     );
+
+    fs.unlinkSync(assessmentPath);
+    fs.unlinkSync(attendancePath);
 
     /* ================= CALCULATE TOTAL ================= */
     const totalMark =
@@ -483,7 +510,13 @@ const postEvaluation = async (req, res) => {
       (student_id, internship_id, assessment_pdf_url, attendance_pdf_url, total_mark)
       VALUES (?, ?, ?, ?, ?)
       `,
-      [student_id, internship_id, assessmentURL, attendanceURL, totalMark]
+      [
+        student.student_id,
+        internship_id,
+        assessmentURL,
+        attendanceURL,
+        totalMark,
+      ]
     );
 
     res.status(201).json({

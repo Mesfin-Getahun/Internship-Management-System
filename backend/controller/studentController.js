@@ -290,67 +290,10 @@ const myInternship = async (req, res) => {
   }
 };
 
-// const uploadInternshipReport = async (req, res) => {
-//   try {
-//     const student_id = req.user.student_id;
-
-//     if (!req.file) {
-//       return res.status(400).json({
-//         success: false,
-//         message: "PDF report is required",
-//       });
-//     }
-
-//     // 1️⃣ get active internship
-//     const [rows] = await db.query(
-//       `SELECT internship_id
-//        FROM application
-//        WHERE student_id = ?
-//          AND status = 'accepted'
-//        LIMIT 1`,
-//       [student_id]
-//     );
-
-//     if (rows.length === 0) {
-//       return res.status(403).json({
-//         success: false,
-//         message: "No active internship found",
-//       });
-//     }
-
-//     const internship_id = rows[0].internship_id;
-
-//     // 2️⃣ upload PDF to cloudinary
-//     const reportUrl = await uploadToCloudinary(
-//       req.file.buffer,
-//       "internship_reports"
-//     );
-
-//     // 3️⃣ save report
-//     await db.query(
-//       `INSERT INTO internship_report
-//        (student_id, internship_id, report_url)
-//        VALUES (?, ?, ?)`,
-//       [student_id, internship_id, reportUrl]
-//     );
-
-//     res.status(201).json({
-//       success: true,
-//       message: "Internship report uploaded successfully",
-//       reportUrl,
-//     });
-//   } catch (error) {
-//     console.error(error);
-//     res.status(500).json({
-//       success: false,
-//       message: "Failed to upload internship report",
-//     });
-//   }
-// };
-
 const uploadInternshipReport = async (req, res) => {
   try {
     const student_id = req.user.student_id;
+    const { internship_id } = req.params;
 
     if (!req.file) {
       return res.status(400).json({ message: "Report PDF required" });
@@ -358,18 +301,20 @@ const uploadInternshipReport = async (req, res) => {
 
     const reportUrl = await uploadToCloudinary(
       req.file.buffer,
-      "internship_reports/original"
+      "internship_reports/original",
+      req.file.originalname
     );
 
     await db.query(
       `INSERT INTO internship_report
        (student_id, internship_id, report_url, status)
        VALUES (?, ?, ?, 'submitted')`,
-      [student_id, req.body.internship_id, reportUrl]
+      [student_id, internship_id, reportUrl]
     );
 
     res.json({ success: true, reportUrl });
-  } catch (err) {
+  } catch (error) {
+    console.log(error);
     res.status(500).json({ success: false });
   }
 };

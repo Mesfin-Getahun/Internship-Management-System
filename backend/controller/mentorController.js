@@ -59,7 +59,8 @@ const mentorSignReport = async (req, res) => {
 
     const signedUrl = await uploadToCloudinary(
       req.file.buffer,
-      "internship_reports/signed"
+      "internship_reports/signed",
+      req.file.originalname
     );
 
     await db.query(
@@ -70,7 +71,7 @@ const mentorSignReport = async (req, res) => {
     );
 
     res.json({ success: true, signedUrl });
-  } catch (err) {
+  } catch (error) {
     console.log(error);
     res.status(500).json({ success: false });
   }
