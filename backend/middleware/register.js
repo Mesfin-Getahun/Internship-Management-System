@@ -1,13 +1,3 @@
-// import express from "express";
-// import db from "../config/mysql.js";
-
-// const router = express.Router();
-
-// router.post("/", async (req, res) => {
-//   try {
-//   } catch (error) {}
-// });
-
 import bcrypt from "bcryptjs";
 import db from "../config/mysql.js";
 
@@ -52,14 +42,13 @@ export const registerStudent = async (req, res) => {
 
 export const registerCompany = async (req, res) => {
   try {
-    const { company_id, company_name, email, phone_number, password } =
-      req.body;
+    const { company_name, email, phone_number, password } = req.body;
 
     const hashedPassword = await bcrypt.hash(password, 10);
 
     await db.query(
       `INSERT INTO company
-       (company_id, company_name, email, phone_number, password, status)
+       ( company_name, email, phone_number, password, status)
        VALUES (?, ?, ?, ?, ?, 'pending')`,
       [company_id, company_name, email, phone_number, hashedPassword]
     );
