@@ -1,6 +1,6 @@
 import React from 'react';
 const SignUpProgressBar = ({ currentStep, totalSteps }) => {
-  const steps = ['Org Info', 'Contact Person', 'Capabilities', 'Documents'];
+  const steps = ['Org Info', 'Documents'];
   return (
     <div className="mb-10">
       <div className="flex justify-between relative">
