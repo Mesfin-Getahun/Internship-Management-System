@@ -40,8 +40,7 @@ const DocumentUploadStep = ({ formData, updateFormData, errors }) => {
   return (
     <div className="space-y-8 animate-fade-in">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-        <FileUploadField label="Business License" field="licenseFile" required />
-        <FileUploadField label="Official Registration Document" field="regDocFile" required />
+        <FileUploadField label="Business License (Optional)" field="licenseFile" />
         <div className="md:col-span-2">
           <FileUploadField label="Company Profile (Optional)" field="profileFile" />
         </div>

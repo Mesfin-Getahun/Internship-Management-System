@@ -1,8 +1,6 @@
 import React, { useState } from 'react';
 import SignUpProgressBar from '../../components/signup/SignUpProgressBar';
 import OrgInfoStep from '../../components/signup/OrgInfoStep';
-import ContactPersonStep from '../../components/signup/ContactPersonStep';
-import InternshipCapabilityStep from '../../components/signup/InternshipCapabilityStep';
 import DocumentUploadStep from '../../components/signup/DocumentUploadStep';
 import SignUpSuccess from '../../components/signup/SignUpSuccess';
 
@@ -10,10 +8,9 @@ const OrganizationSignUp = () => {
   const [step, setStep] = useState(1);
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [formData, setFormData] = useState({
-    orgName: '', orgType: '', industry: '', regNumber: '', website: '', orgEmail: '', orgPhone: '', address: '', city: '', region: '',
-    adminName: '', adminPosition: '', adminEmail: '', adminPhone: '', username: '', password: '',
-    offeredFields: [], maxInterns: '5', duration: '3 months', description: '',
-    licenseFile: null, regDocFile: null, profileFile: null, agreed: false
+    orgName: '', orgType: '', industry: '', website: '', orgEmail: '', orgPhone: '', address: '', city: '', region: '',
+    password: '', confirmPassword: '',
+    licenseFile: null, profileFile: null, agreed: false
   });
   const [errors, setErrors] = useState({});
 
@@ -29,20 +26,13 @@ const OrganizationSignUp = () => {
     const newErrors = {};
     if (step === 1) {
       if (!formData.orgName) newErrors.orgName = 'Organization name is required';
-      if (!formData.regNumber) newErrors.regNumber = 'Registration number is required';
       if (!formData.orgEmail) newErrors.orgEmail = 'Email is required';
       else if (!/\S+@\S+\.\S+/.test(formData.orgEmail)) newErrors.orgEmail = 'Invalid email format';
       if (!formData.orgPhone) newErrors.orgPhone = 'Phone is required';
-    } else if (step === 2) {
-      if (!formData.adminName) newErrors.adminName = 'Full name is required';
-      if (!formData.adminEmail) newErrors.adminEmail = 'Admin email is required';
-      if (!formData.username) newErrors.username = 'Username is required';
-      else if (formData.username.length < 4) newErrors.username = 'Username too short';
       if (!formData.password) newErrors.password = 'Password is required';
       else if (formData.password.length < 8) newErrors.password = 'Min 8 characters';
-    } else if (step === 3) {
-      if (formData.description.length < 20) newErrors.description = 'Please provide a more detailed description (min 20 chars)';
-    } else if (step === 4) {
+      if (formData.password !== formData.confirmPassword) newErrors.confirmPassword = 'Passwords do not match';
+    } else if (step === 2) {
       if (!formData.agreed) newErrors.agreed = 'You must agree to the terms';
     }
     setErrors(newErrors);
@@ -77,19 +67,17 @@ const OrganizationSignUp = () => {
             <p className="text-blue-100 opacity-90">Register your organization to offer internships. Your request will be reviewed by the University Industry Linkage Office.</p>
           </div>
           <div className="p-8 md:p-12">
-            <SignUpProgressBar currentStep={step} totalSteps={4} />
+            <SignUpProgressBar currentStep={step} totalSteps={2} />
             <form onSubmit={handleSubmit}>
               {step === 1 && <OrgInfoStep formData={formData} updateFormData={updateFormData} errors={errors} />}
-              {step === 2 && <ContactPersonStep formData={formData} updateFormData={updateFormData} errors={errors} />}
-              {step === 3 && <InternshipCapabilityStep formData={formData} updateFormData={updateFormData} errors={errors} />}
-              {step === 4 && <DocumentUploadStep formData={formData} updateFormData={updateFormData} errors={errors} />}
+              {step === 2 && <DocumentUploadStep formData={formData} updateFormData={updateFormData} errors={errors} />}
 
               <div className="mt-12 flex justify-between items-center pt-8 border-t border-slate-100">
                 <button type="button" onClick={handleBack} disabled={step === 1} className={`flex items-center gap-2 px-6 py-2.5 rounded-lg font-semibold transition-all ${step === 1 ? 'text-slate-300 cursor-not-allowed' : 'text-slate-600 hover:bg-slate-50'}`}>
                   ‹ Back
                 </button>
 
-                {step < 4 ? (
+                {step < 2 ? (
                   <button type="button" onClick={handleNext} className="flex items-center gap-2 bg-blue-900 text-white px-8 py-2.5 rounded-lg font-semibold hover:bg-blue-950 transition-all shadow-lg shadow-blue-900/20">
                     Next Step ›
                   </button>
