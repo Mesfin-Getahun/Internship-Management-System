@@ -14,7 +14,6 @@ import {
   createCompanyMentor,
   createFaculty,
   createMentor,
-  registerCompany,
 } from "./middleware/register.js";
 
 import router from "./middleware/login.js";
@@ -36,7 +35,6 @@ app.use("/api/UIL", UILroute);
 app.use("/api/registerStudent", registerStudent);
 app.use("/api/registerMentor", createMentor);
 app.use("/api/registerCompanyMentor", createCompanyMentor);
-app.use("/api/registerCompany", registerCompany);
 app.use("/api/registerFaculty", createFaculty);
 //app.use("/api/registerUIL", UILroute);
 

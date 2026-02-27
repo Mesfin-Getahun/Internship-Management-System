@@ -11,10 +11,23 @@ import {
   updateProfile,
   viewApplication,
   activeInternships,
+  registerCompany,
 } from "../controller/companyController.js";
 import { authCompany } from "../middleware/auth.js";
+import multer from "multer";
+
 const companyRoute = express.Router();
 
+const upload = multer({ storage: multer.memoryStorage() });
+
+companyRoute.post(
+  "/register",
+  upload.fields([
+    { name: "profileFile", maxCount: 1 },
+    { name: "licenseFile", maxCount: 1 },
+  ]),
+  registerCompany
+);
 companyRoute.post("/postInternship", authCompany, postInternship);
 companyRoute.post("/evaluation/:internship_id", authCompany, postEvaluation);
 companyRoute.delete(

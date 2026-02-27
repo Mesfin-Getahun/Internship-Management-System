@@ -40,29 +40,6 @@ export const registerStudent = async (req, res) => {
   }
 };
 
-export const registerCompany = async (req, res) => {
-  try {
-    const { company_name, email, phone_number, password } = req.body;
-
-    const hashedPassword = await bcrypt.hash(password, 10);
-
-    await db.query(
-      `INSERT INTO company
-       ( company_name, email, phone_number, password, status)
-       VALUES (?, ?, ?, ?, ?, 'pending')`,
-      [company_id, company_name, email, phone_number, hashedPassword]
-    );
-
-    res.status(201).json({
-      success: true,
-      message: "Company registration submitted for approval",
-    });
-  } catch (error) {
-    console.log(error);
-    res.status(500).json({ success: false });
-  }
-};
-
 export const createCompanyMentor = async (req, res) => {
   try {
     const { company_mentor_id, full_name, email, phone_number, password } =

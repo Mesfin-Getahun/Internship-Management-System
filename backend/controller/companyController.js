@@ -586,6 +586,122 @@ const activeInternships = async (req, res) => {
   }
 };
 
+// const registerCompany = async (req, res) => {
+//   try {
+//     const { company_name, email, phone_number, password } = req.body;
+
+//     const hashedPassword = await bcrypt.hash(password, 10);
+
+//     await db.query(
+//       `INSERT INTO company
+//        ( company_name, email, phone_number, password, status)
+//        VALUES (?, ?, ?, ?, ?, 'pending')`,
+//       [company_name, email, phone_number, hashedPassword]
+//     );
+
+//     res.status(201).json({
+//       success: true,
+//       message: "Company registration submitted for approval",
+//     });
+//   } catch (error) {
+//     console.log(error);
+//     res.status(500).json({ success: false });
+//   }
+// };
+
+const registerCompany = async (req, res) => {
+  try {
+    const {
+      orgName,
+      orgType,
+      industry,
+      website,
+      orgEmail,
+      orgPhone,
+      address,
+      city,
+      region,
+      password,
+      confirmPassword,
+      agreed,
+    } = req.body;
+
+    if (password !== confirmPassword) {
+      return res.status(400).json({
+        success: false,
+        message: "Passwords do not match",
+      });
+    }
+
+    if (!agreed) {
+      return res.status(400).json({
+        success: false,
+        message: "You must accept terms",
+      });
+    }
+
+    const agreedValue = agreed === "true" || agreed === true ? 1 : 0;
+
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    /* ===== Upload Files ===== */
+
+    let profileURL = null;
+    let licenseURL = null;
+
+    if (req.files?.profileFile) {
+      profileURL = await uploadToCloudinary(
+        req.files.profileFile[0].buffer,
+        "company/profile"
+      );
+    }
+
+    if (req.files?.licenseFile) {
+      licenseURL = await uploadToCloudinary(
+        req.files.licenseFile[0].buffer,
+        "company/license"
+      );
+    }
+
+    /* ===== Insert into DB ===== */
+
+    await db.query(
+      `
+      INSERT INTO company
+      (company_name, company_type, industry, website, email, phone_number,
+       location, city, region, password, profile_pic, license_url, agreed, status)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending')
+      `,
+      [
+        orgName,
+        orgType,
+        industry,
+        website,
+        orgEmail,
+        orgPhone,
+        address,
+        city,
+        region,
+        hashedPassword,
+        profileURL,
+        licenseURL,
+        agreedValue,
+      ]
+    );
+
+    res.status(201).json({
+      success: true,
+      message: "Company registered successfully",
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({
+      success: false,
+      message: "Registration failed",
+    });
+  }
+};
+
 export {
   postInternship,
   accept,
@@ -598,4 +714,5 @@ export {
   updateProfile,
   viewApplication,
   activeInternships,
+  registerCompany,
 };
