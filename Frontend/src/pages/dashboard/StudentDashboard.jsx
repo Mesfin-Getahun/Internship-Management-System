@@ -1,11 +1,18 @@
 import React from "react";
 import { Routes, Route, Navigate, useLocation } from "react-router-dom";
+import { useAuth } from "../../AuthContext";
 import StudentNavbar from "../../components/dashboard/student/StudentNavbar.jsx";
 import StudentSidebar from "../../components/dashboard/student/StudentSidebar.jsx";
 import StudentOverview from "../../components/dashboard/student/StudentOverview.jsx";
 import InternshipOpportunities from "../../components/dashboard/student/InternshipOpportunities.jsx";
 import MyApplications from "../../components/dashboard/student/MyApplications.jsx";
 import WeeklyReports from "../../components/dashboard/student/WeeklyReports.jsx";
+import LetterRequests from "../../components/dashboard/student/LetterRequests.jsx";
+import StipendApplication from "../../components/dashboard/student/StipendApplication.jsx";
+import StudentProfile from "./StudentProfile.jsx";
+import FeedbackAndEvaluation from "../../components/dashboard/student/FeedbackAndEvaluation.jsx";
+import InternshipProcess from "../../components/dashboard/student/InternshipProcess.jsx";
+import InternshipStatus from "../../components/dashboard/student/InternshipStatus.jsx";
 
 const PlaceholderScreen = ({ title, description }) => (
   <div className="p-20 text-center animate-fade-in bg-white dark:bg-slate-900 rounded-3xl border border-slate-100 dark:border-slate-800 shadow-sm">
@@ -39,22 +46,28 @@ const PlaceholderScreen = ({ title, description }) => (
 
 const StudentDashboard = () => {
   const location = useLocation();
+  const { user } = useAuth();
   const activeTab = location.pathname.split("/").pop() || "overview";
 
   return (
-    <div className="flex min-h-screen bg-slate-50 dark:bg-slate-900 gap-6">
+    <div className="flex h-screen bg-slate-50 dark:bg-slate-900">
       <StudentSidebar activeTab={activeTab} />
-      <div className="flex-1 flex flex-col">
-  <StudentNavbar />
-  <main className="flex-1 pt-20 p-6">
+      <div className="flex-1 flex flex-col overflow-hidden">
+        <StudentNavbar />
+        <main className="flex-1 overflow-y-auto p-6 pt-20">
           <Routes>
-            {/* default overview */}
-            <Route path="/" element={<StudentOverview isPlaced={true} />} />
+            <Route index element={<Navigate to="overview" replace />} />
+            <Route path="overview" element={<StudentOverview studentData={user} />} />
             <Route path="opportunities" element={<InternshipOpportunities />} />
-            <Route path="applications" element={<MyApplications />} />
+            <Route path="my-applications" element={<MyApplications />} />
             <Route path="reports" element={<WeeklyReports />} />
-            {/* fallback inside student area */}
-            <Route path="*" element={<Navigate to="/" replace />} />
+            <Route path="requests" element={<LetterRequests />} />
+            <Route path="stipend" element={<StipendApplication />} />
+            <Route path="profile" element={<StudentProfile />} />
+            <Route path="feedback" element={<FeedbackAndEvaluation />} />
+            <Route path="process" element={<InternshipProcess />} />
+            <Route path="status" element={<InternshipStatus />} />
+            <Route path="*" element={<Navigate to="overview" replace />} />
           </Routes>
         </main>
       </div>

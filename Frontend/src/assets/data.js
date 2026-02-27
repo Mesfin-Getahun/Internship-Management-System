@@ -36,10 +36,11 @@ export const users = [
   {
     id: 5,
     name: "Student User",
-    email: "welde@example.com",
+    email: "student@test.com",
     username: "student1",
     password: "password123",
     role: "student",
+    isFirstLogin: true,
   },
   {
     id: 6,

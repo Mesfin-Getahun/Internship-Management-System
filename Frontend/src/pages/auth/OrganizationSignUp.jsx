@@ -33,6 +33,7 @@ const OrganizationSignUp = () => {
       else if (formData.password.length < 8) newErrors.password = 'Min 8 characters';
       if (formData.password !== formData.confirmPassword) newErrors.confirmPassword = 'Passwords do not match';
     } else if (step === 2) {
+      if (!formData.licenseFile) newErrors.licenseFile = 'Business license is required';
       if (!formData.agreed) newErrors.agreed = 'You must agree to the terms';
     }
     setErrors(newErrors);

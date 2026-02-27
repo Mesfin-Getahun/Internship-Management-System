@@ -1,13 +1,13 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useAuth } from "../../AuthContext";
 import AuthHeader from "../../components/auth/AuthHeader.jsx";
 import LoginForm from "../../components/auth/LoginForm.jsx";
 import { users } from "../../assets/data.js";
 
 const LoginPage = () => {
   const navigate = useNavigate();
-
-  // start empty instead of using constant demo values
+  const { login } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -23,55 +23,40 @@ const LoginPage = () => {
         u.password === password,
     );
 
-    console.log("LOGIN ATTEMPT", { email, password, user });
-
     if (!user) {
-      setError("Invalid credentials for mock login.");
+      setError("Invalid credentials. Please try again.");
       return;
     }
 
-    console.log("NAVIGATING AS ROLE", user.role);
+    // Set user in global context
+    login(user);
 
-    switch (user.role) {
-      case "admin":
-        navigate("/dashboard/admin");
-        break;
-      case "faculty":
-        navigate("/dashboard/faculty");
-        break;
-      case "mentor":
-        navigate("/dashboard/mentor");
-        break;
-      case "uil":
-        navigate("/dashboard/uil");
-        break;
-      case "organization":
-        navigate("/dashboard/organization");
-        break;
-      case "student":
-      default:
-        navigate("/dashboard/student");
-        break;
+    // Navigation will be handled by App.jsx based on user state
+    // but we can give it a push to the root which will then redirect.
+    if (user.isFirstLogin) {
+      navigate('/setup');
+    } else {
+      navigate(`/${user.role}`);
     }
   };
 
   return (
-  <div className="min-h-screen bg-[#f4f7fb] dark:bg-slate-950 transition-colors duration-300 flex items-center justify-center px-4">
-    <div className="w-full max-w-md bg-white dark:bg-slate-800 rounded-3xl shadow-xl border border-slate-100 dark:border-slate-700 transition-colors duration-300">
-      <AuthHeader />
-      {error && (
-        <p className="text-red-500 text-sm text-center mt-2">{error}</p>
-      )}
-      <LoginForm
-        email={email}
-        password={password}
-        setEmail={setEmail}
-        setPassword={setPassword}
-        onSubmit={handleSubmit}
-        onRegisterOrg={() => navigate("/register/organization")}
-      />
+    <div className="min-h-screen bg-[#f4f7fb] dark:bg-slate-950 transition-colors duration-300 flex items-center justify-center px-4">
+      <div className="w-full max-w-md bg-white dark:bg-slate-800 rounded-3xl shadow-xl border border-slate-100 dark:border-slate-700 transition-colors duration-300">
+        <AuthHeader />
+        {error && (
+          <p className="text-red-500 text-sm text-center -mt-2 mb-4 px-8">{error}</p>
+        )}
+        <LoginForm
+          email={email}
+          password={password}
+          setEmail={setEmail}
+          setPassword={setPassword}
+          onSubmit={handleSubmit}
+          onRegisterOrg={() => navigate("/register/organization")}
+        />
+      </div>
     </div>
-  </div>
   );
 };
 

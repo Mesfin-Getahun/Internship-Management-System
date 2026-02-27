@@ -31,8 +31,15 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  const completeSetup = () => {
+    if (user) {
+      const updatedUser = { ...user, isFirstLogin: false };
+      setUser(updatedUser);
+    }
+  };
+
   return (
-    <AuthContext.Provider value={{ user, login, logout }}>
+    <AuthContext.Provider value={{ user, login, logout, completeSetup }}>
       {children}
     </AuthContext.Provider>
   );
