@@ -4,7 +4,7 @@ import { useAuth } from "./AuthContext";
 
 import OrganizationSignUp from "./pages/auth/OrganizationSignUp.jsx";
 import LoginPage from "./pages/auth/LoginPage.jsx";
-import FirstTimeSetup from "./pages/FirstTimeSetup.jsx";
+import ChangePassword from "./components/setup/ChangePassword.jsx";
 import AdminDashboard from "./pages/dashboard/AdminDashboard.jsx";
 import FacultyDashboard from "./pages/dashboard/FacultyDashboard.jsx";
 import MentorDashboard from "./pages/dashboard/MentorDashboard.jsx";
@@ -13,15 +13,34 @@ import OrganizationDashboard from "./pages/dashboard/OrganizationDashboard.jsx";
 import UilDashboard from "./pages/dashboard/UilDashboard.jsx";
 import ThemeToggle from './components/common/ThemeToggle.jsx';
 
-const ProtectedRoute = ({ children }) => {
+const getHomeRoute = (user) => {
+  if (!user) {
+    return "/login";
+  }
+  switch (user.role) {
+    case 'student': return '/student';
+    case 'admin': return '/admin';
+    case 'faculty': return '/faculty';
+    case 'mentor': return '/mentor';
+    case 'organization': return '/organization';
+    case 'uil': return '/uil';
+    default: return '/login';
+  }
+};
+
+const ProtectedRoute = ({ children, forChangePassword = false }) => {
   const { user } = useAuth();
 
   if (!user) {
     return <Navigate to="/login" replace />;
   }
 
-  if (user.isFirstLogin) {
-    return <Navigate to="/setup" replace />;
+  if (user.isFirstLogin && !forChangePassword) {
+    return <Navigate to="/change-password" replace />;
+  }
+
+  if (!user.isFirstLogin && forChangePassword) {
+    return <Navigate to={getHomeRoute(user)} replace />;
   }
 
   return children;
@@ -51,24 +70,6 @@ const App = () => {
     console.debug('App: isDarkMode changed ->', isDarkMode);
   }, [isDarkMode]);
 
-  const getHomeRoute = () => {
-    if (!user) {
-      return "/login";
-    }
-    if (user.isFirstLogin) {
-      return "/setup";
-    }
-    switch (user.role) {
-      case 'student': return '/student';
-      case 'admin': return '/admin';
-      case 'faculty': return '/faculty';
-      case 'mentor': return '/mentor';
-      case 'organization': return '/organization';
-      case 'uil': return '/uil';
-      default: return '/login';
-    }
-  };
-
   return (
     <div className="min-h-screen transition-colors duration-300 bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 font-['Inter']">
       <ThemeToggle isDarkMode={isDarkMode} toggleTheme={toggleTheme} />
@@ -76,7 +77,7 @@ const App = () => {
         <Routes>
           <Route path="/login" element={<LoginPage />} />
           <Route path="/register/organization" element={<OrganizationSignUp />} />
-          <Route path="/setup" element={user && user.isFirstLogin ? <FirstTimeSetup /> : <Navigate to={getHomeRoute()} />} />
+          <Route path="/change-password" element={<ProtectedRoute forChangePassword={true}><ChangePassword /></ProtectedRoute>} />
 
           <Route path="/admin/*" element={<ProtectedRoute><AdminDashboard /></ProtectedRoute>} />
           <Route path="/faculty/*" element={<ProtectedRoute><FacultyDashboard /></ProtectedRoute>} />
@@ -85,7 +86,7 @@ const App = () => {
           <Route path="/organization/*" element={<ProtectedRoute><OrganizationDashboard /></ProtectedRoute>} />
           <Route path="/uil/*" element={<ProtectedRoute><UilDashboard /></ProtectedRoute>} />
 
-          <Route path="*" element={<Navigate to={getHomeRoute()} replace />} />
+          <Route path="*" element={<Navigate to={getHomeRoute(user)} replace />} />
         </Routes>
       </HashRouter>
     </div>

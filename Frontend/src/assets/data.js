@@ -6,7 +6,7 @@ export const users = [
     name: "Admin User",
     email: "admin@example.com",
     username: "admin",
-    password: "admin@123@123", 
+    password: "admin123", 
     role: "admin",
   },
   {
@@ -14,7 +14,7 @@ export const users = [
     name: "Faculty User",
     email: "faculty@example.com",
     username: "faculty1",
-    password: "faculty123@123",
+    password: "faculty123",
     role: "faculty",
   },
   {
@@ -22,7 +22,7 @@ export const users = [
     name: "Mentor User",
     email: "mentor@example.com",
     username: "mentor1",
-    password: "mentor@123@123",
+    password: "mentor123",
     role: "mentor",
   },
   {
@@ -30,7 +30,7 @@ export const users = [
     name: "UIL Officer",
     email: "uil@example.com",
     username: "uil1",
-    password: "uil123@123",
+    password: "uil123",
     role: "uil",
   },
   {
