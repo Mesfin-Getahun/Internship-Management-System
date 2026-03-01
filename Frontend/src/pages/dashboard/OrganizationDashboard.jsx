@@ -5,8 +5,6 @@ import OrgSidebar from "../../components/dashboard/org/OrgSidebar.jsx";
 import OrgOverview from "../../components/dashboard/org/OrgOverview.jsx";
 import OrgVacancies from "../../components/dashboard/org/OrgVacancies.jsx";
 import OrgApplications from "../../components/dashboard/org/OrgApplications.jsx";
-import OrgEvaluation from "../../components/dashboard/org/OrgEvaluation.jsx";
-import OrgSupervision from "../../components/dashboard/org/OrgSupervision.jsx";
 import OrgProfile from "../../components/dashboard/org/OrgProfile.jsx";
 import OrgPostInternship from "../../components/dashboard/org/OrgPostInternship.jsx";
 
@@ -17,20 +15,16 @@ const OrganizationDashboard = () => {
   return (
     <div className="flex min-h-screen bg-slate-50 dark:bg-slate-900">
       <OrgSidebar activeTab={activeTab} />
-      <div className="flex-1 flex flex-col">
+      <div className="flex-1 flex flex-col overflow-hidden">
         <OrgNavbar />
-        <main className="flex-1 p-6">
+        <main className="flex-1 p-6 pt-20">
           <Routes>
-            {/* default overview */}
-            <Route path="/" element={<OrgOverview />} />
+            <Route index element={<OrgOverview />} />
             <Route path="vacancies" element={<OrgVacancies />} />
             <Route path="applications" element={<OrgApplications />} />
-            <Route path="evaluation" element={<OrgEvaluation />} />
-            <Route path="supervision" element={<OrgSupervision />} />
             <Route path="post" element={<OrgPostInternship />} />
             <Route path="profile" element={<OrgProfile />} />
-            {/* fallback inside organization dashboard */}
-            <Route path="*" element={<Navigate to="/" replace />} />
+            <Route path="*" element={<Navigate to="" replace />} />
           </Routes>
         </main>
       </div>

@@ -1,8 +1,9 @@
-
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 
 const InternshipOpportunities = () => {
   const [selectedInternship, setSelectedInternship] = useState(null);
+  const navigate = useNavigate();
   
   const opportunities = [
     { id: 1, title: 'Junior Software Developer', org: 'Safaricom Ethiopia', loc: 'Addis Ababa', deadline: 'Oct 30, 2023', desc: 'Join our mobile money team to help build the next generation of financial services.', skills: 'React, Node.js, REST APIs', duration: '3 Months', applied: false },
@@ -136,7 +137,9 @@ const InternshipOpportunities = () => {
                    <p className="text-amber-800 dark:text-amber-400 text-sm font-bold italic">You have already applied for this internship.</p>
                  </div>
                ) : (
-                 <button className="w-full py-5 bg-blue-600 text-white rounded-2xl font-bold hover:bg-blue-700 shadow-xl shadow-blue-500/20 transition-all active:scale-95">
+                 <button 
+                    onClick={() => navigate(`/student/apply/${selectedInternship.id}`)}
+                    className="w-full py-5 bg-blue-600 text-white rounded-2xl font-bold hover:bg-blue-700 shadow-xl shadow-blue-500/20 transition-all active:scale-95">
                    Apply for this Position
                  </button>
                )}
