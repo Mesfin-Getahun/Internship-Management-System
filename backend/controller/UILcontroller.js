@@ -1,4 +1,6 @@
 import db from "../config/mysql.js";
+import { sendEmail } from "../utils/sendEmail.js";
+import createLog from "../utils/createLog.js";
 
 const allInternships = async (req, res) => {
   try {
@@ -85,6 +87,12 @@ const approveInternship = async (req, res) => {
       "UPDATE internship SET status = 'approved' WHERE internship_id = ?",
       [internship_id]
     );
+     // 🔥 Save Log
+     await createLog(
+      req.user.UIL_id,
+      "INTERNSHIP_APPROVED",
+      `UIL approved internship with ID ${internship_id}`
+    );
 
     res
       .status(200)
@@ -117,6 +125,12 @@ const rejectInternship = async (req, res) => {
     await db.query(
       "UPDATE internship SET status = 'rejected' WHERE internship_id = ?",
       [internship_id]
+    );
+
+    await createLog(
+      req.user.UIL_id,
+      "INTERNSHIP_REJECTED",
+      `UIL reject internship with ID ${internship_id}`
     );
 
     res.status(200).json({
@@ -191,13 +205,55 @@ const getActiveCompanies = async (req, res) => {
   }
 };
 
+// const acceptCompany = async (req, res) => {
+//   try {
+//     const { company_id } = req.params;
+
+//     // Check if company exists & is pending
+//     const [company] = await db.query(
+//       "SELECT status FROM company WHERE company_id = ?",
+//       [company_id]
+//     );
+
+//     if (company.length === 0) {
+//       return res.status(404).json({
+//         success: false,
+//         message: "Company not found",
+//       });
+//     }
+
+//     if (company[0].status !== "pending") {
+//       return res.status(400).json({
+//         success: false,
+//         message: "Company is already processed",
+//       });
+//     }
+
+//     // Approve company
+//     await db.query(
+//       "UPDATE company SET status = 'approved' WHERE company_id = ?",
+//       [company_id]
+//     );
+
+//     res.status(200).json({
+//       success: true,
+//       message: "Company approved successfully",
+//     });
+//   } catch (error) {
+//     console.error("Accept company error:", error);
+//     res.status(500).json({
+//       success: false,
+//       message: "Failed to approve company",
+//     });
+//   }
+// };
+
 const acceptCompany = async (req, res) => {
   try {
     const { company_id } = req.params;
 
-    // Check if company exists & is pending
     const [company] = await db.query(
-      "SELECT status FROM company WHERE company_id = ?",
+      "SELECT email, company_name, status FROM company WHERE company_id = ?",
       [company_id]
     );
 
@@ -215,15 +271,33 @@ const acceptCompany = async (req, res) => {
       });
     }
 
-    // Approve company
     await db.query(
       "UPDATE company SET status = 'approved' WHERE company_id = ?",
       [company_id]
     );
 
+    // ✅ Send email
+    await sendEmail(
+      company[0].email,
+      "Company Registration Approved",
+      `
+        <h2>Congratulations ${company[0].company_name} 🎉</h2>
+        <p>Your company registration has been <b>approved</b>.</p>
+        <p>You can now log in and start posting internships.</p>
+        <br/>
+        <p>Best regards,<br/>Internship Management Team</p>
+      `
+    );
+    // 🔥 Save Log
+    await createLog(
+      req.user.UIL_id,
+      "COMPANY_APPROVED",
+      `UIL approved company with ID ${company_id}`
+    );
+
     res.status(200).json({
       success: true,
-      message: "Company approved successfully",
+      message: "Company approved and email sent",
     });
   } catch (error) {
     console.error("Accept company error:", error);
@@ -233,14 +307,48 @@ const acceptCompany = async (req, res) => {
     });
   }
 };
+// const rejectCompany = async (req, res) => {
+//   try {
+//     const { company_id } = req.params;
+
+//     // Check if company exists
+//     const [company] = await db.query(
+//       "SELECT status FROM company WHERE company_id = ?",
+//       [company_id]
+//     );
+
+//     if (company.length === 0) {
+//       return res.status(404).json({
+//         success: false,
+//         message: "Company not found",
+//       });
+//     }
+
+//     // Reject company
+//     await db.query(
+//       "UPDATE company SET status = 'rejected' WHERE company_id = ?",
+//       [company_id]
+//     );
+
+//     res.status(200).json({
+//       success: true,
+//       message: "Company registration rejected",
+//     });
+//   } catch (error) {
+//     console.error("Reject company error:", error);
+//     res.status(500).json({
+//       success: false,
+//       message: "Failed to reject company",
+//     });
+//   }
+// };
 
 const rejectCompany = async (req, res) => {
   try {
     const { company_id } = req.params;
 
-    // Check if company exists
     const [company] = await db.query(
-      "SELECT status FROM company WHERE company_id = ?",
+      "SELECT email, company_name FROM company WHERE company_id = ?",
       [company_id]
     );
 
@@ -251,15 +359,34 @@ const rejectCompany = async (req, res) => {
       });
     }
 
-    // Reject company
     await db.query(
       "UPDATE company SET status = 'rejected' WHERE company_id = ?",
       [company_id]
     );
 
+    // ✅ Send rejection email
+    await sendEmail(
+      company[0].email,
+      "Company Registration Rejected",
+      `
+        <h2>Hello ${company[0].company_name}</h2>
+        <p>We regret to inform you that your company registration has been <b>rejected</b>.</p>
+        <p>If you believe this is a mistake, please contact the administrator.</p>
+        <br/>
+        <p>Best regards,<br/>Internship Management Team</p>
+      `
+    );
+
+    // 🔥 Save Log
+    await createLog(
+      req.user.UIL_id,
+      "COMPANY_REJECTED",
+      `UIL approved company with ID ${company_id}`
+    );
+
     res.status(200).json({
       success: true,
-      message: "Company registration rejected",
+      message: "Company rejected and email sent",
     });
   } catch (error) {
     console.error("Reject company error:", error);

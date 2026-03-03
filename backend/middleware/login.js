@@ -10,6 +10,28 @@ router.post("/", async (req, res) => {
 
   try {
     // Generic helper
+    // const tryLoginById = async (table, idColumn, role) => {
+    //   const [rows] = await db.query(
+    //     `SELECT * FROM ${table} WHERE ${idColumn} = ?`,
+    //     [id]
+    //   );
+
+    //   if (rows.length === 0) return null;
+
+    //   const user = rows[0];
+    //   const match = await bcrypt.compare(password, user.password);
+
+    //   if (!match) return null;
+
+    //   const token = jwt.sign(
+    //     { id: user[idColumn], role },
+    //     process.env.JWT_SECRET,
+    //     { expiresIn: "1d" }
+    //   );
+
+    //   return { user, role, token };
+    // };
+
     const tryLoginById = async (table, idColumn, role) => {
       const [rows] = await db.query(
         `SELECT * FROM ${table} WHERE ${idColumn} = ?`,
@@ -23,13 +45,22 @@ router.post("/", async (req, res) => {
 
       if (!match) return null;
 
+      // 🔥 CHECK FIRST LOGIN
+      if (user.must_change_password) {
+        return {
+          user,
+          role,
+          firstLogin: true,
+        };
+      }
+
       const token = jwt.sign(
         { id: user[idColumn], role },
         process.env.JWT_SECRET,
         { expiresIn: "1d" }
       );
 
-      return { user, role, token };
+      return { user, role, token, firstLogin: false };
     };
 
     // Company login (EMAIL based)
@@ -84,10 +115,36 @@ router.post("/", async (req, res) => {
         "company_mentor"
       );
 
+    // if (!result) {
+    //   return res.status(401).json({
+    //     success: false,
+    //     message: "Invalid credentials",
+    //   });
+    // }
+
+    // res.status(200).json({
+    //   success: true,
+    //   message: "Login successful",
+    //   role: result.role,
+    //   token: result.token,
+    //   user: result.user,
+    // });
+
     if (!result) {
       return res.status(401).json({
         success: false,
         message: "Invalid credentials",
+      });
+    }
+
+    // 🔥 If first login → no token
+    if (result.firstLogin) {
+      return res.status(200).json({
+        success: true,
+        firstLogin: true,
+        role: result.role,
+        user: result.user,
+        message: "You must change your password before continuing",
       });
     }
 

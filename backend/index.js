@@ -15,14 +15,18 @@ import {
   createFaculty,
   createMentor,
 } from "./middleware/register.js";
+import { checkMaintenanceMode } from "./middleware/Maintenance.js";
 
 import router from "./middleware/login.js";
+import changeRouter from "./middleware/changePassword.js";
 
 const app = express();
 
 app.use(cors());
 
 app.use(express.json());
+
+app.use(checkMaintenanceMode);
 
 app.use("/api/student", studentRoute);
 app.use("/api/faculty", facultyRoute);
@@ -39,6 +43,7 @@ app.use("/api/registerFaculty", createFaculty);
 //app.use("/api/registerUIL", UILroute);
 
 app.use("/api/login", router);
+app.use("/api/change-password", changeRouter);
 
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
