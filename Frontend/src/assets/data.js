@@ -45,10 +45,18 @@ export const users = [
   {
     id: 6,
     name: "Org Admin",
-    email: "orgadmin@example.com",
+    email: "org@example.com",
     username: "orgadmin",
     password: "org123",
     role: "organization",
+  },
+  {
+    id: 7,
+    name: "Org Supervisor",
+    email: "supervisor@example.com",
+    username: "supervisor1",
+    password: "supervisor123",
+    role: "org_supervisor",
   },
 ];
 

@@ -11,6 +11,7 @@ import MentorDashboard from "./pages/dashboard/MentorDashboard.jsx";
 import StudentDashboard from "./pages/dashboard/StudentDashboard.jsx";
 import OrganizationDashboard from "./pages/dashboard/OrganizationDashboard.jsx";
 import UilDashboard from "./pages/dashboard/UilDashboard.jsx";
+import OrganizationSupervisorDashboard from "./pages/dashboard/OrganizationSupervisorDashboard.jsx";
 import ThemeToggle from './components/common/ThemeToggle.jsx';
 
 const getHomeRoute = (user) => {
@@ -24,6 +25,7 @@ const getHomeRoute = (user) => {
     case 'mentor': return '/mentor';
     case 'organization': return '/organization';
     case 'uil': return '/uil';
+    case 'org_supervisor': return '/org-supervisor';
     default: return '/login';
   }
 };
@@ -85,6 +87,7 @@ const App = () => {
           <Route path="/student/*" element={<ProtectedRoute><StudentDashboard /></ProtectedRoute>} />
           <Route path="/organization/*" element={<ProtectedRoute><OrganizationDashboard /></ProtectedRoute>} />
           <Route path="/uil/*" element={<ProtectedRoute><UilDashboard /></ProtectedRoute>} />
+          <Route path="/org-supervisor/*" element={<ProtectedRoute><OrganizationSupervisorDashboard /></ProtectedRoute>} />
 
           <Route path="*" element={<Navigate to={getHomeRoute(user)} replace />} />
         </Routes>

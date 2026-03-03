@@ -34,7 +34,7 @@ const LoginPage = () => {
     // Navigation will be handled by App.jsx based on user state
     // but we can give it a push to the root which will then redirect.
     if (user.isFirstLogin) {
-      navigate('/setup');
+      navigate('/change-password');
     } else {
       navigate(`/${user.role}`);
     }

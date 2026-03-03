@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import UilSidebar from '../../components/dashboard/uil/UilSidebar.jsx';
@@ -7,6 +6,7 @@ import UilOverview from '../../components/dashboard/uil/UilOverview.jsx';
 import OrgApprovals from '../../components/dashboard/uil/OrgApprovals.jsx';
 import InternshipMonitoring from '../../components/dashboard/uil/InternshipMonitoring.jsx';
 import FulfillmentReports from '../../components/dashboard/uil/FulfillmentReports.jsx';
+import UilRecommendationLetter from '../../components/dashboard/uil/UilRecommendationLetter.jsx';
 
 const PlaceholderScreen = ({ title, description }) => (
   <div className="p-20 text-center animate-fade-in bg-white rounded-3xl border border-slate-100 shadow-sm">
@@ -32,6 +32,7 @@ const UilDashboard = () => {
     'approvals': 'Organization Approvals',
     'monitoring': 'Internship Monitoring',
     'reports': 'Fulfillment Reports',
+    'recommendation': 'Recommendation Letter',
     'notifications': 'Communications Hub',
     'settings': 'Administrative Settings'
   };
@@ -51,6 +52,7 @@ const UilDashboard = () => {
               <Route path="approvals" element={<OrgApprovals />} />
               <Route path="monitoring" element={<InternshipMonitoring />} />
               <Route path="reports" element={<FulfillmentReports />} />
+              <Route path="recommendation" element={<UilRecommendationLetter />} />
               <Route 
                 path="notifications" 
                 element={<PlaceholderScreen title="Communications Center" description="Send broadcast announcements to industrial partners or focused messages to university faculty deans." />} 

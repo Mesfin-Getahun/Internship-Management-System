@@ -1,10 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import SkillsInput from './SkillsInput';
+import EditableSkillsInput from './EditableSkillsInput';
 
-// --- Mock Data ---
-const allTechnicalSkills = ["JavaScript", "React", "Node.js", "Python", "Java", "C++", "HTML", "CSS", "SQL", "MongoDB", "Firebase", "Docker", "Git", "TypeScript", "Vue.js", "Angular", "PHP", "Laravel", "Ruby on Rails", "AWS", "Azure"];
-const allSoftSkills = ["Communication", "Teamwork", "Problem Solving", "Leadership", "Time Management", "Adaptability", "Creativity", "Work Ethic", "Interpersonal Skills", "Critical Thinking"];
-const allLanguages = ["English", "Amharic", "Spanish", "French", "German", "Mandarin", "Hindi", "Arabic"];
+
 
 // --- Helper Components ---
 const SectionHeader = ({ title }) => (
@@ -56,7 +53,6 @@ const ProfileForm = ({ studentData, onSave, isSetupMode = false }) => {
     linkedin: '',
     github: '',
     portfolio: '',
-    cv: null,
     ...studentData, // Pre-fill with existing data
   });
 
@@ -67,10 +63,6 @@ const ProfileForm = ({ studentData, onSave, isSetupMode = false }) => {
 
   const handleSkillsChange = (name, skills) => {
     setFormData(prev => ({ ...prev, [name]: skills }));
-  };
-
-  const handleFileChange = (e) => {
-    setFormData(prev => ({ ...prev, cv: e.target.files[0] }));
   };
 
   const handleSubmit = (e) => {
@@ -117,9 +109,9 @@ const ProfileForm = ({ studentData, onSave, isSetupMode = false }) => {
       <section>
         <SectionHeader title="Skills & Competencies" />
         <div className="space-y-6">
-          <SkillsInput label="Technical Skills" allSkills={allTechnicalSkills} selectedSkills={formData.technicalSkills} onChange={(skills) => handleSkillsChange('technicalSkills', skills)} placeholder="Search and select technical skills" required />
-          <SkillsInput label="Soft Skills" allSkills={allSoftSkills} selectedSkills={formData.softSkills} onChange={(skills) => handleSkillsChange('softSkills', skills)} placeholder="Search and select soft skills" required />
-          <SkillsInput label="Languages Spoken" allSkills={allLanguages} selectedSkills={formData.languages} onChange={(skills) => handleSkillsChange('languages', skills)} placeholder="Search and select languages" />
+          <EditableSkillsInput label="Technical Skills" selectedSkills={formData.technicalSkills} onChange={(skills) => handleSkillsChange('technicalSkills', skills)} placeholder="Add a technical skill" required />
+          <EditableSkillsInput label="Soft Skills" selectedSkills={formData.softSkills} onChange={(skills) => handleSkillsChange('softSkills', skills)} placeholder="Add a soft skill" required />
+          <EditableSkillsInput label="Languages Spoken" selectedSkills={formData.languages} onChange={(skills) => handleSkillsChange('languages', skills)} placeholder="Add a language" />
         </div>
       </section>
 
@@ -131,11 +123,6 @@ const ProfileForm = ({ studentData, onSave, isSetupMode = false }) => {
           <InputField name="github" label="GitHub URL" value={formData.github} onChange={handleChange} />
           <div className="md:col-span-2">
             <InputField name="portfolio" label="Portfolio URL" value={formData.portfolio} onChange={handleChange} />
-          </div>
-          <div className="md:col-span-2">
-             <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">CV Upload (PDF) <span className="text-red-500">*</span></label>
-             <input type="file" onChange={handleFileChange} accept=".pdf" className="block w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 dark:file:bg-blue-900/20 file:text-blue-700 dark:file:text-blue-300 hover:file:bg-blue-100 dark:hover:file:bg-blue-900" />
-             {formData.cv && <p className="text-xs text-green-600 mt-1">File selected: {typeof formData.cv === 'string' ? formData.cv : formData.cv.name}</p>}
           </div>
         </div>
       </section>

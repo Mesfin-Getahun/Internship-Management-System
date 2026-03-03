@@ -3,9 +3,11 @@ import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import MentorSidebar from '../../components/dashboard/mentor/MentorSidebar.jsx';
 import MentorNavbar from '../../components/dashboard/mentor/MentorNavbar.jsx';
 import MentorOverview from '../../components/dashboard/mentor/MentorOverview.jsx';
-import MyStudents from '../../components/dashboard/mentor/MyStudents.jsx';
-import ProgressTracker from '../../components/dashboard/mentor/ProgressTracker.jsx';
-import MentorEvaluation from '../../components/dashboard/mentor/MentorEvaluation.jsx';
+import MyStudents from '../../components/dashboard/mentor/MyStudents';
+import ProgressTracker from '../../components/dashboard/mentor/ProgressTracker';
+import MentorEvaluation from '../../components/dashboard/mentor/MentorEvaluation';
+import StudentSubmissions from '../../components/dashboard/mentor/StudentSubmissions';
+import OrganizationUpdates from '../../components/dashboard/mentor/OrganizationUpdates';
 
 const PlaceholderScreen = ({ title, description }) => (
   <div className="p-20 text-center animate-fade-in bg-white dark:bg-slate-900 rounded-3xl border border-slate-100 dark:border-slate-800 shadow-sm">
@@ -31,12 +33,15 @@ const MentorDashboard = () => {
       <MentorNavbar />
       <MentorSidebar activeTab={activeTab} />
 
-      <main className="flex-grow pl-72 pr-8 pt-28 pb-12 overflow-x-hidden">
+      <main className="flex-1 p-6 pt-20">
         <div className="max-w-7xl mx-auto">
           <Routes>
-            <Route path="/" element={<MentorOverview />} />
-            <Route path="students" element={<MyStudents />} />
-            <Route path="progress" element={<ProgressTracker />} />
+            <Route path="overview" element={<MentorOverview />} />
+            <Route path="my-students" element={<MyStudents />} />
+            <Route path="progress-tracker" element={<ProgressTracker />} />
+            <Route path="student-submissions" element={<StudentSubmissions />} />
+            <Route path="organization-updates" element={<OrganizationUpdates />} />
+            <Route path="evaluation" element={<MentorEvaluation />} />
             <Route 
               path="weekly-reports" 
               element={<PlaceholderScreen title="Weekly Reports Review" description="Verify student task logs and provide feedback on their weekly technical submissions." />} 

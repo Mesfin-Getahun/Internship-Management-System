@@ -38,8 +38,14 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  const [isRecommendationAvailable, setRecommendationAvailable] = useState(false);
+
+  const makeRecommendationAvailable = () => setRecommendationAvailable(true);
+  const makeRecommendationUnavailable = () => setRecommendationAvailable(false);
+
+
   return (
-    <AuthContext.Provider value={{ user, login, logout, completeSetup }}>
+    <AuthContext.Provider value={{ user, login, logout, completeSetup, isRecommendationAvailable, makeRecommendationAvailable, makeRecommendationUnavailable }}>
       {children}
     </AuthContext.Provider>
   );

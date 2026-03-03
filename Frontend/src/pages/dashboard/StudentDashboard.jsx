@@ -7,12 +7,12 @@ import StudentOverview from "../../components/dashboard/student/StudentOverview.
 import InternshipOpportunities from "../../components/dashboard/student/InternshipOpportunities.jsx";
 import MyApplications from "../../components/dashboard/student/MyApplications.jsx";
 import WeeklyReports from "../../components/dashboard/student/WeeklyReports.jsx";
-import LetterRequests from "../../components/dashboard/student/LetterRequests.jsx";
 import StipendApplication from "../../components/dashboard/student/StipendApplication.jsx";
 import StudentProfile from "./StudentProfile.jsx";
 import FeedbackAndEvaluation from "../../components/dashboard/student/FeedbackAndEvaluation.jsx";
-import InternshipProcess from "../../components/dashboard/student/InternshipProcess.jsx";
 import InternshipStatus from "../../components/dashboard/student/InternshipStatus.jsx";
+import ApplicationPage from '../../components/dashboard/student/ApplicationPage.jsx';
+import StudentRecommendationLetter from "../../components/dashboard/student/StudentRecommendationLetter.jsx";
 
 const PlaceholderScreen = ({ title, description }) => (
   <div className="p-20 text-center animate-fade-in bg-white dark:bg-slate-900 rounded-3xl border border-slate-100 dark:border-slate-800 shadow-sm">
@@ -61,12 +61,12 @@ const StudentDashboard = () => {
             <Route path="opportunities" element={<InternshipOpportunities />} />
             <Route path="my-applications" element={<MyApplications />} />
             <Route path="reports" element={<WeeklyReports />} />
-            <Route path="requests" element={<LetterRequests />} />
             <Route path="stipend" element={<StipendApplication />} />
             <Route path="profile" element={<StudentProfile />} />
             <Route path="feedback" element={<FeedbackAndEvaluation />} />
-            <Route path="process" element={<InternshipProcess />} />
             <Route path="status" element={<InternshipStatus />} />
+            <Route path="recommendation" element={<StudentRecommendationLetter />} />
+            <Route path="apply/:id" element={<ApplicationPage />} />
             <Route path="*" element={<Navigate to="overview" replace />} />
           </Routes>
         </main>
