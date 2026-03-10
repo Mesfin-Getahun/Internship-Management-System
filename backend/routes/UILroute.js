@@ -9,16 +9,25 @@ import {
   companyRequest,
   getActiveCompanies,
 } from "../controller/UILcontroller.js";
+import { authenticate } from "../middleware/auth.js";
 
 const UILroute = express.Router();
 
-UILroute.get("/internships", allInternships);
-UILroute.get("/internships/pending", pendingInternships);
-UILroute.get("/companyRequest", companyRequest);
-UILroute.put("/rejectInternship/:internship_id", rejectInternship);
-UILroute.put("/approveInternship/:internship_id", approveInternship);
-UILroute.put("/acceptCompany/:company_id", acceptCompany);
-UILroute.put("/rejectCompany/:company_id", rejectCompany);
-UILroute.get("/companies/active", getActiveCompanies);
+UILroute.get("/internships", authenticate("UIL"), allInternships);
+UILroute.get("/internships/pending", authenticate("UIL"), pendingInternships);
+UILroute.get("/companyRequest", authenticate("UIL"), companyRequest);
+UILroute.put(
+  "/rejectInternship/:internship_id",
+  authenticate("UIL"),
+  rejectInternship
+);
+UILroute.put(
+  "/approveInternship/:internship_id",
+  authenticate("UIL"),
+  approveInternship
+);
+UILroute.put("/acceptCompany/:company_id", authenticate("UIL"), acceptCompany);
+UILroute.put("/rejectCompany/:company_id", authenticate("UIL"), rejectCompany);
+UILroute.get("/companies/active", authenticate("UIL"), getActiveCompanies);
 
 export default UILroute;

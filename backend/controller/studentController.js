@@ -98,11 +98,46 @@ const applyInternships = async (req, res) => {
     const { statement } = req.body;
 
     if (!req.files?.cv || !req.files?.academic_doc) {
+      console.log("file not found");
       return res.status(400).json({
         success: false,
         message: "CV and academic document are required",
       });
     }
+    console.log(req.files);
+
+    const [existing] = await db.query(
+      "SELECT * FROM application WHERE student_id = ? AND internship_id = ?",
+      [student_id, internship_id]
+    );
+
+    if (existing.length > 0) {
+      console.log("You already applied for this internship");
+      return res.status(400).json({
+        success: false,
+        message: "You already applied for this internship",
+      });
+    }
+
+    // ✅ Get company name using JOIN
+    const [internship] = await db.query(
+      `
+      SELECT c.company_name
+      FROM internship i
+      JOIN company c ON i.company_id = c.company_id
+      WHERE i.internship_id = ?
+      `,
+      [internship_id]
+    );
+
+    if (internship.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: "Internship not found",
+      });
+    }
+
+    const company_name = internship[0].company_name;
 
     // // ✅ upload files to cloudinary
     // const cvUrl = await uploadToCloudinary(
@@ -127,12 +162,12 @@ const applyInternships = async (req, res) => {
       req.files.academic_doc[0].originalname
     );
 
-    // ✅ store URLs directly
+    // Insert application
     await db.query(
       `INSERT INTO application
-       (student_id, internship_id, applied_date, status, statement, cv_file, academic_doc)
-       VALUES (?, ?, CURDATE(), 'pending', ?, ?, ?)`,
-      [student_id, internship_id, statement, cvUrl, academicUrl]
+       (student_id, internship_id, company_name, applied_date, status, statement, cv_file, academic_doc)
+       VALUES (?, ?, ?, CURDATE(), 'Pending', ?, ?, ?)`,
+      [student_id, internship_id, company_name, statement, cvUrl, academicUrl]
     );
 
     res.status(201).json({
@@ -188,64 +223,137 @@ const cancelApplication = async (req, res) => {
   }
 };
 
+// const updateProfile = async (req, res) => {
+//   try {
+//     const student_id = req.user.student_id; // from auth middleware
+//     const { email, phone_number } = req.body;
+
+//     if (!student_id) {
+//       return res.status(401).json({ success: false, message: "Unauthorized" });
+//     }
+
+//     // Fetch current student data
+//     const [existing] = await db.query(
+//       "SELECT * FROM student WHERE student_id = ?",
+//       [student_id]
+//     );
+
+//     if (existing.length === 0) {
+//       return res
+//         .status(404)
+//         .json({ success: false, message: "Student not found" });
+//     }
+
+//     let hashedPassword = existing[0].password;
+
+//     // Hash new password only if provided
+//     if (password) {
+//       hashedPassword = await bcrypt.hash(password, 10);
+//     }
+
+//     // Update student profile
+//     const query = `
+//       UPDATE student
+//       SET  email = ?, phone_number = ?,
+//       WHERE student_id = ?
+//     `;
+
+//     await db.query(query, [
+//       email || existing[0].email,
+//       phone_number || existing[0].phone_number,
+
+//       student_id,
+//     ]);
+
+//     res
+//       .status(200)
+//       .json({ success: false, message: "Profile updated successfully" });
+//   } catch (error) {
+//     console.error("Update profile error:", error);
+//     res
+//       .status(500)
+//       .json({ success: false, message: "Failed to update profile" });
+//   }
+// };
+
 const updateProfile = async (req, res) => {
   try {
-    const student_id = req.user.student_id; // from auth middleware
-    const { full_name, email, phone_number, password, profile_pic } = req.body;
+    const studentId = req.user.student_id;
 
-    if (!student_id) {
-      return res.status(401).json({ success: false, message: "Unauthorized" });
-    }
+    console.log("==== UPDATE PROFILE CALLED ====");
+    console.log("BODY:", req.body);
+    console.log("USER FROM TOKEN:", req.user);
 
-    // Fetch current student data
-    const [existing] = await db.query(
-      "SELECT * FROM student WHERE student_id = ?",
-      [student_id]
+    const {
+      technicalSkills,
+      softSkills,
+      languages,
+      linkedin,
+      github,
+      portfolio,
+    } = req.body;
+    console.log("SKILLS BEFORE SAVE:", technicalSkills, softSkills, languages);
+    const result = await db.query(
+      `UPDATE student 
+       SET 
+       technical_skills = ?, 
+       soft_skills = ?, 
+       languages = ?, 
+       linkedin = ?, 
+       github = ?, 
+       portfolio = ?
+       WHERE student_id = ?`,
+      [
+        JSON.stringify(technicalSkills ?? []),
+        JSON.stringify(softSkills ?? []),
+        JSON.stringify(languages ?? []),
+        linkedin,
+        github,
+        portfolio,
+        studentId,
+      ]
     );
 
-    if (existing.length === 0) {
-      return res
-        .status(404)
-        .json({ success: false, message: "Student not found" });
-    }
-
-    let hashedPassword = existing[0].password;
-
-    // Hash new password only if provided
-    if (password) {
-      hashedPassword = await bcrypt.hash(password, 10);
-    }
-
-    // Update student profile
-    const query = `
-      UPDATE student
-      SET full_name = ?, email = ?, phone_number = ?, profile_pic = ?, password = ?
-      WHERE student_id = ?
-    `;
-
-    await db.query(query, [
-      full_name || existing[0].full_name,
-      email || existing[0].email,
-      phone_number || existing[0].phone_number,
-      profile_pic || existing[0].profile_pic,
-      hashedPassword,
-      student_id,
-    ]);
-
-    res
-      .status(200)
-      .json({ success: false, message: "Profile updated successfully" });
+    console.log("UPDATE RESULT:", result);
+    res.json({
+      success: true,
+      message: "Profile updated successfully",
+    });
   } catch (error) {
-    console.error("Update profile error:", error);
-    res
-      .status(500)
-      .json({ success: false, message: "Failed to update profile" });
+    console.log(error);
+    res.status(500).json({
+      success: false,
+      message: "Server error",
+    });
   }
 };
 
 const myInternship = async (req, res) => {
   try {
     const studentId = req.user.student_id;
+
+    // const [rows] = await db.query(
+    //   `
+    //   SELECT
+    //     i.internship_id,
+    //     i.title,
+    //     i.description,
+    //     i.start_date,
+    //     i.end_date,
+    //     i.skills,
+    //     c.company_name,
+    //     si.status
+    //   FROM student_internship si
+    //   JOIN internship i
+    //     ON si.internship_id = i.internship_id
+    //   JOIN company c
+    //     ON i.company_id = c.company_id
+    //   WHERE si.student_id = ?
+    //     AND si.status = 'in progress'
+    //   LIMIT 1
+    //   `,
+    //   [studentId]
+    // );
 
     const [rows] = await db.query(
       `
@@ -257,14 +365,34 @@ const myInternship = async (req, res) => {
         i.end_date,
         i.skills,
         c.company_name,
-        si.status
+        si.status,
+    
+        cm.full_name AS company_mentor_name,
+        cm.email AS company_mentor_email,
+    
+        fm.full_name AS faculty_mentor_name,
+        fm.email AS faculty_mentor_email
+    
       FROM student_internship si
+    
       JOIN internship i 
         ON si.internship_id = i.internship_id
+    
       JOIN company c
         ON i.company_id = c.company_id
+    
+      JOIN student s
+        ON si.student_id = s.student_id
+    
+      LEFT JOIN company_mentor cm
+        ON si.company_mentor_id = cm.company_mentor_id
+    
+      LEFT JOIN mentor fm
+        ON s.assigned_mentor = fm.mentor_id
+    
       WHERE si.student_id = ?
         AND si.status = 'in progress'
+    
       LIMIT 1
       `,
       [studentId]
@@ -286,6 +414,37 @@ const myInternship = async (req, res) => {
     res.status(500).json({
       success: false,
       message: "Failed to fetch active internship",
+    });
+  }
+};
+
+const myApplication = async (req, res) => {
+  try {
+    const studentId = req.user.student_id;
+
+    const [rows] = await db.query(
+      `
+      SELECT internship_id,applied_date,status,statement from Application where student_id=?
+      `,
+      [studentId]
+    );
+
+    if (rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: "You do not have an application",
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      applications: rows,
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to fetch application",
     });
   }
 };
@@ -386,4 +545,5 @@ export {
   cancelApplication,
   suggestedInternships,
   submitSignedReportToFaculty,
+  myApplication,
 };

@@ -9,43 +9,23 @@ router.post("/", async (req, res) => {
   const { id, email, password } = req.body;
 
   try {
-    // Generic helper
-    // const tryLoginById = async (table, idColumn, role) => {
-    //   const [rows] = await db.query(
-    //     `SELECT * FROM ${table} WHERE ${idColumn} = ?`,
-    //     [id]
-    //   );
-
-    //   if (rows.length === 0) return null;
-
-    //   const user = rows[0];
-    //   const match = await bcrypt.compare(password, user.password);
-
-    //   if (!match) return null;
-
-    //   const token = jwt.sign(
-    //     { id: user[idColumn], role },
-    //     process.env.JWT_SECRET,
-    //     { expiresIn: "1d" }
-    //   );
-
-    //   return { user, role, token };
-    // };
-
     const tryLoginById = async (table, idColumn, role) => {
       const [rows] = await db.query(
         `SELECT * FROM ${table} WHERE ${idColumn} = ?`,
         [id]
       );
 
-      if (rows.length === 0) return null;
+      if (!rows.length) return null;
 
       const user = rows[0];
-      const match = await bcrypt.compare(password, user.password);
 
+      const match = await bcrypt.compare(password, user.password);
       if (!match) return null;
 
-      // 🔥 CHECK FIRST LOGIN
+      // 🔥 Remove password before returning
+      delete user.password;
+
+      // 🔥 First login check
       if (user.must_change_password) {
         return {
           user,
@@ -54,13 +34,19 @@ router.post("/", async (req, res) => {
         };
       }
 
+      // 🔥 Token with consistent structure
       const token = jwt.sign(
         { id: user[idColumn], role },
         process.env.JWT_SECRET,
         { expiresIn: "1d" }
       );
 
-      return { user, role, token, firstLogin: false };
+      return {
+        user,
+        role,
+        token,
+        firstLogin: false,
+      };
     };
 
     // Company login (EMAIL based)
@@ -85,12 +71,22 @@ router.post("/", async (req, res) => {
       // );
 
       const token = jwt.sign(
-        { company_id: company.company_id },
+        {
+          id: company.company_id,
+          role: "company",
+        },
         process.env.JWT_SECRET,
         { expiresIn: "1d" }
       );
 
-      return { user: company, role: "company", token };
+      // Remove password
+      delete company.password;
+
+      return {
+        user: company,
+        role: "company",
+        token,
+      };
     };
 
     let result = null;
@@ -138,22 +134,49 @@ router.post("/", async (req, res) => {
     }
 
     // 🔥 If first login → no token
+    // if (result.firstLogin) {
+    //   return res.status(200).json({
+    //     success: true,
+    //     firstLogin: true,
+    //     role: result.role,
+    //     user: result.user,
+    //     message: "You must change your password before continuing",
+    //   });
+    // }
+
+    // res.status(200).json({
+    //   success: true,
+    //   message: "Login successful",
+    //   role: result.role,
+    //   token: result.token,
+    //   user: result.user,
+    // });
+
     if (result.firstLogin) {
+      const token = jwt.sign(
+        { id: result.user[`${result.role}_id`], role: result.role },
+        process.env.JWT_SECRET,
+        { expiresIn: "1d" }
+      );
+
       return res.status(200).json({
         success: true,
         firstLogin: true,
         role: result.role,
+        token,
         user: result.user,
         message: "You must change your password before continuing",
       });
     }
 
-    res.status(200).json({
+    // ✅ NORMAL LOGIN RESPONSE (MUST ADD THIS)
+    return res.status(200).json({
       success: true,
-      message: "Login successful",
+      firstLogin: false,
       role: result.role,
       token: result.token,
       user: result.user,
+      message: "Login successful",
     });
   } catch (error) {
     console.error("Login error:", error);

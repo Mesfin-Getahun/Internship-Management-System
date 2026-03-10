@@ -7,7 +7,7 @@
 // export default adminRoute;
 
 import express from "express";
-import authAdmin from "../middlewares/authAdmin.js";
+import authenticate from "../middlewares/auth.js";
 import {
   getAllUsers,
   updateUserRole,
@@ -22,7 +22,7 @@ import {
 const router = express.Router();
 
 // 🔒 All routes require admin authentication
-router.use(authAdmin);
+router.use(authenticate("admin"));
 
 /* ================= FREQ-30 ================= */
 // Manage users & roles

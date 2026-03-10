@@ -8,14 +8,22 @@ import {
   facultyViewReports,
   evaluation,
 } from "../controller/facultyController.js";
-import { authFaculty } from "../middleware/auth.js";
+import { authenticate } from "../middleware/auth.js";
 const facultyRoute = express.Router();
 
-facultyRoute.post("/assignMentor", authFaculty, assignMentor);
-facultyRoute.get("/companyEvaluation", authFaculty, companyEvaluation);
-facultyRoute.get("/students", authFaculty, getStudents);
-facultyRoute.get("/companyEvaluation/:evaluation_id", authFaculty, evaluation);
-facultyRoute.delete("/deleteMentor/:id", authFaculty, deleteMentor);
-facultyRoute.put("/changeMentor/:id", authFaculty, changeMentor);
-facultyRoute.get("/reports", authFaculty, facultyViewReports);
+facultyRoute.post("/assignMentor", authenticate("faculty"), assignMentor);
+facultyRoute.get(
+  "/companyEvaluation",
+  authenticate("faculty"),
+  companyEvaluation
+);
+facultyRoute.get("/students", authenticate("faculty"), getStudents);
+facultyRoute.get(
+  "/companyEvaluation/:evaluation_id",
+  authenticate("faculty"),
+  evaluation
+);
+facultyRoute.delete("/deleteMentor/:id", authenticate("faculty"), deleteMentor);
+facultyRoute.put("/changeMentor/:id", authenticate("faculty"), changeMentor);
+facultyRoute.get("/reports", authenticate("faculty"), facultyViewReports);
 export default facultyRoute;

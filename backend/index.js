@@ -16,6 +16,7 @@ import {
   createMentor,
 } from "./middleware/register.js";
 import { checkMaintenanceMode } from "./middleware/Maintenance.js";
+import authRoute from "./routes/authRoute.js";
 
 import router from "./middleware/login.js";
 import changeRouter from "./middleware/changePassword.js";
@@ -27,6 +28,8 @@ app.use(cors());
 app.use(express.json());
 
 app.use(checkMaintenanceMode);
+
+app.use("/api/auth", authRoute);
 
 app.use("/api/student", studentRoute);
 app.use("/api/faculty", facultyRoute);

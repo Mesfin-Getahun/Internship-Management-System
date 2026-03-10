@@ -7,23 +7,31 @@ import {
   companyMentorFeedback,
   getSingleFeedback,
 } from "../controller/mentorController.js";
-import { authMentor } from "../middleware/auth.js";
+import { authenticate } from "../middleware/auth.js";
 import { uploadPDF } from "../middleware/uploadPDF.js";
 const mentorRoute = express.Router();
 
-mentorRoute.get("/students", authMentor, fetchStudents);
-mentorRoute.get("/reports", authMentor, reviewReport);
-mentorRoute.get("/companyFeedback", authMentor, companyMentorFeedback);
-mentorRoute.post("/provideFeedback/:id", authMentor, provideFeedback);
+mentorRoute.get("/students", authenticate("mentor"), fetchStudents);
+mentorRoute.get("/reports", authenticate("mentor"), reviewReport);
+mentorRoute.get(
+  "/companyFeedback",
+  authenticate("mentor"),
+  companyMentorFeedback
+);
+mentorRoute.post(
+  "/provideFeedback/:id",
+  authenticate("mentor"),
+  provideFeedback
+);
 mentorRoute.post(
   "/signReport/:report_id",
-  authMentor,
+  authenticate("mentor"),
   uploadPDF.single("report"),
   mentorSignReport
 );
 mentorRoute.get(
   "/feedback/:feedback_id",
-  authMentor, // faculty mentor auth
+  authenticate("mentor"), // faculty mentor auth
   getSingleFeedback
 );
 

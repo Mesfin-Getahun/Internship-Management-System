@@ -1,47 +1,118 @@
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { useAuth } from '../../AuthContext';
+import React, { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { useAuth } from "../../AuthContext";
+import axios from "axios";
 
 const ChangePassword = () => {
   const [passwords, setPasswords] = useState({
-    current: '',
-    new: '',
-    confirm: '',
+    current: "",
+    new: "",
+    confirm: "",
   });
-  const [error, setError] = useState('');
+  const [error, setError] = useState("");
   const navigate = useNavigate();
-  const { user, completeSetup } = useAuth();
+  const { user, setUser } = useAuth();
+
+  // const getHomeRoute = () => {
+  //   if (!user) {
+  //     return "/login";
+  //   }
+  //   switch (user.role) {
+  //     case "student":
+  //       return "/student";
+  //     case "admin":
+  //       return "/admin";
+  //     case "faculty":
+  //       return "/faculty";
+  //     case "mentor":
+  //       return "/mentor";
+  //     // case 'organization': return '/organization';
+  //     case "uil":
+  //       return "/uil";
+  //     default:
+  //       return "/login";
+  //   }
+  // };
 
   const getHomeRoute = () => {
-    if (!user) {
-      return "/login";
-    }
-    switch (user.role) {
-      case 'student': return '/student';
-      case 'admin': return '/admin';
-      case 'faculty': return '/faculty';
-      case 'mentor': return '/mentor';
-      case 'organization': return '/organization';
-      case 'uil': return '/uil';
-      default: return '/login';
+    const role = user?.role || user?.user?.role; // handle both shapes
+
+    switch (role) {
+      case "student":
+        return "/student";
+      case "admin":
+        return "/admin";
+      case "faculty":
+        return "/faculty";
+      case "mentor":
+        return "/mentor";
+      case "uil":
+        return "/uil";
+      default:
+        return "/login";
     }
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
+    setError("");
+
     if (passwords.new.length < 8) {
-      setError('New password must be at least 8 characters long.');
+      setError("New password must be at least 8 characters long.");
       return;
     }
+
     if (passwords.new !== passwords.confirm) {
-      setError('New passwords do not match.');
+      setError("New passwords do not match.");
       return;
     }
-    // In a real app, you would make an API call here.
-    console.log('Password changed successfully.');
-    setError('');
-    completeSetup();
-    navigate(getHomeRoute());
+
+    try {
+      const token = localStorage.getItem("token");
+      console.log("TOKEN BEFORE REQUEST:", token);
+
+      const res = await axios.put(
+        "http://localhost:5000/api/change-password",
+        {
+          currentPassword: passwords.current,
+          newPassword: passwords.new,
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+
+      // const { token: newToken } = res.data;
+
+      // // ✅ Store new token
+      // localStorage.setItem("token", newToken);
+
+      // axios.defaults.headers.common["Authorization"] = `Bearer ${newToken}`;
+
+      // ✅ Mark setup complete
+      // completeSetup();
+
+      // ✅ Redirect to dashboard
+      if (res.data.success) {
+        //completeSetup();
+        setUser({
+          ...user,
+          isFirstLogin: false, // 👈 this is key
+        });
+        navigate(getHomeRoute({ ...user, isFirstLogin: false }), {
+          replace: true,
+        });
+        // navigate(getHomeRoute(), { replace: true });
+      }
+      //navigate(getHomeRoute(), { replace: true });
+    } catch (err) {
+      console.log(err.response);
+      console.log("AXIOS ERROR:", err);
+      console.log("AXIOS RESPONSE:", err.response);
+      setError(err.response?.data?.message || "Password change failed");
+    }
   };
 
   return (
@@ -49,41 +120,59 @@ const ChangePassword = () => {
       <div className="w-full max-w-md bg-white dark:bg-slate-800 rounded-3xl shadow-xl border border-slate-100 dark:border-slate-700 transition-colors duration-300 p-8">
         <div className="animate-fade-in">
           <div className="text-center mb-8">
-            <h1 className="text-3xl font-bold text-slate-800 dark:text-white">Change Your Password</h1>
-            <p className="text-slate-500 dark:text-slate-400 mt-2">For security, please change your temporary password.</p>
+            <h1 className="text-3xl font-bold text-slate-800 dark:text-white">
+              Change Your Password
+            </h1>
+            <p className="text-slate-500 dark:text-slate-400 mt-2">
+              For security, please change your temporary password.
+            </p>
           </div>
           <form onSubmit={handleSubmit} className="space-y-6">
             <div>
-              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Current Password</label>
+              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+                Current Password
+              </label>
               <input
                 type="password"
                 value={passwords.current}
-                onChange={(e) => setPasswords({ ...passwords, current: e.target.value })}
+                onChange={(e) =>
+                  setPasswords({ ...passwords, current: e.target.value })
+                }
                 className="block w-full px-4 py-2.5 border border-slate-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none transition-all bg-white dark:bg-slate-700"
                 required
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">New Password</label>
+              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+                New Password
+              </label>
               <input
                 type="password"
                 value={passwords.new}
-                onChange={(e) => setPasswords({ ...passwords, new: e.target.value })}
+                onChange={(e) =>
+                  setPasswords({ ...passwords, new: e.target.value })
+                }
                 className="block w-full px-4 py-2.5 border border-slate-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none transition-all bg-white dark:bg-slate-700"
                 required
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Confirm New Password</label>
+              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+                Confirm New Password
+              </label>
               <input
                 type="password"
                 value={passwords.confirm}
-                onChange={(e) => setPasswords({ ...passwords, confirm: e.target.value })}
+                onChange={(e) =>
+                  setPasswords({ ...passwords, confirm: e.target.value })
+                }
                 className="block w-full px-4 py-2.5 border border-slate-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none transition-all bg-white dark:bg-slate-700"
                 required
               />
             </div>
-            {error && <p className="text-sm text-red-500 text-center">{error}</p>}
+            {error && (
+              <p className="text-sm text-red-500 text-center">{error}</p>
+            )}
             <button
               type="submit"
               className="w-full bg-blue-600 text-white px-8 py-3 rounded-lg font-semibold hover:bg-blue-700 transition-all shadow-lg shadow-blue-500/20"

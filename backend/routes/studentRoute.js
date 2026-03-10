@@ -8,29 +8,39 @@ import {
   updateProfile,
   cancelApplication,
   submitSignedReportToFaculty,
+  myApplication,
 } from "../controller/studentController.js";
 import { uploadApplicationFiles } from "../middleware/uploadApplicationFiles.js";
 import { uploadPDF } from "../middleware/uploadPDF.js";
-import { authStudent } from "../middleware/auth.js";
+import { authenticate } from "../middleware/auth.js";
 const studentRoute = express.Router();
 
 studentRoute.post(
   "/applyInternship/:internship_id",
-  authStudent,
+  authenticate("student"),
   uploadApplicationFiles,
   applyInternships
 );
-studentRoute.delete("/cancelApplication/:id", cancelApplication);
-studentRoute.get("/internships", authStudent, fetchInternships); //authStudent
-studentRoute.get("/myInternship", authStudent, myInternship);
-studentRoute.get("/viewFeedbacks", authStudent, feedbacks);
-studentRoute.put("/updateProfile", updateProfile);
+studentRoute.delete(
+  "/cancelApplication/:id",
+  authenticate("student"),
+  cancelApplication
+);
+studentRoute.get("/internships", authenticate("student"), fetchInternships); //authStudent
+studentRoute.get("/myInternship", authenticate("student"), myInternship);
+studentRoute.get("/myApplication", authenticate("student"), myApplication);
+studentRoute.get("/viewFeedbacks", authenticate("student"), feedbacks);
+studentRoute.put("/updateProfile", authenticate("student"), updateProfile);
 studentRoute.post(
   "/uploadReport/:internship_id",
   uploadPDF.single("report"),
-  authStudent,
+  authenticate("student"),
   uploadInternshipReport
 );
-studentRoute.put("/submitToFaculty/:report_id", submitSignedReportToFaculty);
+studentRoute.put(
+  "/submitToFaculty/:report_id",
+  authenticate("student"),
+  submitSignedReportToFaculty
+);
 
 export default studentRoute;

@@ -12,21 +12,29 @@ import StudentDashboard from "./pages/dashboard/StudentDashboard.jsx";
 import OrganizationDashboard from "./pages/dashboard/OrganizationDashboard.jsx";
 import UilDashboard from "./pages/dashboard/UilDashboard.jsx";
 import OrganizationSupervisorDashboard from "./pages/dashboard/OrganizationSupervisorDashboard.jsx";
-import ThemeToggle from './components/common/ThemeToggle.jsx';
+import ThemeToggle from "./components/common/ThemeToggle.jsx";
 
 const getHomeRoute = (user) => {
-  if (!user) {
-    return "/login";
-  }
-  switch (user.role) {
-    case 'student': return '/student';
-    case 'admin': return '/admin';
-    case 'faculty': return '/faculty';
-    case 'mentor': return '/mentor';
-    case 'organization': return '/organization';
-    case 'uil': return '/uil';
-    case 'org_supervisor': return '/org-supervisor';
-    default: return '/login';
+  const role = user?.role || user?.user?.role;
+
+  switch (role) {
+    case "student":
+      return "/student";
+    case "admin":
+      return "/admin";
+    case "faculty":
+      return "/faculty";
+    case "mentor":
+      return "/mentor";
+    case "organization":
+      // case "company":
+      return "/organization";
+    case "uil":
+      return "/uil";
+    case "org_supervisor":
+      return "/org-supervisor";
+    default:
+      return "/login";
   }
 };
 
@@ -37,7 +45,7 @@ const ProtectedRoute = ({ children, forChangePassword = false }) => {
     return <Navigate to="/login" replace />;
   }
 
-  if (user.isFirstLogin && !forChangePassword) {
+  if (user?.isFirstLogin === true && !forChangePassword) {
     return <Navigate to="/change-password" replace />;
   }
 
@@ -49,28 +57,37 @@ const ProtectedRoute = ({ children, forChangePassword = false }) => {
 };
 
 const App = () => {
-  const { user } = useAuth();
+  const { user, loading } = useAuth();
+  console.log("USER ROLE:", user?.role);
+  console.log("IS FIRST LOGIN:", user?.isFirstLogin);
   const [isDarkMode, setIsDarkMode] = useState(() => {
-    const saved = localStorage.getItem('theme');
-    return saved === 'dark' || (!saved && window.matchMedia('(prefers-color-scheme: dark)').matches);
+    const saved = localStorage.getItem("theme");
+    return (
+      saved === "dark" ||
+      (!saved && window.matchMedia("(prefers-color-scheme: dark)").matches)
+    );
   });
 
   useEffect(() => {
     const root = window.document.documentElement;
     if (isDarkMode) {
-      root.classList.add('dark');
-      localStorage.setItem('theme', 'dark');
+      root.classList.add("dark");
+      localStorage.setItem("theme", "dark");
     } else {
-      root.classList.remove('dark');
-      localStorage.setItem('theme', 'light');
+      root.classList.remove("dark");
+      localStorage.setItem("theme", "light");
     }
   }, [isDarkMode]);
 
-  const toggleTheme = () => setIsDarkMode(prev => !prev);
+  const toggleTheme = () => setIsDarkMode((prev) => !prev);
 
   useEffect(() => {
-    console.debug('App: isDarkMode changed ->', isDarkMode);
+    console.debug("App: isDarkMode changed ->", isDarkMode);
   }, [isDarkMode]);
+
+  if (loading) {
+    return <div>Loading...</div>;
+  }
 
   return (
     <div className="min-h-screen transition-colors duration-300 bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 font-['Inter']">
@@ -78,18 +95,80 @@ const App = () => {
       <HashRouter>
         <Routes>
           <Route path="/login" element={<LoginPage />} />
-          <Route path="/register/organization" element={<OrganizationSignUp />} />
-          <Route path="/change-password" element={<ProtectedRoute forChangePassword={true}><ChangePassword /></ProtectedRoute>} />
+          <Route
+            path="/register/organization"
+            element={<OrganizationSignUp />}
+          />
+          <Route
+            path="/change-password"
+            element={
+              <ProtectedRoute forChangePassword={true}>
+                <ChangePassword />
+              </ProtectedRoute>
+            }
+          />
 
-          <Route path="/admin/*" element={<ProtectedRoute><AdminDashboard /></ProtectedRoute>} />
-          <Route path="/faculty/*" element={<ProtectedRoute><FacultyDashboard /></ProtectedRoute>} />
-          <Route path="/mentor/*" element={<ProtectedRoute><MentorDashboard /></ProtectedRoute>} />
-          <Route path="/student/*" element={<ProtectedRoute><StudentDashboard /></ProtectedRoute>} />
-          <Route path="/organization/*" element={<ProtectedRoute><OrganizationDashboard /></ProtectedRoute>} />
-          <Route path="/uil/*" element={<ProtectedRoute><UilDashboard /></ProtectedRoute>} />
-          <Route path="/org-supervisor/*" element={<ProtectedRoute><OrganizationSupervisorDashboard /></ProtectedRoute>} />
+          <Route
+            path="/admin/*"
+            element={
+              <ProtectedRoute>
+                <AdminDashboard />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/faculty/*"
+            element={
+              <ProtectedRoute>
+                <FacultyDashboard />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/mentor/*"
+            element={
+              <ProtectedRoute>
+                <MentorDashboard />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/student/*"
+            element={
+              <ProtectedRoute>
+                <StudentDashboard />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/organization/*"
+            element={
+              <ProtectedRoute>
+                <OrganizationDashboard />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/uil/*"
+            element={
+              <ProtectedRoute>
+                <UilDashboard />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/org-supervisor/*"
+            element={
+              <ProtectedRoute>
+                <OrganizationSupervisorDashboard />
+              </ProtectedRoute>
+            }
+          />
 
-          <Route path="*" element={<Navigate to={getHomeRoute(user)} replace />} />
+          <Route
+            path="*"
+            element={<Navigate to={getHomeRoute(user)} replace />}
+          />
         </Routes>
       </HashRouter>
     </div>

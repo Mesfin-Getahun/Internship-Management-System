@@ -1,32 +1,41 @@
-import React, { useState } from 'react';
-import { X, Plus } from 'lucide-react';
+import React, { useState } from "react";
+import { X, Plus } from "lucide-react";
 
 const EditableSkillsInput = ({
   label,
-  selectedSkills,
+  selectedSkills = [],
   onChange,
   placeholder,
-  required = false
+  required = false,
 }) => {
-  const [inputValue, setInputValue] = useState('');
+  const [inputValue, setInputValue] = useState("");
 
   const handleInputChange = (e) => {
     setInputValue(e.target.value);
   };
 
+  // const handleAddSkill = () => {
+  //   if (inputValue.trim() && !selectedSkills.includes(inputValue.trim())) {
+  //     onChange([...selectedSkills, inputValue.trim()]);
+  //     setInputValue("");
+  //   }
+  // };
+
   const handleAddSkill = () => {
-    if (inputValue.trim() && !selectedSkills.includes(inputValue.trim())) {
-      onChange([...selectedSkills, inputValue.trim()]);
-      setInputValue('');
+    const currentSkills = selectedSkills || [];
+
+    if (inputValue.trim() && !currentSkills.includes(inputValue.trim())) {
+      onChange([...currentSkills, inputValue.trim()]);
+      setInputValue("");
     }
   };
 
   const handleRemoveSkill = (skillToRemove) => {
-    onChange(selectedSkills.filter(skill => skill !== skillToRemove));
+    onChange(selectedSkills.filter((skill) => skill !== skillToRemove));
   };
 
   const handleKeyDown = (e) => {
-    if (e.key === 'Enter') {
+    if (e.key === "Enter") {
       e.preventDefault();
       handleAddSkill();
     }
@@ -38,8 +47,11 @@ const EditableSkillsInput = ({
         {label} {required && <span className="text-red-500">*</span>}
       </label>
       <div className="flex flex-wrap items-center gap-2 p-2 rounded-lg bg-slate-200 dark:bg-slate-700 border border-transparent focus-within:border-blue-500">
-        {selectedSkills.map(skill => (
-          <span key={skill} className="flex items-center bg-blue-500 text-white text-sm font-medium px-2 py-1 rounded-md">
+        {(selectedSkills || []).map((skill) => (
+          <span
+            key={skill}
+            className="flex items-center bg-blue-500 text-white text-sm font-medium px-2 py-1 rounded-md"
+          >
             {skill}
             <button
               type="button"
@@ -58,7 +70,7 @@ const EditableSkillsInput = ({
           placeholder={placeholder}
           className="flex-grow bg-transparent outline-none text-sm"
         />
-         <button
+        <button
           type="button"
           onClick={handleAddSkill}
           className="p-1 text-slate-500 hover:text-blue-600 dark:text-slate-400 dark:hover:text-blue-400"

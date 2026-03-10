@@ -11,7 +11,7 @@ import StipendApplication from "../../components/dashboard/student/StipendApplic
 import StudentProfile from "./StudentProfile.jsx";
 import FeedbackAndEvaluation from "../../components/dashboard/student/FeedbackAndEvaluation.jsx";
 import InternshipStatus from "../../components/dashboard/student/InternshipStatus.jsx";
-import ApplicationPage from '../../components/dashboard/student/ApplicationPage.jsx';
+import ApplicationPage from "../../components/dashboard/student/ApplicationPage.jsx";
 import StudentRecommendationLetter from "../../components/dashboard/student/StudentRecommendationLetter.jsx";
 
 const PlaceholderScreen = ({ title, description }) => (
@@ -57,7 +57,10 @@ const StudentDashboard = () => {
         <main className="flex-1 overflow-y-auto p-6 pt-20">
           <Routes>
             <Route index element={<Navigate to="overview" replace />} />
-            <Route path="overview" element={<StudentOverview studentData={user} />} />
+            <Route
+              path="overview"
+              element={<StudentOverview studentData={user} />}
+            />
             <Route path="opportunities" element={<InternshipOpportunities />} />
             <Route path="my-applications" element={<MyApplications />} />
             <Route path="reports" element={<WeeklyReports />} />
@@ -65,8 +68,11 @@ const StudentDashboard = () => {
             <Route path="profile" element={<StudentProfile />} />
             <Route path="feedback" element={<FeedbackAndEvaluation />} />
             <Route path="status" element={<InternshipStatus />} />
-            <Route path="recommendation" element={<StudentRecommendationLetter />} />
-            <Route path="apply/:id" element={<ApplicationPage />} />
+            <Route
+              path="recommendation"
+              element={<StudentRecommendationLetter />}
+            />
+            <Route path="apply/:internship_id" element={<ApplicationPage />} />
             <Route path="*" element={<Navigate to="overview" replace />} />
           </Routes>
         </main>

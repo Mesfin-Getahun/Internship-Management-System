@@ -3,14 +3,18 @@ import {
   giveFeedBack,
   fetchStudents,
 } from "../controller/companyMentorController.js";
-import { authCompanyMentor } from "../middleware/auth.js";
+import { authenticate } from "../middleware/auth.js";
 const companyMentorRoute = express.Router();
 
 companyMentorRoute.post(
   "/feedBack/:internship_id/:student_id",
-  authCompanyMentor,
+  authenticate("company_mentor"),
   giveFeedBack
 );
-companyMentorRoute.get("/students", authCompanyMentor, fetchStudents);
+companyMentorRoute.get(
+  "/students",
+  authenticate("company_mentor"),
+  fetchStudents
+);
 
 export default companyMentorRoute;
