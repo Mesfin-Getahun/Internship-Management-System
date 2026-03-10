@@ -45,11 +45,7 @@ const StudentNavbar = () => {
       })]
     }), /*#__PURE__*/_jsxs("div", {
       className: "flex items-center gap-4",
-      children: [/*#__PURE__*/_jsx("button", {
-        onClick: logout,
-        className: "px-4 py-2 text-xs font-bold text-red-600 hover:bg-red-50 rounded-lg transition-colors uppercase tracking-widest",
-        children: "Logout"
-      }), /*#__PURE__*/_jsxs("button", {
+      children: [/*#__PURE__*/_jsxs("button", {
         className: "relative p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors group",
         children: [/*#__PURE__*/_jsx("svg", {
           xmlns: "http://www.w3.org/2000/svg",
