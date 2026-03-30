@@ -1,18 +1,19 @@
 
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { LayoutGrid, Users, UserCheck, Monitor, CheckSquare, BarChart2, FileText, User, LogOut } from 'lucide-react';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faTableCellsLarge, faUsers, faUserCheck, faDesktop, faCheckSquare, faChartBar, faFileAlt, faUser, faSignOutAlt } from '@fortawesome/free-solid-svg-icons';;
 
 const FacultySidebar = ({ activeTab }) => {
   const menuItems = [
-    { id: 'overview', label: 'Dashboard Overview', icon: LayoutGrid },
-    { id: 'manage-students', label: 'Manage Students', icon: Users },
-    { id: 'assign-mentors', label: 'Assign Mentors', icon: UserCheck },
-    { id: 'monitor-progress', label: 'Monitor Progress', icon: BarChart2 },
-    { id: 'org-evaluations', label: 'Org Evaluations', icon: FileText },
-    { id: 'reports', label: 'Reports & Stats', icon: BarChart2 },
-    { id: 'stipend-management', label: 'Stipend Management', icon: FileText },
-    { id: 'profile', label: 'Faculty Profile', icon: User }
+    { id: 'overview', label: 'Dashboard Overview', icon: faTableCellsLarge },
+    { id: 'manage-students', label: 'Manage Students', icon: faUsers },
+    { id: 'assign-mentors', label: 'Assign Mentors', icon: faUserCheck },
+    { id: 'monitor-progress', label: 'Monitor Progress', icon: faChartBar },
+    { id: 'org-evaluations', label: 'Org Evaluations', icon: faFileAlt },
+    { id: 'reports', label: 'Reports & Stats', icon: faChartBar },
+    { id: 'stipend-management', label: 'Stipend Management', icon: faFileAlt },
+    { id: 'profile', label: 'Faculty Profile', icon: faUser }
   ];
 
   return (
@@ -28,7 +29,7 @@ const FacultySidebar = ({ activeTab }) => {
                 : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200'
             }`}
           >
-            <item.icon className="h-5 w-5 shrink-0" />
+            <FontAwesomeIcon icon={item.icon} className="h-5 w-5 shrink-0" />
             <span className="truncate">{item.label}</span>
           </Link>
         ))}
@@ -36,7 +37,7 @@ const FacultySidebar = ({ activeTab }) => {
       
       <div className="p-4 mt-auto border-t border-slate-800">
         <Link to="/login" className="w-full flex items-center gap-3 px-4 py-3 rounded-xl font-semibold text-red-400 hover:bg-red-950/20 transition-colors text-sm">
-          <LogOut className="h-5 w-5" />
+          <FontAwesomeIcon icon={faSignOutAlt} className="h-5 w-5" />
           Logout
         </Link>
       </div>

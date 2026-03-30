@@ -1,5 +1,6 @@
-
 import React from 'react';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faSearch, faBolt } from '@fortawesome/free-solid-svg-icons';
 
 const AdminNavbar = ({ title }) => {
   return (
@@ -8,9 +9,7 @@ const AdminNavbar = ({ title }) => {
         <h1 className="text-xl font-black text-slate-800 tracking-tight uppercase">{title}</h1>
         
         <div className="relative w-full max-w-lg hidden lg:block">
-          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-          </svg>
+          <FontAwesomeIcon icon={faSearch} className="h-5 w-5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
           <input 
             type="text" 
             placeholder="Search across the entire system database..." 
@@ -26,9 +25,7 @@ const AdminNavbar = ({ title }) => {
         </div>
 
         <button className="relative p-2.5 rounded-xl bg-slate-50 text-slate-500 hover:bg-slate-100 transition-colors group">
-          <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
-          </svg>
+          <FontAwesomeIcon icon={faBolt} className="h-6 w-6" />
           <span className="absolute top-2 right-2.5 w-2 h-2 bg-indigo-500 rounded-full border-2 border-white group-hover:scale-125 transition-transform"></span>
         </button>
         

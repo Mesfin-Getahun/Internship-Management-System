@@ -1,6 +1,8 @@
 import React from "react";
 import { Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { useAuth } from "../../AuthContext";
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faInfoCircle } from '@fortawesome/free-solid-svg-icons';
 import StudentNavbar from "../../components/dashboard/student/StudentNavbar.jsx";
 import StudentSidebar from "../../components/dashboard/student/StudentSidebar.jsx";
 import StudentOverview from "../../components/dashboard/student/StudentOverview.jsx";
@@ -17,20 +19,7 @@ import StudentRecommendationLetter from "../../components/dashboard/student/Stud
 const PlaceholderScreen = ({ title, description }) => (
   <div className="p-20 text-center animate-fade-in bg-white dark:bg-slate-900 rounded-3xl border border-slate-100 dark:border-slate-800 shadow-sm">
     <div className="w-20 h-20 bg-blue-50 dark:bg-blue-900/20 text-blue-600 rounded-3xl flex items-center justify-center mx-auto mb-6">
-      <svg
-        xmlns="http://www.w3.org/2000/svg"
-        className="h-10 w-10"
-        fill="none"
-        viewBox="0 0 24 24"
-        stroke="currentColor"
-      >
-        <path
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          strokeWidth="2"
-          d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-        />
-      </svg>
+      <FontAwesomeIcon icon={faInfoCircle} className="h-10 w-10" />
     </div>
     <h3 className="text-xl font-bold text-slate-800 dark:text-white">
       {title}

@@ -17,8 +17,10 @@ import {
 } from "./middleware/register.js";
 
 import router from "./middleware/login.js";
+import { setupSwagger } from "./utils/swagger.js";
 
 const app = express();
+setupSwagger(app);
 
 app.use(cors());
 

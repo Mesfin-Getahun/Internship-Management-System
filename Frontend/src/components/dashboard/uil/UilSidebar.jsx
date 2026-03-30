@@ -1,16 +1,8 @@
 import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../../AuthContext';
-import {
-  LayoutGrid,
-  CheckSquare,
-  Monitor,
-  FileText,
-  Bell,
-  Settings,
-  LogOut,
-  FileUp,
-} from 'lucide-react';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faTableCellsLarge, faCheckSquare, faDesktop, faFileAlt, faBell, faCog, faSignOutAlt, faFileUpload, faBriefcase } from '@fortawesome/free-solid-svg-icons';
 
 const UilSidebar = ({ activeTab }) => {
   const { logout } = useAuth();
@@ -22,13 +14,14 @@ const UilSidebar = ({ activeTab }) => {
   };
 
   const menuItems = [
-    { id: 'dashboard', label: 'Dashboard', icon: LayoutGrid },
-    { id: 'approvals', label: 'Org Approvals', icon: CheckSquare },
-    { id: 'monitoring', label: 'Internship Monitoring', icon: Monitor },
-    { id: 'reports', label: 'Fulfillment Reports', icon: FileText },
-    { id: 'recommendation', label: 'Recommendation Letter', icon: FileUp },
-    { id: 'notifications', label: 'Notifications', icon: Bell },
-    { id: 'settings', label: 'Settings', icon: Settings },
+    { id: 'dashboard', label: 'Dashboard', icon: faTableCellsLarge },
+    { id: 'approvals', label: 'Org Approvals', icon: faCheckSquare },
+    { id: 'internship-approvals', label: 'Internship Approvals', icon: faBriefcase },
+    { id: 'monitoring', label: 'Internship Monitoring', icon: faDesktop },
+    { id: 'reports', label: 'Fulfillment Reports', icon: faFileAlt },
+    { id: 'recommendation', label: 'Recommendation Letter', icon: faFileUpload },
+    { id: 'notifications', label: 'Notifications', icon: faBell },
+    { id: 'settings', label: 'Settings', icon: faCog },
   ];
 
   return (
@@ -40,14 +33,14 @@ const UilSidebar = ({ activeTab }) => {
         {menuItems.map(item => (
           <Link
             key={item.id}
-            to={`/uil-dashboard/${item.id}`}
+            to={`/uil/${item.id}`}
             className={`flex items-center gap-3 px-4 py-3 rounded-xl font-semibold transition-all text-sm ${
               activeTab === item.id 
                 ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/30' 
                 : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200'
             }`}
           >
-            <item.icon className="h-5 w-5 shrink-0" />
+            <FontAwesomeIcon icon={item.icon} className="h-5 w-5 shrink-0" />
             <span className="truncate">{item.label}</span>
           </Link>
         ))}
@@ -58,7 +51,7 @@ const UilSidebar = ({ activeTab }) => {
           onClick={handleLogout}
           className="w-full flex items-center gap-3 px-4 py-3 rounded-xl font-semibold text-red-400 hover:bg-red-950/20 transition-colors text-sm"
         >
-          <LogOut className="h-5 w-5" />
+          <FontAwesomeIcon icon={faSignOutAlt} className="h-5 w-5" />
           Logout
         </button>
       </div>

@@ -1,59 +1,55 @@
 import React from "react";
-import { NavLink } from "react-router-dom";
-import { LayoutGrid, Users, LogOut } from "lucide-react";
+import { Link, useNavigate } from "react-router-dom";
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faTableCellsLarge, faUsers, faCheckCircle, faFileAlt, faSignOutAlt } from '@fortawesome/free-solid-svg-icons';;
 import { useAuth } from "../../../AuthContext";
 
-const base = "flex items-center px-4 py-2.5 text-sm font-medium rounded-xl transition-colors";
-
-const OrgSupervisorSidebar = () => {
+const OrgSupervisorSidebar = ({ activeTab }) => {
   const { logout } = useAuth();
+  const navigate = useNavigate();
+
+  const handleLogout = () => {
+    logout();
+    navigate("/login");
+  };
 
   const menuItems = [
-    { to: "", label: "Dashboard", icon: LayoutGrid },
-    { to: "my-students", label: "My Students", icon: Users },
+    { id: "overview", label: "Dashboard", icon: faTableCellsLarge },
+    { id: "attendance", label: "Attendance", icon: faCheckCircle },
+    { id: "evaluation", label: "Evaluation", icon: faFileAlt },
   ];
 
   return (
-    <aside className="h-screen w-64 bg-slate-900 text-white flex flex-col border-r border-slate-800">
-      <div className="flex items-center px-6 py-5 border-b border-slate-800">
-        <div className="flex items-center justify-center w-10 h-10 rounded-2xl bg-green-500/10 text-green-400 mr-3">
-          <Users className="h-6 w-6" />
-        </div>
-        <div>
-          <h1 className="text-sm font-semibold tracking-tight">
-            Supervisor Portal
-          </h1>
-          <p className="text-xs text-slate-400">Student Management</p>
-        </div>
+    <aside className="w-72 bg-slate-900 border-r border-slate-800 flex flex-col h-screen fixed left-0 top-0 pt-20 z-40 transition-colors">
+      <div className="px-6 py-4 border-b border-slate-800">
+        <h2 className="text-white font-black text-xs uppercase tracking-[0.2em] opacity-50">
+          Org. Supervisor
+        </h2>
       </div>
-
-      <nav className="flex-1 mt-4 px-3 space-y-1">
-        {menuItems.map(({ to, label, icon: Icon }) => (
-          <NavLink
-            key={to}
-            to={`/organization-supervisor-dashboard/${to}`}
-            end={to === ""}
-            className={({ isActive }) =>
-              `${base} ${
-                isActive
-                  ? "bg-green-600 text-white"
-                  : "text-slate-300 hover:bg-slate-800"
-              }`
-            }
+      <nav className="flex-grow px-4 mt-4 space-y-1 overflow-y-auto custom-scrollbar">
+        {menuItems.map((item) => (
+          <Link
+            key={item.id}
+            to={`/org-supervisor/${item.id}`}
+            className={`flex items-center gap-3 px-4 py-3 rounded-xl font-semibold transition-all text-sm ${
+              activeTab === item.id
+                ? "bg-indigo-600 text-white shadow-lg shadow-indigo-500/30"
+                : "text-slate-400 hover:bg-slate-800 hover:text-slate-200"
+            }`}
           >
-            <Icon className="h-5 w-5 mr-3" />
-            <span className="ml-2">{label}</span>
-          </NavLink>
+            <FontAwesomeIcon icon={item.icon} className="h-5 w-5 shrink-0" />
+            <span className="truncate">{item.label}</span>
+          </Link>
         ))}
       </nav>
 
-      <div className="p-3 border-t border-slate-800">
+      <div className="p-4 mt-auto border-t border-slate-800">
         <button
-          onClick={logout}
-          className={`${base} w-full text-slate-300 hover:bg-red-600 hover:text-white`}
+          onClick={handleLogout}
+          className="w-full flex items-center gap-3 px-4 py-3 rounded-xl font-semibold text-red-400 hover:bg-red-950/20 transition-colors text-sm"
         >
-          <LogOut className="h-5 w-5 mr-3" />
-          <span className="ml-2">Logout</span>
+          <FontAwesomeIcon icon={faSignOutAlt} className="h-5 w-5" />
+          Logout
         </button>
       </div>
     </aside>

@@ -1,5 +1,6 @@
-
 import React from 'react';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faChevronRight } from '@fortawesome/free-solid-svg-icons';
 
 const RoleCard = ({ role, description, icon, onClick }) => {
   return (
@@ -18,9 +19,7 @@ const RoleCard = ({ role, description, icon, onClick }) => {
       </p>
       <div className="flex items-center text-blue-600 dark:text-blue-400 font-bold text-sm group-hover:translate-x-2 transition-transform">
         Enter Portal
-        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 ml-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M9 5l7 7-7 7" />
-        </svg>
+        <FontAwesomeIcon icon={faChevronRight} className="h-4 w-4 ml-2" />
       </div>
       
       <div className="absolute top-0 right-0 w-24 h-24 bg-blue-600/5 dark:bg-blue-400/5 rounded-full -mr-12 -mt-12 group-hover:scale-150 transition-transform duration-500"></div>

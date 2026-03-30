@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { toast, ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
-import { CheckCircle, XCircle, AlertTriangle, Search, ChevronDown, ChevronUp } from 'lucide-react';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faCheckCircle, faTimesCircle, faExclamationTriangle, faSearch, faChevronDown, faChevronUp } from '@fortawesome/free-solid-svg-icons';;
 
 const initialStudents = [
   { id: '1', name: 'John Doe', company: 'Google', mentor: 'Dr. Alan Turing', progress: 100, attendance: '98%', evaluation: 'Completed', status: 'Pending Approval' },
@@ -13,10 +14,10 @@ const initialStudents = [
 ];
 
 const statusConfig = {
-  'Pending Approval': { color: 'amber', icon: AlertTriangle },
+  'Pending Approval': { color: 'amber', icon: faExclamationTriangle },
   'In Progress': { color: 'sky', icon: null },
-  'Approved': { color: 'emerald', icon: CheckCircle },
-  'Rejected': { color: 'red', icon: XCircle },
+  'Approved': { color: 'emerald', icon: faCheckCircle },
+  'Rejected': { color: 'red', icon: faTimesCircle },
 };
 
 const FacultyMonitorProgress = () => {
@@ -62,7 +63,7 @@ const FacultyMonitorProgress = () => {
     if (sortConfig.key !== key) {
       return null;
     }
-    return sortConfig.direction === 'ascending' ? <ChevronUp size={16} /> : <ChevronDown size={16} />;
+    return sortConfig.direction === 'ascending' ? <FontAwesomeIcon icon={faChevronUp} size={16} /> : <FontAwesomeIcon icon={faChevronDown} size={16} />;
   };
 
   return (
@@ -72,7 +73,7 @@ const FacultyMonitorProgress = () => {
       
       <div className="mb-6">
         <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
+          <FontAwesomeIcon icon={faSearch} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
           <input
             type="text"
             placeholder="Search by student name or company..."

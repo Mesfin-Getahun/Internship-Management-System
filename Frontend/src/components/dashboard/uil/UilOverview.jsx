@@ -1,13 +1,51 @@
-
-import React from 'react';
+import React, { useState, useEffect } from 'react';
+import axios from 'axios';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faBuilding, faHourglassHalf, faBriefcase, faCheckCircle, faGraduationCap, faSpinner } from '@fortawesome/free-solid-svg-icons';
 
 const UilOverview = () => {
-  const stats = [
-    { label: 'Total Organizations', val: '124', icon: 'M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4', trend: '+5%', color: 'indigo' },
-    { label: 'Pending Approvals', val: '18', icon: 'M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z', trend: 'High', color: 'amber' },
-    { label: 'Active Internships', val: '842', icon: 'M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745V6a2 2 0 012-2h14a2 2 0 012 2v7.255z', trend: '+12%', color: 'blue' },
-    { label: 'Total Placed', val: '1,205', icon: 'M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z', trend: '94%', color: 'teal' },
-    { label: 'Completed', val: '548', icon: 'M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z', trend: 'Semesterly', color: 'emerald' }
+  const [stats, setStats] = useState({
+     totalOrganizations: 0,
+     pendingOrganizations: 0,
+     totalInternships: 0,
+     pendingInternships: 0
+  });
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchDashboardStats = async () => {
+      try {
+        setLoading(true);
+        const [activeOrgs, pendingOrgs, allInterns, pendingInterns] = await Promise.all([
+           axios.get(`${import.meta.env.VITE_BACKEND_URL}/api/UIL/companies/active`),
+           axios.get(`${import.meta.env.VITE_BACKEND_URL}/api/UIL/companyRequest`),
+           axios.get(`${import.meta.env.VITE_BACKEND_URL}/api/UIL/internships`),
+           axios.get(`${import.meta.env.VITE_BACKEND_URL}/api/UIL/internships/pending`)
+        ]);
+
+        setStats({
+          totalOrganizations: activeOrgs.data.count || 0,
+          pendingOrganizations: pendingOrgs.data.count || 0,
+          totalInternships: allInterns.data.count || 0,
+          pendingInternships: pendingInterns.data.internships?.length || 0
+        });
+
+      } catch (error) {
+        console.error("Failed to fetch dashboard stats", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchDashboardStats();
+  }, []);
+
+  const displayStats = [
+    { label: 'Total Organizations', val: stats.totalOrganizations, icon: faBuilding, trend: 'Active', color: 'indigo' },
+    { label: 'Pending Orgs', val: stats.pendingOrganizations, icon: faHourglassHalf, trend: 'Requests', color: 'amber' },
+    { label: 'Total Internships', val: stats.totalInternships, icon: faBriefcase, trend: 'All Time', color: 'blue' },
+    { label: 'Pending Internships', val: stats.pendingInternships, icon: faCheckCircle, trend: 'Action Req', color: 'red' },
+    { label: 'Completed Placements', val: 'N/A', icon: faGraduationCap, trend: 'Semesterly', color: 'emerald' }
   ];
 
   return (
@@ -22,22 +60,26 @@ const UilOverview = () => {
         </div>
       </header>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4">
-        {stats.map((stat, i) => (
-          <div key={i} className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all group">
-            <div className={`w-12 h-12 rounded-2xl bg-${stat.color}-50 text-${stat.color}-600 flex items-center justify-center mb-4 transition-transform group-hover:scale-110`}>
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d={stat.icon} />
-              </svg>
-            </div>
-            <p className="text-slate-400 text-[10px] font-black uppercase tracking-widest leading-none">{stat.label}</p>
-            <div className="flex items-baseline justify-between mt-2">
-              <span className="text-2xl font-black text-slate-800">{stat.val}</span>
-              <span className={`text-[10px] font-bold text-${stat.color}-600 px-2 py-0.5 bg-${stat.color}-50 rounded-lg`}>{stat.trend}</span>
-            </div>
+      {loading ? (
+          <div className="flex justify-center items-center h-32 w-full text-indigo-400">
+             <FontAwesomeIcon icon={faSpinner} spin size="2x" />
           </div>
-        ))}
-      </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4">
+          {displayStats.map((stat, i) => (
+            <div key={i} className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all group">
+              <div className={`w-12 h-12 rounded-2xl bg-${stat.color}-50 text-${stat.color}-600 flex items-center justify-center mb-4 transition-transform group-hover:scale-110`}>
+                <FontAwesomeIcon icon={stat.icon} className="h-6 w-6" />
+              </div>
+              <p className="text-slate-400 text-[10px] font-black uppercase tracking-widest leading-none">{stat.label}</p>
+              <div className="flex items-baseline justify-between mt-2">
+                <span className="text-2xl font-black text-slate-800">{stat.val}</span>
+                <span className={`text-[10px] font-bold text-${stat.color}-600 px-2 py-0.5 bg-${stat.color}-50 rounded-lg`}>{stat.trend}</span>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Simplified Visualization Placeholder */}
@@ -49,7 +91,7 @@ const UilOverview = () => {
               <div className="flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-slate-200"></div><span className="text-[10px] font-black uppercase text-slate-400">Actual</span></div>
             </div>
           </div>
-          <div className="flex-grow flex items-end gap-6 px-4">
+          <div className="flex-grow flex items-end gap-6 px-4 cursor-not-allowed opacity-75">
              {[
                { f: 'Computing', val: 90 }, { f: 'Civil', val: 75 }, { f: 'Mech', val: 60 }, { f: 'Elect', val: 85 }, { f: 'Chem', val: 45 }, { f: 'Others', val: 55 }
              ].map((item, idx) => (
@@ -93,44 +135,6 @@ const UilOverview = () => {
             </div>
             <div className="absolute top-0 right-0 -mr-16 -mt-16 w-48 h-48 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none group-hover:scale-150 transition-transform duration-1000"></div>
           </div>
-        </div>
-      </div>
-
-      <div className="bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden">
-        <div className="p-6 border-b border-slate-50 flex justify-between items-center">
-          <h3 className="font-bold text-slate-800 uppercase text-xs tracking-widest">Global Audit Trail</h3>
-          <button className="text-indigo-600 text-xs font-bold hover:underline">View System Logs</button>
-        </div>
-        <div className="overflow-x-auto">
-          <table className="w-full text-left">
-            <thead>
-              <tr className="bg-slate-50/50 text-[10px] font-black uppercase text-slate-400 tracking-widest border-b border-slate-50">
-                <th className="p-4">Timestamp</th>
-                <th className="p-4">Institutional Event</th>
-                <th className="p-4">Principal</th>
-                <th className="p-4 text-right">Status</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-50 text-sm">
-              {[
-                { time: '14:22 Oct 26', event: 'New Organization Partnership Approved', principal: 'EAL Group', status: 'Success' },
-                { time: '09:05 Oct 26', event: 'Internship Grade Audit Generated', principal: 'Faculty of Computing', status: 'Generated' },
-                { time: '17:45 Oct 25', event: 'Mentorship Capacity Override', principal: 'Officer Yonas', status: 'Warning' },
-                { time: '11:12 Oct 25', event: 'System Maintenance Window Closed', principal: 'Admin Root', status: 'Success' }
-              ].map((log, i) => (
-                <tr key={i} className="hover:bg-slate-50/50 transition-colors">
-                  <td className="p-4 font-mono text-[11px] text-slate-400">{log.time}</td>
-                  <td className="p-4 font-bold text-slate-700">{log.event}</td>
-                  <td className="p-4 text-slate-500 font-medium">{log.principal}</td>
-                  <td className="p-4 text-right">
-                    <span className={`text-[10px] font-black uppercase px-2 py-1 rounded-lg ${log.status === 'Success' ? 'bg-green-100 text-green-700' : 'bg-indigo-100 text-indigo-700'}`}>
-                      {log.status}
-                    </span>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
         </div>
       </div>
     </div>

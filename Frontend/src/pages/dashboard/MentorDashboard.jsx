@@ -1,5 +1,7 @@
 import React from 'react';
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faCommentDots } from '@fortawesome/free-solid-svg-icons';
 import MentorSidebar from '../../components/dashboard/mentor/MentorSidebar.jsx';
 import MentorNavbar from '../../components/dashboard/mentor/MentorNavbar.jsx';
 import MentorOverview from '../../components/dashboard/mentor/MentorOverview.jsx';
@@ -12,9 +14,7 @@ import OrganizationUpdates from '../../components/dashboard/mentor/OrganizationU
 const PlaceholderScreen = ({ title, description }) => (
   <div className="p-20 text-center animate-fade-in bg-white dark:bg-slate-900 rounded-3xl border border-slate-100 dark:border-slate-800 shadow-sm">
     <div className="w-20 h-20 bg-teal-50 dark:bg-teal-900/20 text-teal-600 rounded-3xl flex items-center justify-center mx-auto mb-6">
-      <svg xmlns="http://www.w3.org/2000/svg" className="h-10 w-10" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
-      </svg>
+      <FontAwesomeIcon icon={faCommentDots} className="h-10 w-10" />
     </div>
     <h3 className="text-xl font-bold text-slate-800 dark:text-white">{title}</h3>
     <p className="text-slate-500 dark:text-slate-400 mt-2 max-w-sm mx-auto font-medium">{description}</p>
@@ -29,36 +29,37 @@ const MentorDashboard = () => {
   const activeTab = location.pathname.split('/').pop() || 'overview';
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex transition-colors duration-300">
-      <MentorNavbar />
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex font-['Inter'] transition-colors duration-300">
       <MentorSidebar activeTab={activeTab} />
-
-      <main className="flex-1 p-6 pt-20">
-        <div className="max-w-7xl mx-auto">
-          <Routes>
-            <Route path="overview" element={<MentorOverview />} />
-            <Route path="my-students" element={<MyStudents />} />
-            <Route path="progress-tracker" element={<ProgressTracker />} />
-            <Route path="student-submissions" element={<StudentSubmissions />} />
-            <Route path="organization-updates" element={<OrganizationUpdates />} />
-            <Route path="evaluation" element={<MentorEvaluation />} />
-            <Route 
-              path="weekly-reports" 
-              element={<PlaceholderScreen title="Weekly Reports Review" description="Verify student task logs and provide feedback on their weekly technical submissions." />} 
-            />
-            <Route path="submit-evaluation" element={<MentorEvaluation />} />
-            <Route 
-              path="communication" 
-              element={<PlaceholderScreen title="Messaging Hub" description="Communicate directly with your assigned students and the Faculty of Computing administration." />} 
-            />
-            <Route 
-              path="profile" 
-              element={<PlaceholderScreen title="Mentor Profile" description="Manage your academic background, specialization areas, and portal security settings." />} 
-            />
-            <Route path="*" element={<Navigate to="/" replace />} />
-          </Routes>
-        </div>
-      </main>
+      <div className="flex-grow flex flex-col min-w-0">
+        <MentorNavbar />
+        <main className="flex-grow p-6 pt-24 lg:pl-80">
+          <div className="max-w-7xl mx-auto">
+            <Routes>
+              <Route path="/" element={<Navigate to="overview" replace />} />
+              <Route path="overview" element={<MentorOverview />} />
+              <Route path="my-students" element={<MyStudents />} />
+              <Route path="progress-tracker" element={<ProgressTracker />} />
+              <Route path="student-submissions" element={<StudentSubmissions />} />
+              <Route path="organization-updates" element={<OrganizationUpdates />} />
+              <Route path="evaluation" element={<MentorEvaluation />} />
+              <Route 
+                path="weekly-reports" 
+                element={<PlaceholderScreen title="Weekly Reports Review" description="Verify student task logs and provide feedback on their weekly technical submissions." />} 
+              />
+              <Route path="submit-evaluation" element={<MentorEvaluation />} />
+              <Route 
+                path="communication" 
+                element={<PlaceholderScreen title="Messaging Hub" description="Communicate directly with your assigned students and the Faculty of Computing administration." />} 
+              />
+              <Route 
+                path="profile" 
+                element={<PlaceholderScreen title="Mentor Profile" description="Manage your academic background, specialization areas, and portal security settings." />} 
+              />
+            </Routes>
+          </div>
+        </main>
+      </div>
     </div>
   );
 };

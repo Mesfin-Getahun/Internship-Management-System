@@ -1,5 +1,6 @@
 import React from 'react';
-import { Mail, Phone, Building, Clock, Users, Edit } from 'lucide-react';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faEnvelope, faPhone, faBuilding, faClock, faUsers, faEdit } from '@fortawesome/free-solid-svg-icons';;
 
 const facultyData = {
   name: 'Dr. Almaz Abebe',
@@ -45,8 +46,8 @@ const FacultyProfile = () => {
           <p className="text-slate-500 text-sm mt-1">Your personal and professional information.</p>
         </div>
         <button className="flex items-center gap-2 bg-emerald-600 text-white px-4 py-2 rounded-xl text-sm font-bold hover:bg-emerald-700 transition-all shadow-lg shadow-emerald-500/20">
-          <Edit size={16} />
-          Edit Profile
+          <FontAwesomeIcon icon={faEdit} size={16} />
+          faEdit Profile
         </button>
       </header>
 
@@ -70,10 +71,10 @@ const FacultyProfile = () => {
           <div className="mt-10 pt-8 border-t border-slate-100 dark:border-slate-800">
             <h4 className="text-lg font-bold text-slate-800 dark:text-white mb-6">Contact & Office Details</h4>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <InfoItem icon={Mail} label="Email Address" value={facultyData.email} />
-              <InfoItem icon={Phone} label="Phone Number" value={facultyData.phone} />
-              <InfoItem icon={Building} label="Office Location" value={facultyData.office} />
-              <InfoItem icon={Clock} label="Office Hours" value={facultyData.officeHours} />
+              <InfoItem icon={faEnvelope} label="Email Address" value={facultyData.email} />
+              <InfoItem icon={faPhone} label="Phone Number" value={facultyData.phone} />
+              <InfoItem icon={faBuilding} label="Office Location" value={facultyData.office} />
+              <InfoItem icon={faClock} label="Office Hours" value={facultyData.officeHours} />
             </div>
           </div>
         </div>

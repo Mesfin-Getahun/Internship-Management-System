@@ -1,6 +1,7 @@
 import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { LayoutGrid, Users, University, ShieldCheck, DatabaseBackup, History, LogOut } from 'lucide-react';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faTableCellsLarge, faUsers, faUniversity, faShieldAlt, faDatabase, faHistory, faSignOutAlt, faChartLine } from '@fortawesome/free-solid-svg-icons';
 import { useAuth } from '../../../AuthContext';
 
 const AdminSidebar = ({ activeTab }) => {
@@ -13,13 +14,13 @@ const AdminSidebar = ({ activeTab }) => {
   };
 
   const menuItems = [
-    { id: 'overview', label: 'Dashboard', icon: LayoutGrid },
-    { id: 'faculties', label: 'Manage Faculties', icon: University },
-    { id: 'users', label: 'Manage Users', icon: Users },
-    { id: 'roles', label: 'Roles & Permissions', icon: ShieldCheck },
-    { id: 'data-backup', label: 'Data & Backup', icon: DatabaseBackup },
-    { id: 'logs', label: 'Audit Logs', icon: History },
-    { id: 'monitoring', label: 'Platform Monitoring', icon: 'M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826 3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z' }
+    { id: 'overview', label: 'Dashboard', icon: faTableCellsLarge },
+    { id: 'faculties', label: 'Manage Faculties', icon: faUniversity },
+    { id: 'users', label: 'Manage Users', icon: faUsers },
+    { id: 'roles', label: 'Roles & Permissions', icon: faShieldAlt },
+    { id: 'data-backup', label: 'Data & Backup', icon: faDatabase },
+    { id: 'logs', label: 'Audit Logs', icon: faHistory },
+    { id: 'monitoring', label: 'Platform Monitoring', icon: faChartLine }
   ];
 
   return (
@@ -38,13 +39,7 @@ const AdminSidebar = ({ activeTab }) => {
                 : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200'
             }`}
           >
-            {typeof item.icon === 'string' ? (
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d={item.icon} />
-              </svg>
-            ) : (
-              <item.icon className="h-5 w-5 shrink-0" />
-            )}
+            <FontAwesomeIcon icon={item.icon} className="h-5 w-5 shrink-0" />
             <span className="truncate">{item.label}</span>
           </Link>
         ))}
@@ -55,7 +50,7 @@ const AdminSidebar = ({ activeTab }) => {
           onClick={handleLogout}
           className="w-full flex items-center gap-3 px-4 py-3 rounded-xl font-semibold text-red-400 hover:bg-red-950/20 transition-colors text-sm"
         >
-          <LogOut className="h-5 w-5" />
+          <FontAwesomeIcon icon={faSignOutAlt} className="h-5 w-5" />
           Root Logout
         </button>
       </div>

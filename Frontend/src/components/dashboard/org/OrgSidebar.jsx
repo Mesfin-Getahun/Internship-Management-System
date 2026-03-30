@@ -1,15 +1,7 @@
 import React from "react";
 import { NavLink } from "react-router-dom";
-import {
-  LayoutGrid,
-  Briefcase,
-  FileText,
-  Award,
-  Settings,
-  LogOut,
-  FileArchive,
-  Users,
-} from "lucide-react";
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faTableCellsLarge, faBriefcase, faFileAlt, faAward, faCog, faSignOutAlt, faFileArchive, faUsers } from '@fortawesome/free-solid-svg-icons';;
 import { useAuth } from "../../../AuthContext";
 
 const base =
@@ -19,16 +11,16 @@ const OrgSidebar = () => {
   const { logout } = useAuth();
 
   const menuItems = [
-    { to: "overview", label: "Dashboard", icon: LayoutGrid },
-    { to: "vacancies", label: "Internship Vacancies", icon: Briefcase },
-    { to: "applications", label: "Applications", icon: FileText },
-    { to: "post-internship", label: "Post Internship", icon: Award },
+    { to: "overview", label: "Dashboard", icon: faTableCellsLarge },
+    { to: "vacancies", label: "Internship Vacancies", icon: faBriefcase },
+    { to: "applications", label: "Applications", icon: faFileAlt },
+    { to: "post-internship", label: "Post Internship", icon: faAward },
     {
       to: "assigned-students",
       label: "Assigned Students",
-      icon: Users,
+      icon: faUsers,
     },
-    { to: "profile", label: "Profile", icon: Settings },
+    { to: "profile", label: "Profile", icon: faCog },
   ];
 
   return (
@@ -36,7 +28,7 @@ const OrgSidebar = () => {
       {/* logo / title */}
       <div className="flex items-center px-6 py-5 border-b border-slate-800">
         <div className="flex items-center justify-center w-10 h-10 rounded-2xl bg-blue-500/10 text-blue-400 mr-3">
-          <Briefcase className="h-6 w-6" />
+          <FontAwesomeIcon icon={faBriefcase} className="h-6 w-6" />
         </div>
         <div>
           <h1 className="text-sm font-semibold tracking-tight">
@@ -71,7 +63,7 @@ const OrgSidebar = () => {
           onClick={logout}
           className={`${base} w-full text-slate-300 hover:bg-red-600 hover:text-white`}
         >
-          <LogOut className="h-5 w-5 mr-3" />
+          <FontAwesomeIcon icon={faSignOutAlt} className="h-5 w-5 mr-3" />
           <span className="ml-2">Logout</span>
         </button>
       </div>

@@ -1,14 +1,15 @@
 import React from 'react';
-import { X, CheckCircle, Clock, XCircle, Send } from 'lucide-react';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faTimes, faCheckCircle, faClock, faTimesCircle, faPaperPlane } from '@fortawesome/free-solid-svg-icons';;
 
 const StatusTimeline = ({ statusHistory, currentStatus }) => {
   const getStatusIcon = (status) => {
     switch (status) {
-      case 'Accepted': return <CheckCircle className="text-green-500" />;
-      case 'Rejected': return <XCircle className="text-red-500" />;
-      case 'Under Review': return <Clock className="text-amber-500" />;
-      case 'Applied': return <Send className="text-blue-500" />;
-      default: return <Clock className="text-slate-500" />;
+      case 'Accepted': return <FontAwesomeIcon icon={faCheckCircle} className="text-green-500" />;
+      case 'Rejected': return <FontAwesomeIcon icon={faTimesCircle} className="text-red-500" />;
+      case 'Under Review': return <FontAwesomeIcon icon={faClock} className="text-amber-500" />;
+      case 'Applied': return <FontAwesomeIcon icon={faPaperPlane} className="text-blue-500" />;
+      default: return <FontAwesomeIcon icon={faClock} className="text-slate-500" />;
     }
   };
 
@@ -59,7 +60,7 @@ const ApplicationStatusModal = ({ application, onClose }) => {
             onClick={onClose} 
             className="p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800"
           >
-            <X size={20} />
+            <FontAwesomeIcon icon={faTimes} size={20} />
           </button>
         </div>
         <div className="p-6">

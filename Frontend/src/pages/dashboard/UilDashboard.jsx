@@ -5,15 +5,14 @@ import UilNavbar from '../../components/dashboard/uil/UilNavbar.jsx';
 import UilOverview from '../../components/dashboard/uil/UilOverview.jsx';
 import OrgApprovals from '../../components/dashboard/uil/OrgApprovals.jsx';
 import InternshipMonitoring from '../../components/dashboard/uil/InternshipMonitoring.jsx';
+import InternshipApprovals from '../../components/dashboard/uil/InternshipApprovals.jsx';
 import FulfillmentReports from '../../components/dashboard/uil/FulfillmentReports.jsx';
 import UilRecommendationLetter from '../../components/dashboard/uil/UilRecommendationLetter.jsx';
 
 const PlaceholderScreen = ({ title, description }) => (
   <div className="p-20 text-center animate-fade-in bg-white rounded-3xl border border-slate-100 shadow-sm">
     <div className="w-20 h-20 bg-indigo-50 text-indigo-600 rounded-3xl flex items-center justify-center mx-auto mb-6">
-      <svg xmlns="http://www.w3.org/2000/svg" className="h-10 w-10" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-      </svg>
+      <FontAwesomeIcon icon={faInfoCircle} className="h-10 w-10" />
     </div>
     <h3 className="text-xl font-bold text-slate-800 tracking-tight">{title}</h3>
     <p className="text-slate-500 mt-2 max-w-sm mx-auto font-medium text-sm leading-relaxed">{description}</p>
@@ -30,6 +29,7 @@ const UilDashboard = () => {
   const tabTitles = {
     'dashboard': 'Dashboard Overview',
     'approvals': 'Organization Approvals',
+    'internship-approvals': 'Internship Approvals',
     'monitoring': 'Internship Monitoring',
     'reports': 'Fulfillment Reports',
     'recommendation': 'Recommendation Letter',
@@ -50,6 +50,7 @@ const UilDashboard = () => {
               <Route path="/" element={<Navigate to="dashboard" replace />} />
               <Route path="dashboard" element={<UilOverview />} />
               <Route path="approvals" element={<OrgApprovals />} />
+              <Route path="internship-approvals" element={<InternshipApprovals />} />
               <Route path="monitoring" element={<InternshipMonitoring />} />
               <Route path="reports" element={<FulfillmentReports />} />
               <Route path="recommendation" element={<UilRecommendationLetter />} />

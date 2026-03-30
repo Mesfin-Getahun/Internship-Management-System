@@ -1,20 +1,21 @@
 import React, { useState } from 'react';
-import { DollarSign, UploadCloud, Banknote, User, Hash, CheckCircle, Clock, XCircle } from 'lucide-react';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faDollarSign, faCloudUploadAlt, faMoneyBillWave, faUser, faHashtag, faCheckCircle, faClock, faTimesCircle } from '@fortawesome/free-solid-svg-icons';;
 
 const StatusDisplay = ({ status }) => {
   const statusConfig = {
     'Not Submitted': {
-      icon: <XCircle className="text-slate-400" />,
+      icon: <FontAwesomeIcon icon={faTimesCircle} className="text-slate-400" />,
       text: 'You have not submitted your stipend application yet.',
       bg: 'bg-slate-100 dark:bg-slate-800',
     },
     'Pending Approval': {
-      icon: <Clock className="text-amber-500" />,
+      icon: <FontAwesomeIcon icon={faClock} className="text-amber-500" />,
       text: 'Your application is pending approval from the UIL office.',
       bg: 'bg-amber-100 dark:bg-amber-900/30',
     },
     'Approved': {
-      icon: <CheckCircle className="text-emerald-500" />,
+      icon: <FontAwesomeIcon icon={faCheckCircle} className="text-emerald-500" />,
       text: 'Your stipend application has been approved.',
       bg: 'bg-emerald-100 dark:bg-emerald-900/30',
     },
@@ -79,7 +80,7 @@ const StipendApplication = () => {
             <form onSubmit={handleSubmit} className="space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="md:col-span-2 font-semibold text-slate-700 dark:text-slate-300 flex items-center gap-2">
-                  <Banknote size={18} /> Bank Account Details
+                  <FontAwesomeIcon icon={faMoneyBillWave} size={18} /> Bank Account Details
                 </div>
                 <div>
                   <label className="form-label" htmlFor="bankName">Bank Name</label>
@@ -97,7 +98,7 @@ const StipendApplication = () => {
 
               <div>
                 <div className="font-semibold text-slate-700 dark:text-slate-300 flex items-center gap-2 mb-2">
-                  <UploadCloud size={18} /> Document Upload
+                  <FontAwesomeIcon icon={faCloudUploadAlt} size={18} /> Document Upload
                 </div>
                 <label className="form-label" htmlFor="acceptanceLetter">Signed Acceptance Letter (PDF) <span className="text-red-500">*</span></label>
                 <input

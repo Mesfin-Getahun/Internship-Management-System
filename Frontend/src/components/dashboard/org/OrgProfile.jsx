@@ -1,5 +1,6 @@
-
 import React from 'react';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faCheckCircle, faFilePdf } from '@fortawesome/free-solid-svg-icons';
 
 const OrgProfile = () => {
   return (
@@ -77,9 +78,7 @@ const OrgProfile = () => {
                <h4 className="text-xl font-bold mb-2">Partner Badge</h4>
                <p className="text-blue-100 text-xs leading-relaxed mb-6">Your organization is an active industry partner of BIT, facilitating 12+ internships this year.</p>
                <div className="w-20 h-20 bg-white/20 backdrop-blur-md rounded-2xl flex items-center justify-center mx-auto shadow-inner">
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-10 w-10 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z" />
-                  </svg>
+                  <FontAwesomeIcon icon={faCheckCircle} className="h-10 w-10 text-white" />
                </div>
              </div>
              <div className="absolute top-0 right-0 -mr-8 -mt-8 w-32 h-32 bg-white/10 rounded-full blur-2xl"></div>
@@ -90,18 +89,14 @@ const OrgProfile = () => {
              <div className="space-y-3">
                <div className="flex items-center justify-between p-3 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-100 dark:border-slate-800">
                  <div className="flex items-center gap-3">
-                   <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
-                   </svg>
+                   <FontAwesomeIcon icon={faFilePdf} className="h-5 w-5 text-red-500" />
                    <span className="text-xs font-bold text-slate-600 dark:text-slate-400">Business_License.pdf</span>
                  </div>
                  <button className="text-blue-600 font-bold text-[10px] uppercase">View</button>
                </div>
                <div className="flex items-center justify-between p-3 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-100 dark:border-slate-800">
                  <div className="flex items-center gap-3">
-                   <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m5.618-4.016A3.323 3.323 0 0010.605 3.14a3.323 3.323 0 00-4.503 1.154l-1.42 2.37A3.323 3.323 0 005.14 10.605a3.323 3.323 0 001.154 4.503l2.37 1.42a3.323 3.323 0 004.503-1.154l1.42-2.37a3.323 3.323 0 001.154-4.503l-2.37-1.42z" />
-                   </svg>
+                   <FontAwesomeIcon icon={faFilePdf} className="h-5 w-5 text-blue-500" />
                    <span className="text-xs font-bold text-slate-600 dark:text-slate-400">MoU_BIT_2023.pdf</span>
                  </div>
                  <button className="text-blue-600 font-bold text-[10px] uppercase">View</button>

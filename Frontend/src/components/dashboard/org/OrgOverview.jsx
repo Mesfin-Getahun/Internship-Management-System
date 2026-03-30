@@ -1,11 +1,12 @@
-
 import React from 'react';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faBriefcase, faFileAlt, faUsers, faInfoCircle } from '@fortawesome/free-solid-svg-icons';
 
 const OrgOverview = () => {
   const stats = [
-    { label: 'Active Vacancies', val: '4', color: 'blue', icon: 'M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745V6a2 2 0 012-2h14a2 2 0 012 2v7.255z' },
-    { label: 'Total Applications', val: '28', color: 'emerald', icon: 'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z' },
-    { label: 'Current Interns', val: '12', color: 'amber', icon: 'M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197' }
+    { label: 'Active Vacancies', val: '4', color: 'blue', icon: faBriefcase },
+    { label: 'Total Applications', val: '28', color: 'emerald', icon: faFileAlt },
+    { label: 'Current Interns', val: '12', color: 'amber', icon: faUsers }
   ];
 
   return (
@@ -24,9 +25,7 @@ const OrgOverview = () => {
                 <p className="text-4xl font-black mt-2 text-slate-800 dark:text-white group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">{stat.val}</p>
               </div>
               <div className={`p-3 rounded-2xl bg-${stat.color}-50 dark:bg-${stat.color}-900/20 text-${stat.color}-600 dark:text-${stat.color}-400`}>
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d={stat.icon} />
-                </svg>
+                <FontAwesomeIcon icon={stat.icon} className="h-6 w-6" />
               </div>
             </div>
           </div>
@@ -35,9 +34,7 @@ const OrgOverview = () => {
 
       <div className="bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-900/10 dark:to-orange-900/10 border border-amber-200 dark:border-amber-800/30 p-6 rounded-3xl flex items-center gap-6">
         <div className="w-14 h-14 rounded-2xl bg-white dark:bg-slate-800 text-amber-600 flex items-center justify-center shrink-0 shadow-sm">
-          <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 animate-pulse" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-          </svg>
+          <FontAwesomeIcon icon={faInfoCircle} className="h-8 w-8 animate-pulse" />
         </div>
         <div>
           <h4 className="font-bold text-amber-900 dark:text-amber-400">Account Verification in Progress</h4>

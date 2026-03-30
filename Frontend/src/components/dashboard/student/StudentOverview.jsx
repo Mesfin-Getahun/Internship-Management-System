@@ -1,5 +1,6 @@
-
 import React from 'react';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faPaperPlane, faThumbsUp, faUserTie, faBriefcase, faArrowRight, faInfoCircle } from '@fortawesome/free-solid-svg-icons';
 import InternshipDetails from './InternshipDetails';
 import FeedbackAndEvaluation from './FeedbackAndEvaluation';
 
@@ -34,9 +35,7 @@ const UnplacedStudentView = ({ stats, isPlaced }) => (
       {stats.map((stat, i) => (
         <div key={i} className="bg-white dark:bg-slate-900 p-6 rounded-3xl border border-slate-100 dark:border-slate-800 shadow-sm hover:shadow-md transition-all group">
           <div className={`w-12 h-12 rounded-2xl bg-${stat.color}-50 dark:bg-${stat.color}-900/20 text-${stat.color}-600 dark:text-${stat.color}-400 flex items-center justify-center mb-4 transition-transform group-hover:scale-110`}>
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d={stat.icon} />
-            </svg>
+            <FontAwesomeIcon icon={stat.icon} className="h-6 w-6" />
           </div>
           <p className="text-slate-400 dark:text-slate-500 text-[10px] font-black uppercase tracking-widest">{stat.label}</p>
           <div className="flex items-baseline gap-2 mt-1">
@@ -99,9 +98,7 @@ const UnplacedStudentView = ({ stats, isPlaced }) => (
           {!isPlaced ? (
             <div className="text-center py-4">
               <div className="w-12 h-12 bg-slate-100 dark:bg-slate-800 rounded-full flex items-center justify-center mx-auto mb-3 text-slate-400">
-                 <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                </svg>
+                 <FontAwesomeIcon icon={faInfoCircle} className="h-6 w-6" />
               </div>
               <p className="text-xs text-slate-500 font-bold mb-4">You have not been placed yet.</p>
               <button className="text-xs font-black text-blue-600 uppercase tracking-widest hover:underline">Complete Profile</button>
@@ -127,10 +124,10 @@ const UnplacedStudentView = ({ stats, isPlaced }) => (
 const StudentOverview = ({ studentData = {} }) => {
   const { isPlaced = false, appState = 'NOT_STARTED' } = studentData;
   const stats = [
-    { label: 'Applications Sent', val: '12', icon: 'M12 11c0-2.206-1.794-4-4-4S4 8.794 4 11s1.794 4 4 4 4-1.794 4-4z', color: 'sky' },
-    { label: 'Positive Replies', val: '3', icon: 'M8 11c-1.654 0-3-1.346-3-3s1.346-3 3-3 3 1.346 3 3-1.346 3-3 3zm0 1c-2.206 0-4 1.794-4 4v1h8v-1c0-2.206-1.794-4-4-4z', color: 'amber' },
-    { label: 'Interviews', val: '1', icon: 'M17 12h-2v-2h2v2zm-4 0h-2v-2h2v2zm-4 0H7v-2h2v2z', color: 'emerald' },
-    { label: 'Internship Status', val: getInternshipLabel(appState), icon: 'M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745V6a2 2 0 012-2h14a2 2 0 012 2v7.255z', color: 'indigo' }
+    { label: 'Applications Sent', val: '12', icon: faPaperPlane, color: 'sky' },
+    { label: 'Positive Replies', val: '3', icon: faThumbsUp, color: 'amber' },
+    { label: 'Interviews', val: '1', icon: faUserTie, color: 'emerald' },
+    { label: 'Internship Status', val: getInternshipLabel(appState), icon: faBriefcase, color: 'indigo' }
   ];
 
   return (
