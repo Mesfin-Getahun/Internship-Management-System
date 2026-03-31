@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../AuthContext";
 import AuthHeader from "../../components/auth/AuthHeader.jsx";
 import LoginForm from "../../components/auth/LoginForm.jsx";
-import { users } from "../../assets/data.js";
+import axios from "axios";
 
 const LoginPage = () => {
   const navigate = useNavigate();
@@ -12,31 +12,37 @@ const LoginPage = () => {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
 
-    const user = users.find(
-      (u) =>
-        (u.email.toLowerCase() === email.toLowerCase() ||
-          u.username.toLowerCase() === email.toLowerCase()) &&
-        u.password === password,
-    );
+    try {
+      // The backend login checks `email` for company login
+      // and checks `id` for student/admin/mentor/faculty login.
+      // We pass the same field (email) to both since the input is generic.
+      const response = await axios.post(`${import.meta.env.VITE_BACKEND_URL}/api/login`, {
+        id: email,
+        email: email,
+        password: password
+      });
 
-    if (!user) {
-      setError("Invalid credentials. Please try again.");
-      return;
-    }
+      if (response.data.success) {
+        const { user, role, token } = response.data;
+        
+        // Add token and role directly onto the user object if needed by AuthContext
+        const authenticatedUser = { ...user, role, token };
+        login(authenticatedUser);
 
-    // Set user in global context
-    login(user);
-
-    // Navigation will be handled by App.jsx based on user state
-    // but we can give it a push to the root which will then redirect.
-    if (user.isFirstLogin) {
-      navigate('/change-password');
-    } else {
-      navigate(`/${user.role}`);
+        // Navigation logic based on role
+        if (authenticatedUser.isFirstLogin) {
+          navigate('/change-password');
+        } else {
+          navigate(`/${role}`);
+        }
+      }
+    } catch (err) {
+      console.error("Login failed:", err);
+      setError(err.response?.data?.message || "Invalid credentials. Please try again.");
     }
   };
 

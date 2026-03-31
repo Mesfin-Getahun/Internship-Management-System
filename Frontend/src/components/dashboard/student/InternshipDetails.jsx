@@ -1,15 +1,9 @@
 import React from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faBriefcase, faBuilding, faUser, faCalendarAlt } from '@fortawesome/free-solid-svg-icons';;
+import { faBriefcase, faBuilding, faUser, faCalendarAlt } from '@fortawesome/free-solid-svg-icons';
 
-const InternshipDetails = () => {
-  // Mock data - this will eventually come from props or an API call
-  const details = {
-    company: 'Safaricom Ethiopia',
-    role: 'Software Engineering Intern',
-    mentor: 'Mr. John Doe',
-    duration: 'June 2024 - September 2024',
-  };
+const InternshipDetails = ({ internship }) => {
+  if (!internship) return null;
 
   const DetailItem = ({ icon, label, value }) => (
     <div className="flex items-center gap-4">
@@ -23,14 +17,18 @@ const InternshipDetails = () => {
     </div>
   );
 
+  const duration = internship.start_date && internship.end_date 
+     ? `${new Date(internship.start_date).toLocaleDateString()} - ${new Date(internship.end_date).toLocaleDateString()}` 
+     : 'Duration Not Specified';
+
   return (
     <div className="bg-white dark:bg-slate-900 p-6 rounded-3xl border border-slate-100 dark:border-slate-800 shadow-sm">
       <h3 className="font-bold text-slate-800 dark:text-white mb-4 text-lg">My Internship Details</h3>
       <div className="space-y-4">
-        <DetailItem icon={<FontAwesomeIcon icon={faBuilding} size={20} className="text-slate-500" />} label="Company" value={details.company} />
-        <DetailItem icon={<FontAwesomeIcon icon={faBriefcase} size={20} className="text-slate-500" />} label="Role" value={details.role} />
-        <DetailItem icon={<FontAwesomeIcon icon={faUser} size={20} className="text-slate-500" />} label="Company Mentor" value={details.mentor} />
-        <DetailItem icon={<FontAwesomeIcon icon={faCalendarAlt} size={20} className="text-slate-500" />} label="Duration" value={details.duration} />
+        <DetailItem icon={<FontAwesomeIcon icon={faBuilding} size={20} className="text-slate-500" />} label="Company" value={internship.company_name || 'Organization'} />
+        <DetailItem icon={<FontAwesomeIcon icon={faBriefcase} size={20} className="text-slate-500" />} label="Role" value={internship.title || 'Intern'} />
+        <DetailItem icon={<FontAwesomeIcon icon={faUser} size={20} className="text-slate-500" />} label="Company Mentor" value={internship.mentor_name || 'Unassigned'} />
+        <DetailItem icon={<FontAwesomeIcon icon={faCalendarAlt} size={20} className="text-slate-500" />} label="Duration" value={duration} />
       </div>
     </div>
   );

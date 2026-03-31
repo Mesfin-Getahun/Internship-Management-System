@@ -84,11 +84,11 @@ const FeedbackAndEvaluation = () => {
            {feedbacks.map((fb, index) => (
              <FeedbackCard 
                 key={index} 
-                author={fb.mentor_name || fb.company_name || fb.author}
-                role={fb.role || (fb.university_mentor_id ? 'Faculty Mentor' : 'Organization Supervisor')}
+                author={fb.mentor_name || fb.company_name || fb.author || 'Supervisor'}
+                role={fb.feedback_type || fb.role || 'Evaluation'}
                 date={fb.created_at || fb.date}
-                content={fb.comments || fb.feedback_text || fb.content}
-                rating={fb.score || fb.rating}
+                content={fb.overall_comment || fb.comments || fb.feedback_text || fb.content}
+                rating={fb.rating || fb.score}
              />
            ))}
         </div>
