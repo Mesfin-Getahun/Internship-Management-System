@@ -1,12 +1,13 @@
-
 import React from 'react';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faUsers, faGraduationCap, faBriefcase, faHourglassHalf, faPaperPlane, faCheckCircle, faFileAlt, faUserTie } from '@fortawesome/free-solid-svg-icons';
 
 const FacultyOverview = () => {
   const stats = [
-    { label: 'Registered Students', val: '452', sub: '+12 this week', icon: 'M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197', color: 'blue' },
-    { label: 'Eligible for Internship', val: '184', sub: '4th Year Students', icon: 'M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z', color: 'emerald' },
-    { label: 'Active Placements', val: '128', sub: 'Assigned to Orgs', icon: 'M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745V6a2 2 0 012-2h14a2 2 0 012 2v7.255z', color: 'indigo' },
-    { label: 'Pending Approvals', val: '15', sub: 'Action Required', icon: 'M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z', color: 'amber' }
+    { label: 'Registered Students', val: '452', sub: '+12 this week', icon: faUsers, color: 'blue' },
+    { label: 'Eligible for Internship', val: '184', sub: '4th Year Students', icon: faGraduationCap, color: 'emerald' },
+    { label: 'Active Placements', val: '128', sub: 'Assigned to Orgs', icon: faBriefcase, color: 'indigo' },
+    { label: 'Pending Approvals', val: '15', sub: 'Action Required', icon: faHourglassHalf, color: 'amber' }
   ];
 
   return (
@@ -20,9 +21,7 @@ const FacultyOverview = () => {
         {stats.map((stat, i) => (
           <div key={i} className="bg-white dark:bg-slate-900 p-6 rounded-3xl border border-slate-100 dark:border-slate-800 shadow-sm hover:shadow-md transition-all group">
             <div className={`w-12 h-12 rounded-2xl bg-${stat.color}-50 dark:bg-${stat.color}-900/20 text-${stat.color}-600 dark:text-${stat.color}-400 flex items-center justify-center mb-4 transition-transform group-hover:scale-110`}>
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d={stat.icon} />
-              </svg>
+              <FontAwesomeIcon icon={stat.icon} className="h-6 w-6" />
             </div>
             <p className="text-slate-400 dark:text-slate-500 text-[10px] font-black uppercase tracking-widest">{stat.label}</p>
             <div className="flex items-baseline gap-2 mt-1">
@@ -41,16 +40,14 @@ const FacultyOverview = () => {
           </div>
           <div className="divide-y divide-slate-50 dark:divide-slate-800/50">
             {[
-              { type: 'application', text: 'Abebe Bikila applied for Web Developer at Ethiopian Airlines', time: '12 mins ago', icon: 'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2', color: 'blue' },
-              { type: 'approval', text: 'Saba Tadesse selection confirmed by Commercial Bank of Ethiopia', time: '2 hours ago', icon: 'M9 12l2 2 4-4', color: 'emerald' },
-              { type: 'evaluation', text: 'Evaluation submitted by Safaricom Ethiopia for Eden Kebede', time: 'Yesterday', icon: 'M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5', color: 'amber' },
-              { type: 'mentor', text: 'New mentor Dr. Yilma assigned to 8 remaining students', time: '2 days ago', icon: 'M16 7a4 4 0 11-8 0 4 4 0 018 0z', color: 'indigo' }
+              { type: 'application', text: 'Abebe Bikila applied for Web Developer at Ethiopian Airlines', time: '12 mins ago', icon: faPaperPlane, color: 'blue' },
+              { type: 'approval', text: 'Saba Tadesse selection confirmed by Commercial Bank of Ethiopia', time: '2 hours ago', icon: faCheckCircle, color: 'emerald' },
+              { type: 'evaluation', text: 'Evaluation submitted by Safaricom Ethiopia for Eden Kebede', time: 'Yesterday', icon: faFileAlt, color: 'amber' },
+              { type: 'mentor', text: 'New mentor Dr. Yilma assigned to 8 remaining students', time: '2 days ago', icon: faUserTie, color: 'indigo' }
             ].map((activity, i) => (
               <div key={i} className="p-5 flex gap-4 hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors">
                 <div className={`w-10 h-10 rounded-xl bg-${activity.color}-50 dark:bg-${activity.color}-900/20 text-${activity.color}-600 dark:text-${activity.color}-400 flex items-center justify-center shrink-0`}>
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d={activity.icon} />
-                  </svg>
+                  <FontAwesomeIcon icon={activity.icon} className="h-5 w-5" />
                 </div>
                 <div>
                   <p className="text-sm font-semibold text-slate-700 dark:text-slate-300 leading-snug">{activity.text}</p>

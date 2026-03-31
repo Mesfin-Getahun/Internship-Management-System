@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { toast, ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
-import { Search, Check, X, AlertTriangle, FileDown, Printer } from 'lucide-react';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faSearch, faCheck, faTimes, faExclamationTriangle, faFileDownload, faPrint } from '@fortawesome/free-solid-svg-icons';;
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 
@@ -15,9 +16,9 @@ const initialStipends = [
 ];
 
 const statusConfig = {
-  'Pending Approval': { color: 'amber', icon: AlertTriangle },
-  'Approved': { color: 'emerald', icon: Check },
-  'Rejected': { color: 'red', icon: X },
+  'Pending Approval': { color: 'amber', icon: faExclamationTriangle },
+  'Approved': { color: 'emerald', icon: faCheck },
+  'Rejected': { color: 'red', icon: faTimes },
 };
 
 const FacultyStipendManagement = () => {
@@ -67,14 +68,14 @@ const FacultyStipendManagement = () => {
           onClick={generatePDF}
           className="bg-sky-600 hover:bg-sky-700 text-white font-bold py-2 px-4 rounded-lg flex items-center justify-center gap-2 transition-transform transform hover:scale-105"
         >
-          <Printer size={18} />
+          <FontAwesomeIcon icon={faPrint} size={18} />
           Generate Finance Report
         </button>
       </div>
       
       <div className="mb-6">
         <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
+          <FontAwesomeIcon icon={faSearch} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
           <input
             type="text"
             placeholder="Search by student or company..."

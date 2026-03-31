@@ -1,5 +1,6 @@
-
 import React, { useState } from 'react';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faCloudUploadAlt } from '@fortawesome/free-solid-svg-icons';
 
 const WeeklyReports = () => {
   const [selectedFile, setSelectedFile] = useState(null);
@@ -80,9 +81,7 @@ const WeeklyReports = () => {
 
                <div className="p-6 border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-2xl text-center group hover:border-blue-400 transition-colors cursor-pointer relative">
                   <input type="file" id="report-file" className="absolute inset-0 opacity-0 cursor-pointer" onChange={handleFileChange} />
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-10 w-10 mx-auto text-slate-300 group-hover:text-blue-400 mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-                  </svg>
+                  <FontAwesomeIcon icon={faCloudUploadAlt} className="h-10 w-10 mx-auto text-slate-300 group-hover:text-blue-400 mb-3" />
                   <p className="text-xs font-bold text-slate-500 dark:text-slate-400">
                     {selectedFile ? selectedFile.name : 'Upload PDF or DOC'}
                   </p>

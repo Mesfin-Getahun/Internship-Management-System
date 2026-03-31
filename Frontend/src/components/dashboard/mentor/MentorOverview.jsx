@@ -1,12 +1,13 @@
-
 import React from 'react';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faUserGraduate, faBriefcase, faClipboardCheck, faFileAlt } from '@fortawesome/free-solid-svg-icons';
 
 const MentorOverview = () => {
   const stats = [
-    { label: 'Assigned Students', val: '10', sub: 'Max Capacity', icon: 'M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197', color: 'teal' },
-    { label: 'Active Internships', val: '8', sub: 'Ongoing', icon: 'M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745V6a2 2 0 012-2h14a2 2 0 012 2v7.255z', color: 'blue' },
-    { label: 'Awaiting Evaluation', val: '2', sub: 'Action Required', icon: 'M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z', color: 'amber' },
-    { label: 'Pending Reports', val: '4', sub: 'Week 12', icon: 'M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z', color: 'red' }
+    { label: 'Assigned Students', val: '10', sub: 'Max Capacity', icon: faUserGraduate, color: 'teal' },
+    { label: 'Active Internships', val: '8', sub: 'Ongoing', icon: faBriefcase, color: 'blue' },
+    { label: 'Awaiting Evaluation', val: '2', sub: 'Action Required', icon: faClipboardCheck, color: 'amber' },
+    { label: 'Pending Reports', val: '4', sub: 'Week 12', icon: faFileAlt, color: 'red' }
   ];
 
   return (
@@ -20,9 +21,7 @@ const MentorOverview = () => {
         {stats.map((stat, i) => (
           <div key={i} className="bg-white dark:bg-slate-900 p-6 rounded-3xl border border-slate-100 dark:border-slate-800 shadow-sm hover:shadow-md transition-all group">
             <div className={`w-12 h-12 rounded-2xl bg-${stat.color}-50 dark:bg-${stat.color}-900/20 text-${stat.color}-600 dark:text-${stat.color}-400 flex items-center justify-center mb-4 transition-transform group-hover:scale-110`}>
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d={stat.icon} />
-              </svg>
+              <FontAwesomeIcon icon={stat.icon} className="h-6 w-6" />
             </div>
             <p className="text-slate-400 dark:text-slate-500 text-[10px] font-black uppercase tracking-widest">{stat.label}</p>
             <div className="flex items-baseline gap-2 mt-1">

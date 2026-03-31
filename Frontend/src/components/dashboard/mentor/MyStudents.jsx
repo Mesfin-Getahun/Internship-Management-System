@@ -1,71 +1,100 @@
-
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import axios from 'axios';
+import { useAuth } from '../../../AuthContext';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faTimes, faSpinner, faUsersSlash } from '@fortawesome/free-solid-svg-icons';
 
 const MyStudents = () => {
   const [selectedStudent, setSelectedStudent] = useState(null);
+  const [students, setStudents] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const { user } = useAuth();
 
-  const students = [
-    { id: 'BIT/102/13', name: 'Abebe Bikila', faculty: 'Software Eng.', org: 'Ethiopian Airlines', status: 'On Track', date: 'Oct 01, 2023' },
-    { id: 'BIT/155/13', name: 'Saba Tadesse', faculty: 'Software Eng.', org: 'Safaricom Ethiopia', status: 'On Track', date: 'Oct 05, 2023' },
-    { id: 'BIT/201/13', name: 'Mulugeta Seraw', faculty: 'Software Eng.', org: 'CBE', status: 'Delayed', date: 'Oct 02, 2023' },
-    { id: 'BIT/088/13', name: 'Eden Kebede', faculty: 'Software Eng.', org: 'Hybrid Systems', status: 'On Track', date: 'Oct 10, 2023' },
-  ];
+  useEffect(() => {
+    const fetchStudents = async () => {
+      try {
+        setLoading(true);
+        const res = await axios.get(`${import.meta.env.VITE_BACKEND_URL}/api/mentor/students`, {
+           headers: { Authorization: `Bearer ${user?.token}` }
+        });
+        const data = res.data.students || res.data || [];
+        setStudents(data);
+      } catch (err) {
+        console.error(err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    if (user?.token) fetchStudents();
+  }, [user]);
 
   return (
-    <div className="animate-fade-in space-y-6">
-      <header className="flex justify-between items-center">
+    <div className="animate-fade-in space-y-6 pb-12">
+      <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h2 className="text-2xl font-bold text-slate-800 dark:text-white">My Assigned Students</h2>
-          <p className="text-slate-500 text-sm mt-1">Direct supervision list for Academic Year 2023/24.</p>
+          <h2 className="text-3xl font-bold text-slate-800 dark:text-white tracking-tight">My Assigned Students</h2>
+          <p className="text-slate-500 text-sm mt-1">Direct academic supervision list for the current active semester.</p>
         </div>
         <div className="flex items-center gap-3">
-           <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">Total: {students.length} / 10</span>
+           <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest bg-slate-100 dark:bg-slate-800 px-4 py-2 rounded-lg border border-slate-200 dark:border-slate-700">
+               Total Supervised: {students.length}
+           </span>
         </div>
       </header>
 
-      <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-100 dark:border-slate-800 overflow-hidden shadow-sm">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse">
-            <thead>
-              <tr className="bg-slate-50 dark:bg-slate-800/50 border-b border-slate-100 dark:border-slate-800">
-                <th className="p-5 text-xs font-black uppercase text-slate-400 tracking-widest whitespace-nowrap">Student Information</th>
-                <th className="p-5 text-xs font-black uppercase text-slate-400 tracking-widest whitespace-nowrap">Organization</th>
-                <th className="p-5 text-xs font-black uppercase text-slate-400 tracking-widest whitespace-nowrap">Start Date</th>
-                <th className="p-5 text-xs font-black uppercase text-slate-400 tracking-widest text-center whitespace-nowrap">Status</th>
-                <th className="p-5 text-xs font-black uppercase text-slate-400 tracking-widest text-right whitespace-nowrap">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-              {students.map((student, i) => (
-                <tr key={i} className="hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors group">
-                  <td className="p-5">
-                    <div className="font-bold text-slate-800 dark:text-white group-hover:text-teal-600 transition-colors">{student.name}</div>
-                    <div className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mt-0.5">{student.id} • {student.faculty}</div>
-                  </td>
-                  <td className="p-5 text-sm text-slate-600 dark:text-slate-400 font-medium">{student.org}</td>
-                  <td className="p-5 text-xs text-slate-500 font-bold whitespace-nowrap">{student.date}</td>
-                  <td className="p-5 text-center">
-                    <span className={`px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest ${
-                      student.status === 'On Track' ? 'bg-teal-100 text-teal-700 dark:bg-teal-900/30 dark:text-teal-400' :
-                      student.status === 'Delayed' ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400' :
-                      'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
-                    }`}>
-                      {student.status}
-                    </span>
-                  </td>
-                  <td className="p-5 text-right">
-                    <button 
-                      onClick={() => setSelectedStudent(student)}
-                      className="px-5 py-2.5 bg-teal-600 text-white rounded-xl text-xs font-bold hover:bg-teal-700 transition-all shadow-lg shadow-teal-500/20 active:scale-95"
-                    >
-                      View Profile
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+      <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-100 dark:border-slate-800 overflow-hidden shadow-sm min-h-[300px]">
+        {loading ? (
+           <div className="flex justify-center items-center h-64 text-teal-500">
+              <FontAwesomeIcon icon={faSpinner} spin size="2x" />
+           </div>
+        ) : students.length === 0 ? (
+           <div className="flex flex-col justify-center items-center h-64 text-slate-400">
+              <FontAwesomeIcon icon={faUsersSlash} size="3x" className="mb-4 opacity-50" />
+              <p className="font-bold text-lg text-slate-700 dark:text-white">No students assigned.</p>
+              <p className="text-sm mt-1">Faculty hasn't assigned you any students for supervision yet.</p>
+           </div>
+        ) : (
+           <div className="overflow-x-auto">
+             <table className="w-full text-left border-collapse">
+               <thead>
+                 <tr className="bg-slate-50 dark:bg-slate-800/50 border-b border-slate-100 dark:border-slate-800/50">
+                   <th className="p-5 text-[10px] font-black uppercase text-slate-400 tracking-widest whitespace-nowrap">Student Information</th>
+                   <th className="p-5 text-[10px] font-black uppercase text-slate-400 tracking-widest whitespace-nowrap">Organization</th>
+                   <th className="p-5 text-[10px] font-black uppercase text-slate-400 tracking-widest whitespace-nowrap">Status</th>
+                   <th className="p-5 text-[10px] font-black uppercase text-slate-400 tracking-widest text-right whitespace-nowrap">Actions</th>
+                 </tr>
+               </thead>
+               <tbody className="divide-y divide-slate-100 dark:divide-slate-800/50">
+                 {students.map((student, i) => (
+                   <tr key={student.student_id || student.id || i} className="hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors group">
+                     <td className="p-5">
+                       <div className="font-bold text-sm text-slate-800 dark:text-white group-hover:text-teal-600 dark:group-hover:text-teal-400 transition-colors">{student.student_name || student.name || student.first_name}</div>
+                       <div className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1">ID: {student.student_id ? student.student_id.substring(0,8) : 'N/A'} • {student.department || student.faculty || 'Engineering'}</div>
+                     </td>
+                     <td className="p-5 text-sm text-slate-600 dark:text-slate-400 font-semibold">{student.company_name || student.org || 'Unassigned'}</td>
+                     <td className="p-5">
+                       <span className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest ${
+                         student.status === 'Active' || student.status === 'On Track' ? 'bg-teal-50 text-teal-700 dark:bg-teal-900/30 dark:text-teal-400 border border-teal-100 dark:border-teal-900/50' :
+                         student.status === 'Delayed' ? 'bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 border border-amber-100 dark:border-amber-900/50' :
+                         'bg-slate-50 text-slate-700 dark:bg-slate-800/50 dark:text-slate-400 border border-slate-200 dark:border-slate-700'
+                       }`}>
+                         {student.status || 'Active'}
+                       </span>
+                     </td>
+                     <td className="p-5 text-right">
+                       <button 
+                         onClick={() => setSelectedStudent(student)}
+                         className="px-5 py-2.5 bg-teal-600 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-teal-700 transition-all shadow-lg shadow-teal-500/20 active:scale-95"
+                       >
+                         Profile
+                       </button>
+                     </td>
+                   </tr>
+                 ))}
+               </tbody>
+             </table>
+           </div>
+        )}
       </div>
 
       {/* Profile Modal */}
@@ -73,21 +102,19 @@ const MyStudents = () => {
         <div className="fixed inset-0 z-[60] flex items-center justify-center p-6">
           <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={() => setSelectedStudent(null)}></div>
           <div className="relative bg-white dark:bg-slate-900 w-full max-w-2xl rounded-3xl shadow-2xl overflow-hidden animate-fade-in border border-slate-200 dark:border-slate-800">
-            <div className="p-8 border-b border-slate-100 dark:border-slate-800 flex justify-between items-start">
+            <div className="p-8 border-b border-slate-100 dark:border-slate-800 flex justify-between items-start bg-slate-50/50 dark:bg-slate-800/30">
               <div className="flex items-center gap-6">
-                <div className="w-20 h-20 rounded-2xl bg-teal-600 text-white flex items-center justify-center text-3xl font-black shadow-xl shadow-teal-600/20">
-                  {selectedStudent.name.charAt(0)}
+                <div className="w-20 h-20 rounded-2xl bg-teal-600 text-white flex items-center justify-center text-3xl font-black shadow-xl shadow-teal-600/30">
+                  {selectedStudent.student_name ? selectedStudent.student_name.charAt(0) : (selectedStudent.name ? selectedStudent.name.charAt(0) : 'S')}
                 </div>
                 <div>
-                  <h3 className="text-2xl font-bold text-slate-800 dark:text-white leading-none">{selectedStudent.name}</h3>
-                  <p className="text-sm text-slate-500 font-bold uppercase tracking-widest mt-2">{selectedStudent.id}</p>
-                  <p className="text-xs text-teal-600 font-bold mt-1 uppercase tracking-tighter">Software Engineering Student</p>
+                  <h3 className="text-2xl font-bold text-slate-800 dark:text-white leading-none mb-2">{selectedStudent.student_name || selectedStudent.name}</h3>
+                  <span className="text-[10px] bg-slate-100 dark:bg-slate-800 px-3 py-1 rounded-md text-slate-500 font-black uppercase tracking-widest border border-slate-200 dark:border-slate-700">{selectedStudent.student_id ? selectedStudent.student_id.substring(0,8) : 'N/A'}</span>
+                  <p className="text-[10px] text-teal-600 dark:text-teal-400 font-black mt-2 uppercase tracking-widest">{selectedStudent.department || selectedStudent.faculty || 'Engineering'} Student</p>
                 </div>
               </div>
-              <button onClick={() => setSelectedStudent(null)} className="p-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
-                </svg>
+              <button onClick={() => setSelectedStudent(null)} className="p-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors bg-white dark:bg-slate-800 rounded-full shadow-sm">
+                <FontAwesomeIcon icon={faTimes} className="h-5 w-5" />
               </button>
             </div>
             
@@ -95,11 +122,11 @@ const MyStudents = () => {
               <div className="grid grid-cols-2 gap-6">
                 <div className="space-y-1">
                   <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest">Organization</p>
-                  <p className="text-sm font-bold text-slate-700 dark:text-slate-300">{selectedStudent.org}</p>
+                  <p className="text-sm font-bold text-slate-700 dark:text-slate-300">{selectedStudent.company_name || selectedStudent.org || 'Unassigned'}</p>
                 </div>
                 <div className="space-y-1">
                   <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest">Internship Role</p>
-                  <p className="text-sm font-bold text-slate-700 dark:text-slate-300">Junior Full-Stack Developer</p>
+                  <p className="text-sm font-bold text-slate-700 dark:text-slate-300">{selectedStudent.internship_title || 'Intern'}</p>
                 </div>
                 <div className="space-y-1">
                   <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest">Supervision Type</p>
@@ -107,31 +134,15 @@ const MyStudents = () => {
                 </div>
                 <div className="space-y-1">
                   <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest">Academic Status</p>
-                  <p className="text-sm font-bold text-teal-600">Eligible for Credit</p>
-                </div>
-              </div>
-
-              <div className="p-6 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-100 dark:border-slate-800">
-                <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-3">Academic Performance</h4>
-                <div className="flex justify-between items-center">
-                  <div>
-                    <p className="text-2xl font-black text-slate-800 dark:text-white">3.85</p>
-                    <p className="text-[10px] text-slate-400 font-bold uppercase">Cumulative GPA</p>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-sm font-bold text-slate-700 dark:text-slate-300">4th Year, 2nd Sem</p>
-                    <p className="text-[10px] text-slate-400 font-bold uppercase">Enrollment Phase</p>
-                  </div>
+                  <p className="text-sm font-bold text-teal-600">{selectedStudent.status || 'Active'}</p>
                 </div>
               </div>
             </div>
 
-            <div className="p-8 pt-0 flex gap-3">
-              <button className="flex-1 py-4 border-2 border-slate-100 dark:border-slate-800 text-slate-600 dark:text-slate-400 rounded-2xl font-bold hover:bg-slate-50 transition-colors">
-                View Transcripts
-              </button>
-              <button className="flex-1 py-4 bg-teal-600 text-white rounded-2xl font-bold hover:bg-teal-700 shadow-xl shadow-teal-500/20 transition-all active:scale-95">
-                Message Student
+            <div className="p-8 pt-0 flex gap-3 border-t border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/30">
+               {/* Non-functional mock buttons for UI completeness */}
+              <button className="flex-1 py-4 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 rounded-2xl font-bold bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors text-sm shadow-sm">
+                View Academic Transcripts
               </button>
             </div>
           </div>

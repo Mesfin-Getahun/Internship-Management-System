@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { X, Plus } from 'lucide-react';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faTimes, faPlus } from '@fortawesome/free-solid-svg-icons';;
 
 const EditableSkillsInput = ({
   label,
@@ -46,7 +47,7 @@ const EditableSkillsInput = ({
               className="ml-2 text-blue-200 hover:text-white"
               onClick={() => handleRemoveSkill(skill)}
             >
-              <X size={14} />
+              <FontAwesomeIcon icon={faTimes} size={14} />
             </button>
           </span>
         ))}
@@ -63,7 +64,7 @@ const EditableSkillsInput = ({
           onClick={handleAddSkill}
           className="p-1 text-slate-500 hover:text-blue-600 dark:text-slate-400 dark:hover:text-blue-400"
         >
-          <Plus size={18} />
+          <FontAwesomeIcon icon={faPlus} size={18} />
         </button>
       </div>
     </div>

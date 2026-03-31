@@ -1,5 +1,6 @@
 import React from 'react';
-import { Download } from 'lucide-react';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faDownload } from '@fortawesome/free-solid-svg-icons';;
 import { useAuth } from '../../../AuthContext';
 
 const StudentRecommendationLetter = () => {
@@ -25,8 +26,8 @@ const StudentRecommendationLetter = () => {
               onClick={handleDownload}
               className="inline-flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-md transition-colors"
             >
-              <Download size={18} />
-              Download Letter
+              <FontAwesomeIcon icon={faDownload} size={18} />
+              faDownload Letter
             </button>
           </div>
         ) : (

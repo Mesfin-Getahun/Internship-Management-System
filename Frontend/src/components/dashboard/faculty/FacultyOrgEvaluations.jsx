@@ -1,242 +1,205 @@
-import React, { useState, useMemo } from 'react';
-import { Search, X, Star, Building, User, FileText } from 'lucide-react';
-
-const mockEvaluations = [
-  {
-    id: 1,
-    student: 'John Doe',
-    type: 'Organization',
-    target: 'Google',
-    date: '2024-06-15',
-    rating: 5,
-    summary: 'Excellent internship experience. Great learning opportunities and supportive environment.',
-    details: {
-      'Clarity of Expectations': 5,
-      'Quality of Supervision': 5,
-      'Provided Resources': 4,
-      'Skill Development': 5,
-      'Overall Experience': 5,
-      comments: 'The team at Google was fantastic. My supervisor provided clear goals and was always available for guidance. I learned a lot about large-scale system design.'
-    }
-  },
-  {
-    id: 2,
-    student: 'Jane Smith',
-    type: 'Mentor',
-    target: 'Dr. Alan Turing',
-    date: '2024-06-14',
-    rating: 4,
-    summary: 'Dr. Turing was very knowledgeable and helpful throughout the project.',
-    details: {
-      'Availability': 4,
-      'Guidance': 5,
-      'Communication': 4,
-      'Encouragement': 5,
-      'Overall Effectiveness': 4,
-      comments: 'Dr. Turing provided excellent technical guidance. Sometimes it was a bit hard to schedule meetings, but he always made up for it with detailed email feedback.'
-    }
-  },
-  {
-    id: 3,
-    student: 'Peter Jones',
-    type: 'Organization',
-    target: 'Microsoft',
-    date: '2024-06-12',
-    rating: 4,
-    summary: 'Good experience, though the project scope was a bit vague initially.',
-     details: {
-      'Clarity of Expectations': 3,
-      'Quality of Supervision': 4,
-      'Provided Resources': 5,
-      'Skill Development': 4,
-      'Overall Experience': 4,
-      comments: 'Microsoft has amazing resources for interns. The project I was on felt a little disorganized at the start, but my supervisor helped clarify things. I still learned a great deal.'
-    }
-  },
-    {
-    id: 4,
-    student: 'Emily White',
-    type: 'Mentor',
-    target: 'Dr. Grace Hopper',
-    date: '2024-06-10',
-    rating: 5,
-    summary: 'An outstanding mentor. Dr. Hopper was incredibly supportive and inspiring.',
-    details: {
-      'Availability': 5,
-      'Guidance': 5,
-      'Communication': 5,
-      'Encouragement': 5,
-      'Overall Effectiveness': 5,
-      comments: 'I couldn\'t have asked for a better mentor. Dr. Hopper pushed me to do my best work and was a constant source of encouragement and wisdom. Her passion for the field is contagious.'
-    }
-  },
-];
+import React, { useState, useEffect, useMemo } from 'react';
+import axios from 'axios';
+import { useAuth } from '../../../AuthContext';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faSearch, faTimes, faStar, faBuilding, faUser, faFileAlt, faSpinner, faCommentSlash } from '@fortawesome/free-solid-svg-icons';
 
 const EvaluationModal = ({ evaluation, onClose }) => {
   if (!evaluation) return null;
 
-  const isOrg = evaluation.type === 'Organization';
+  const isOrg = evaluation.type === 'Organization' || !evaluation.university_mentor_id;
 
   const renderStars = (rating) => (
     <div className="flex">
       {[...Array(5)].map((_, i) => (
-        <Star key={i} size={20} className={i < rating ? 'text-amber-400 fill-current' : 'text-slate-600'} />
+        <FontAwesomeIcon icon={faStar} key={i} size="sm" className={i < rating ? 'text-amber-400 fill-current' : 'text-slate-200 dark:text-slate-600'} />
       ))}
     </div>
   );
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-70 flex justify-center items-center z-50 animate-fade-in-fast">
-      <div className="bg-slate-800 rounded-2xl shadow-xl w-full max-w-2xl m-4 border border-slate-700">
-        <div className="p-6 border-b border-slate-700 flex justify-between items-center">
-          <h3 className="text-xl font-bold text-emerald-400 flex items-center gap-3">
-            <FileText size={20} /> Evaluation Details
+    <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex justify-center items-center z-50 animate-fade-in">
+      <div className="bg-white dark:bg-slate-900 rounded-3xl shadow-2xl w-full max-w-2xl m-4 border border-slate-200 dark:border-slate-800 flex flex-col max-h-[90vh]">
+        <div className="p-8 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center bg-slate-50/50 dark:bg-slate-800/30">
+          <h3 className="text-xl font-bold text-slate-800 dark:text-white flex items-center gap-3">
+            <div className="w-10 h-10 rounded-full bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 flex items-center justify-center">
+               <FontAwesomeIcon icon={faFileAlt} size="sm" /> 
+            </div>
+            Evaluation Details
           </h3>
-          <button onClick={onClose} className="text-slate-400 hover:text-white p-2 rounded-full bg-slate-700/50 hover:bg-slate-700">
-            <X size={20} />
+          <button onClick={onClose} className="text-slate-400 hover:text-slate-600 dark:hover:text-white p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
+            <FontAwesomeIcon icon={faTimes} size="lg" />
           </button>
         </div>
         
-        <div className="p-6 space-y-6 max-h-[70vh] overflow-y-auto custom-scrollbar">
-          <div className="flex justify-between items-start bg-slate-900 p-4 rounded-lg">
+        <div className="p-8 space-y-8 overflow-y-auto custom-scrollbar flex-grow">
+          <div className="flex justify-between items-start bg-slate-50 dark:bg-slate-800/50 p-6 rounded-2xl border border-slate-100 dark:border-slate-700/50">
             <div>
-              <p className="text-xs text-slate-400 uppercase font-semibold">Student</p>
-              <p className="text-lg font-bold text-white">{evaluation.student}</p>
+              <p className="text-[10px] text-slate-400 uppercase font-black tracking-widest mb-1">Student</p>
+              <p className="text-lg font-bold text-slate-800 dark:text-white">{evaluation.student_name || evaluation.student || 'Student Name'}</p>
             </div>
             <div className="text-right">
-              <p className="text-xs text-slate-400 uppercase font-semibold">Evaluation Target</p>
-              <p className="text-lg font-bold text-white flex items-center justify-end gap-2">
-                {isOrg ? <Building size={16} /> : <User size={16} />}
-                {evaluation.target}
+              <p className="text-[10px] text-slate-400 uppercase font-black tracking-widest mb-1">Evaluation Target</p>
+              <p className="text-lg font-bold text-slate-800 dark:text-white flex items-center justify-end gap-2">
+                {isOrg ? <FontAwesomeIcon icon={faBuilding} className="text-slate-400 text-sm" /> : <FontAwesomeIcon icon={faUser} className="text-slate-400 text-sm" />}
+                {evaluation.target || evaluation.company_name || 'Organization'}
               </p>
             </div>
           </div>
 
           <div>
-            <p className="text-xs text-slate-400 uppercase font-semibold mb-2">Detailed Ratings</p>
-            <div className="space-y-3">
-              {Object.entries(evaluation.details).map(([key, value]) => {
-                if (key === 'comments') return null;
-                return (
-                  <div key={key} className="flex justify-between items-center bg-slate-700/50 p-3 rounded-lg">
-                    <p className="text-sm text-slate-300 font-medium">{key}</p>
-                    {renderStars(value)}
-                  </div>
-                );
-              })}
+            <p className="text-[10px] text-slate-400 uppercase font-black tracking-widest mb-3">Overall Rating</p>
+            <div className="flex items-center gap-3 bg-slate-50 dark:bg-slate-800/50 p-4 rounded-xl border border-slate-100 dark:border-slate-700/50">
+               {renderStars(evaluation.rating || evaluation.score || 5)}
+               <span className="font-bold text-slate-700 dark:text-slate-300">({evaluation.rating || evaluation.score || 5}.0 / 5.0)</span>
             </div>
           </div>
 
           <div>
-            <p className="text-xs text-slate-400 uppercase font-semibold mb-2">Comments</p>
-            <div className="bg-slate-700/50 p-4 rounded-lg">
-              <p className="text-sm text-slate-300 italic">"{evaluation.details.comments}"</p>
+            <p className="text-[10px] text-slate-400 uppercase font-black tracking-widest mb-3">Comments & Feedback</p>
+            <div className="bg-indigo-50/50 dark:bg-indigo-900/10 p-6 rounded-2xl border border-indigo-100 dark:border-indigo-900/30">
+              <p className="text-sm text-slate-700 dark:text-slate-300 leading-relaxed italic">"{evaluation.summary || evaluation.comments || evaluation.feedback_text || 'No detailed comments provided.'}"</p>
             </div>
           </div>
         </div>
 
-        <div className="p-4 bg-slate-900/50 rounded-b-2xl text-center text-xs text-slate-500">
-          Evaluation submitted on {new Date(evaluation.date).toLocaleDateString()}
+        <div className="p-6 border-t border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/30 text-center text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+          Evaluation submitted on {evaluation.date || evaluation.created_at ? new Date(evaluation.date || evaluation.created_at).toLocaleDateString() : 'N/A'}
         </div>
       </div>
     </div>
   );
 };
 
-
 const FacultyOrgEvaluations = () => {
   const [selectedEvaluation, setSelectedEvaluation] = useState(null);
   const [filter, setFilter] = useState('All');
   const [searchTerm, setSearchTerm] = useState('');
+  const [evaluations, setEvaluations] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const { user } = useAuth();
+
+  useEffect(() => {
+    const fetchEvaluations = async () => {
+      try {
+        setLoading(true);
+        const res = await axios.get(`${import.meta.env.VITE_BACKEND_URL}/api/faculty/companyEvaluation`, {
+           headers: { Authorization: `Bearer ${user?.token}` }
+        });
+        const data = res.data.evaluations || res.data || [];
+        setEvaluations(data);
+      } catch (err) {
+         console.error(err);
+      } finally {
+         setLoading(false);
+      }
+    };
+    if (user?.token) fetchEvaluations();
+  }, [user]);
 
   const filteredEvaluations = useMemo(() => {
-    return mockEvaluations
-      .filter(e => filter === 'All' || e.type === filter)
-      .filter(e => 
-        e.student.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        e.target.toLowerCase().includes(searchTerm.toLowerCase())
-      );
-  }, [filter, searchTerm]);
+    return evaluations
+      .filter(e => {
+         const type = e.university_mentor_id ? 'Mentor' : 'Organization';
+         return filter === 'All' || type === filter;
+      })
+      .filter(e => {
+        const sName = (e.student_name || e.student || '').toLowerCase();
+        const tName = (e.company_name || e.target || '').toLowerCase();
+        return sName.includes(searchTerm.toLowerCase()) || tName.includes(searchTerm.toLowerCase());
+      });
+  }, [filter, searchTerm, evaluations]);
 
   const renderStars = (rating) => (
     <div className="flex">
       {[...Array(5)].map((_, i) => (
-        <Star key={i} size={16} className={i < rating ? 'text-amber-400 fill-current' : 'text-slate-600'} />
+        <FontAwesomeIcon icon={faStar} key={i} size="xs" className={i < rating ? 'text-amber-400 fill-current' : 'text-slate-200 dark:text-slate-700'} />
       ))}
     </div>
   );
 
   return (
-    <div className="animate-fade-in space-y-6">
+    <div className="animate-fade-in space-y-8 pb-12">
       <EvaluationModal evaluation={selectedEvaluation} onClose={() => setSelectedEvaluation(null)} />
       
       <header>
-        <h2 className="text-2xl font-bold text-slate-800 dark:text-white">Student Evaluations</h2>
-        <p className="text-slate-500 text-sm mt-1">Review feedback from organizations and academic mentors.</p>
+        <h2 className="text-3xl font-bold text-slate-800 dark:text-white tracking-tight">Student Evaluations</h2>
+        <p className="text-slate-500 text-sm mt-1">Review feedback ratings provided by host organizations.</p>
       </header>
 
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div className="flex gap-2 bg-slate-100 dark:bg-slate-800 p-1.5 rounded-xl">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-6">
+        <div className="flex gap-2 bg-slate-100 dark:bg-slate-900 p-1.5 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm">
           {['All', 'Organization', 'Mentor'].map(f => (
             <button 
               key={f}
               onClick={() => setFilter(f)}
-              className={`px-4 py-1.5 text-sm font-bold rounded-lg transition-colors ${
+              className={`px-5 py-2 text-xs font-bold uppercase tracking-wider rounded-lg transition-all ${
                 filter === f 
-                  ? 'bg-emerald-600 text-white shadow-md' 
-                  : 'text-slate-500 dark:text-slate-400 hover:bg-white dark:hover:bg-slate-700'
+                  ? 'bg-indigo-600 text-white shadow-md shadow-indigo-500/20' 
+                  : 'text-slate-500 dark:text-slate-400 hover:bg-white dark:hover:bg-slate-800'
               }`}
             >
               {f}
             </button>
           ))}
         </div>
-        <div className="relative w-full sm:w-64">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+        <div className="relative w-full sm:w-72">
+          <FontAwesomeIcon icon={faSearch} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size="sm" />
           <input 
             type="text" 
-            placeholder="Search student or target..." 
+            placeholder="Search matching evaluations..." 
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-10 pr-4 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+            className="w-full pl-11 pr-4 py-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all shadow-sm"
           />
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {filteredEvaluations.map(e => (
-          <div key={e.id} className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-sm p-6 space-y-4 transition-all hover:shadow-lg hover:border-emerald-500/30">
-            <div className="flex justify-between items-start">
-              <div>
-                <p className="text-xs text-slate-400 font-bold uppercase">{e.student}</p>
-                <p className="font-bold text-slate-800 dark:text-white flex items-center gap-2">
-                  {e.type === 'Organization' ? <Building size={14} className="text-slate-500" /> : <User size={14} className="text-slate-500" />}
-                  {e.target}
-                </p>
-              </div>
-              <div className={`text-xs font-bold px-2 py-1 rounded-md ${e.type === 'Organization' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/50 dark:text-blue-300' : 'bg-purple-100 text-purple-700 dark:bg-purple-900/50 dark:text-purple-300'}`}>
-                {e.type}
-              </div>
-            </div>
-            <p className="text-sm text-slate-600 dark:text-slate-400 italic">"{e.summary}"</p>
-            <div className="flex justify-between items-center pt-4 border-t border-slate-100 dark:border-slate-800">
-              <div className="flex items-center gap-2">
-                {renderStars(e.rating)}
-                <span className="text-xs font-bold text-slate-500">({e.rating}.0)</span>
-              </div>
-              <button 
-                onClick={() => setSelectedEvaluation(e)}
-                className="bg-slate-100 dark:bg-slate-800 hover:bg-emerald-100 dark:hover:bg-emerald-900/50 text-slate-600 dark:text-slate-300 hover:text-emerald-700 dark:hover:text-emerald-400 text-xs font-bold py-2 px-3 rounded-lg transition-colors"
-              >
-                View Details
-              </button>
-            </div>
-          </div>
-        ))}
-      </div>
-      {filteredEvaluations.length === 0 && (
-        <div className="text-center py-10">
-          <p className="text-slate-500">No evaluations match your criteria.</p>
+      {loading ? (
+         <div className="flex justify-center items-center h-64 text-indigo-500">
+            <FontAwesomeIcon icon={faSpinner} spin size="2x" />
+         </div>
+      ) : filteredEvaluations.length > 0 ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+          {filteredEvaluations.map((e, idx) => {
+             const type = e.university_mentor_id ? 'Mentor' : 'Organization';
+             const isOrg = type === 'Organization';
+             return (
+               <div key={e.evaluation_id || e.id || idx} className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-100 dark:border-slate-800 shadow-sm p-8 flex flex-col transition-all duration-300 hover:shadow-xl hover:shadow-indigo-500/5 hover:-translate-y-1 group">
+                 <div className="flex justify-between items-start mb-6">
+                   <div>
+                     <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest mb-1">{e.student_name || e.student || 'Student Name'}</p>
+                     <p className="font-bold text-slate-800 dark:text-white flex items-center gap-2 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
+                       {isOrg ? <FontAwesomeIcon icon={faBuilding} size="sm" className="text-slate-400" /> : <FontAwesomeIcon icon={faUser} size="sm" className="text-slate-400" />}
+                       {e.company_name || e.target || 'Organization'}
+                     </p>
+                   </div>
+                   <div className={`text-[10px] font-black uppercase tracking-widest px-3 py-1.5 rounded-lg ${isOrg ? 'bg-indigo-50 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400' : 'bg-purple-50 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400'}`}>
+                     {type}
+                   </div>
+                 </div>
+                 <p className="text-sm text-slate-600 dark:text-slate-400 italic line-clamp-3 mb-6 flex-grow">"{e.summary || e.comments || e.feedback_text}"</p>
+                 <div className="flex justify-between items-center pt-6 border-t border-slate-100 dark:border-slate-800">
+                   <div className="flex items-center gap-2 bg-slate-50 dark:bg-slate-800 px-3 py-1.5 rounded-lg border border-slate-100 dark:border-slate-700">
+                     {renderStars(e.rating || e.score || 5)}
+                     <span className="text-[10px] font-black text-slate-500">({e.rating || e.score || 5}.0)</span>
+                   </div>
+                   <button 
+                     onClick={() => setSelectedEvaluation(e)}
+                     className="bg-slate-50 dark:bg-slate-800 hover:bg-indigo-600 text-slate-600 dark:text-slate-300 hover:text-white text-[10px] font-black uppercase tracking-widest py-2 px-4 rounded-lg transition-all active:scale-95"
+                   >
+                     Details
+                   </button>
+                 </div>
+               </div>
+             )
+          })}
+        </div>
+      ) : (
+        <div className="flex flex-col items-center justify-center p-12 bg-white dark:bg-slate-900 rounded-3xl border border-slate-100 dark:border-slate-800 shadow-sm min-h-[300px]">
+          <FontAwesomeIcon icon={faCommentSlash} size="3x" className="text-slate-300 mb-4" />
+          <h3 className="text-xl font-bold text-slate-700 dark:text-white">No Evaluations Found</h3>
+          <p className="text-slate-500 dark:text-slate-400 mt-2 text-sm">No evaluation criteria matches the current filters.</p>
         </div>
       )}
     </div>

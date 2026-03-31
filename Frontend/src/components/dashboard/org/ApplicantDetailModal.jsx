@@ -1,5 +1,6 @@
-
 import React from 'react';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faTimes, faFilePdf, faFileAlt } from '@fortawesome/free-solid-svg-icons';
 
 const ApplicantDetailModal = ({ applicant, isOpen, onClose, onAction }) => {
   if (!isOpen || !applicant) return null;
@@ -30,9 +31,7 @@ const ApplicantDetailModal = ({ applicant, isOpen, onClose, onAction }) => {
             onClick={onClose}
             className="p-2 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-xl transition-colors text-slate-400"
           >
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
-            </svg>
+            <FontAwesomeIcon icon={faTimes} className="h-6 w-6" />
           </button>
         </div>
 
@@ -77,9 +76,7 @@ const ApplicantDetailModal = ({ applicant, isOpen, onClose, onAction }) => {
               <div className="flex items-center justify-between p-4 bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 group hover:border-blue-400 transition-colors cursor-pointer">
                 <div className="flex items-center gap-4">
                   <div className="w-10 h-10 rounded-xl bg-red-50 dark:bg-red-900/20 text-red-500 flex items-center justify-center">
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
-                    </svg>
+                    <FontAwesomeIcon icon={faFilePdf} className="h-6 w-6" />
                   </div>
                   <div>
                     <p className="text-sm font-bold text-slate-700 dark:text-slate-200">Curriculum Vitae (CV)</p>
@@ -92,9 +89,7 @@ const ApplicantDetailModal = ({ applicant, isOpen, onClose, onAction }) => {
               <div className="flex items-center justify-between p-4 bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 group hover:border-blue-400 transition-colors cursor-pointer">
                 <div className="flex items-center gap-4">
                   <div className="w-10 h-10 rounded-xl bg-blue-50 dark:bg-blue-900/20 text-blue-500 flex items-center justify-center">
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                    </svg>
+                    <FontAwesomeIcon icon={faFileAlt} className="h-6 w-6" />
                   </div>
                   <div>
                     <p className="text-sm font-bold text-slate-700 dark:text-slate-200">Academic Transcript</p>

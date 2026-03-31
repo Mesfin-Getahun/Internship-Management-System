@@ -1,83 +1,103 @@
-import React from 'react';
-import { User, Building, Star } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import axios from 'axios';
+import { useAuth } from '../../../AuthContext';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faUser, faBuilding, faStar, faSpinner, faCommentSlash } from '@fortawesome/free-solid-svg-icons';
 
 const FeedbackCard = ({ author, role, date, content, rating }) => (
-  <div className="bg-white dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl p-6 mb-6 shadow-sm transition-all hover:shadow-md">
+  <div className="bg-white dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-3xl p-8 mb-6 shadow-sm transition-all hover:shadow-lg group">
     <div className="flex items-start justify-between mb-4">
       <div className="flex items-center">
-        <div className="w-12 h-12 rounded-full bg-slate-100 dark:bg-slate-700 flex items-center justify-center mr-4">
-          {role === 'Faculty Mentor' ? (
-            <User className="w-6 h-6 text-slate-500" />
+        <div className="w-14 h-14 rounded-2xl bg-indigo-50 dark:bg-slate-700 flex items-center justify-center mr-4 border border-indigo-100">
+          {role?.toLowerCase().includes('faculty') ? (
+            <FontAwesomeIcon icon={faUser} className="w-6 h-6 text-indigo-500" />
           ) : (
-            <Building className="w-6 h-6 text-slate-500" />
+            <FontAwesomeIcon icon={faBuilding} className="w-6 h-6 text-indigo-500" />
           )}
         </div>
         <div>
-          <h4 className="font-bold text-slate-800 dark:text-white">{author}</h4>
-          <p className="text-sm text-slate-500 dark:text-slate-400">{role}</p>
+          <h4 className="font-bold text-slate-800 dark:text-white text-lg">{author || 'Supervisor'}</h4>
+          <p className="text-xs font-bold uppercase tracking-widest text-indigo-600 dark:text-indigo-400 mt-1">{role || 'Mentor Evaluation'}</p>
         </div>
       </div>
       <div className="text-right">
-        <p className="text-sm text-slate-500 dark:text-slate-400 font-medium">{date}</p>
+        <p className="text-xs text-slate-400 font-bold uppercase tracking-wider">{date ? new Date(date).toLocaleDateString() : 'Recent'}</p>
         {rating && (
-          <div className="flex items-center mt-1">
+          <div className="flex items-center justify-end mt-2 gap-1">
             {[...Array(5)].map((_, i) => (
-              <Star
+              <FontAwesomeIcon icon={faStar}
                 key={i}
-                className={`w-4 h-4 ${i < rating ? 'text-yellow-400' : 'text-slate-300 dark:text-slate-600'}`}
-                fill="currentColor"
+                className={`w-4 h-4 ${i < rating ? 'text-amber-400' : 'text-slate-200 dark:text-slate-700'}`}
               />
             ))}
           </div>
         )}
       </div>
     </div>
-    <p className="text-slate-600 dark:text-slate-300 leading-relaxed">{content}</p>
+    <p className="text-slate-600 dark:text-slate-300 leading-relaxed mt-4">{content}</p>
   </div>
 );
 
 const FeedbackAndEvaluation = () => {
-  // Mock data - this will be replaced with data from an API call
-  const feedbacks = [
-    {
-      author: 'Dr. Eleanor Vance',
-      role: 'Faculty Mentor',
-      date: 'Feb 20, 2026',
-      content: 'The student has shown excellent progress in their preliminary reports. Their research skills are commendable, but they need to focus on improving their time management to meet deadlines more consistently. Overall, a very promising start.',
-      rating: 4,
-    },
-    {
-      author: 'Mr. Johnathan Doe',
-      role: 'Organization Supervisor',
-      date: 'Feb 15, 2026',
-      content: 'During the initial project briefing, the student was attentive, asked insightful questions, and demonstrated a solid foundational knowledge of our tech stack. We are looking forward to seeing their contributions to the project.',
-      rating: 5,
-    },
-     {
-      author: 'Dr. Eleanor Vance',
-      role: 'Faculty Mentor',
-      date: 'Jan 30, 2026',
-      content: 'The initial internship plan submitted was well-structured and ambitious. I have approved the plan and provided some minor suggestions for the first month\'s objectives.',
-      rating: 5,
-    },
-  ];
+  const [feedbacks, setFeedbacks] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const { user } = useAuth();
+
+  useEffect(() => {
+    const fetchFeedback = async () => {
+      try {
+        setLoading(true);
+        const res = await axios.get(`${import.meta.env.VITE_BACKEND_URL}/api/student/viewFeedbacks`, {
+          headers: { Authorization: `Bearer ${user?.token}` }
+        });
+        
+        if (res.data.feedbacks) {
+           setFeedbacks(res.data.feedbacks);
+        } else if (Array.isArray(res.data)) {
+           setFeedbacks(res.data);
+        }
+      } catch (err) {
+        console.error("Failed to fetch feedback:", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    if (user?.token) fetchFeedback();
+  }, [user]);
 
   return (
-    <div className="animate-fade-in">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-slate-800 dark:text-white">Feedback & Evaluations</h1>
-        <p className="text-slate-500 dark:text-slate-400 mt-1">
-          Feedback from your mentors and supervisors will appear here.
+    <div className="animate-fade-in space-y-8 pb-12">
+      <header>
+        <h1 className="text-3xl font-bold text-slate-800 dark:text-white tracking-tight">Feedback & Evaluations</h1>
+        <p className="text-slate-500 dark:text-slate-400 text-sm mt-1">
+          Review official academic and performance feedback from your assigned supervisors.
         </p>
-      </div>
+      </header>
 
-      {feedbacks.length > 0 ? (
-        feedbacks.map((feedback, index) => <FeedbackCard key={index} {...feedback} />)
+      {loading ? (
+         <div className="flex justify-center items-center h-64 text-indigo-500">
+            <FontAwesomeIcon icon={faSpinner} spin size="2x" />
+         </div>
+      ) : feedbacks.length > 0 ? (
+        <div className="space-y-6">
+           {feedbacks.map((fb, index) => (
+             <FeedbackCard 
+                key={index} 
+                author={fb.mentor_name || fb.company_name || fb.author}
+                role={fb.role || (fb.university_mentor_id ? 'Faculty Mentor' : 'Organization Supervisor')}
+                date={fb.created_at || fb.date}
+                content={fb.comments || fb.feedback_text || fb.content}
+                rating={fb.score || fb.rating}
+             />
+           ))}
+        </div>
       ) : (
-        <div className="text-center p-12 bg-white dark:bg-slate-800/50 rounded-xl border border-slate-200 dark:border-slate-700">
-          <h3 className="text-lg font-semibold text-slate-700 dark:text-white">No Feedback Yet</h3>
-          <p className="text-slate-500 dark:text-slate-400 mt-2">
-            Once your mentors or supervisors provide feedback, it will be displayed on this page.
+        <div className="flex flex-col justify-center items-center p-12 h-64 bg-white dark:bg-slate-800/50 rounded-3xl border border-slate-200 dark:border-slate-700 shadow-sm">
+          <FontAwesomeIcon icon={faCommentSlash} size="3x" className="text-slate-300 mb-4" />
+          <h3 className="text-xl font-bold text-slate-700 dark:text-white">No Feedback Yet</h3>
+          <p className="text-slate-500 dark:text-slate-400 mt-2 text-sm max-w-md text-center">
+            Evaluations and performance reviews will appear here once submitted by your university or company supervisors.
           </p>
         </div>
       )}

@@ -1,18 +1,8 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 
-import {
-  LayoutGrid,
-  Search,
-  FileText,
-  DollarSign,
-  Star,
-  User,
-  Briefcase,
-  GitBranch,
-  LogOut,
-  FileDown,
-} from "lucide-react";
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faTableCellsLarge, faSearch, faFileAlt, faDollarSign, faStar, faUser, faBriefcase, faCodeBranch, faSignOutAlt, faFileDownload } from '@fortawesome/free-solid-svg-icons';;
 import { useAuth } from '../../../AuthContext';
 
 const StudentSidebar = ({ activeTab }) => {
@@ -25,21 +15,21 @@ const StudentSidebar = ({ activeTab }) => {
   };
 
   const menuItems = [
-    { id: 'overview', label: 'Dashboard', icon: LayoutGrid },
-    { id: 'opportunities', label: 'Opportunities', icon: Search },
-    { id: 'my-applications', label: 'My Applications', icon: FileText },
+    { id: 'overview', label: 'Dashboard', icon: faTableCellsLarge },
+    { id: 'opportunities', label: 'Opportunities', icon: faSearch },
+    { id: 'my-applications', label: 'My Applications', icon: faFileAlt },
   ];
 
   const processMenuItems = [
-    { id: 'status', label: 'Internship Status', icon: Briefcase, disabled: userState.internshipStatus !== 'ACTIVATED' },
+    { id: 'status', label: 'Internship Status', icon: faBriefcase, disabled: userState.internshipStatus !== 'ACTIVATED' },
   ];
 
   const generalMenuItems = [
-    { id: 'reports', label: 'Weekly Reports', icon: FileText },
-    { id: 'feedback', label: 'Feedback', icon: Star },
-    { id: 'stipend', label: 'Stipend Application', icon: DollarSign },
-    { id: 'recommendation', label: 'Recommendation Letter', icon: FileDown, disabled: !isRecommendationAvailable },
-    { id: 'profile', label: 'My Profile', icon: User },
+    { id: 'reports', label: 'Weekly Reports', icon: faFileAlt },
+    { id: 'feedback', label: 'Feedback', icon: faStar },
+    { id: 'stipend', label: 'Stipend Application', icon: faDollarSign },
+    { id: 'recommendation', label: 'Recommendation Letter', icon: faFileDownload, disabled: !isRecommendationAvailable },
+    { id: 'profile', label: 'My Profile', icon: faUser },
   ];
   
   const SidebarLink = ({ item, activeTab }) => (
@@ -54,7 +44,7 @@ const StudentSidebar = ({ activeTab }) => {
           : 'text-slate-400 hover:bg-slate-800 hover:text-white'
       }`}
     >
-      <item.icon className="h-5 w-5 shrink-0" />
+      <FontAwesomeIcon icon={item.icon} className="h-5 w-5 shrink-0" />
       <span className="truncate">{item.label}</span>
     </Link>
   );
@@ -91,7 +81,7 @@ const StudentSidebar = ({ activeTab }) => {
           onClick={logout}
           className="w-full flex items-center gap-3 px-4 py-2.5 rounded-lg font-semibold transition-all text-sm text-slate-400 hover:bg-red-600 hover:text-white"
         >
-          <LogOut className="h-5 w-5" />
+          <FontAwesomeIcon icon={faSignOutAlt} className="h-5 w-5" />
           <span>Logout</span>
         </button>
       </div>

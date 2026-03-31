@@ -1,5 +1,6 @@
 import dotenv from "dotenv";
 dotenv.config();
+import { setupSwagger } from "./utils/swagger.js";
 import express from "express";
 import cors from "cors";
 import studentRoute from "./routes/studentRoute.js";
@@ -21,6 +22,7 @@ import router from "./middleware/login.js";
 import changeRouter from "./middleware/changePassword.js";
 
 const app = express();
+setupSwagger(app);
 
 app.use(cors());
 

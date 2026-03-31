@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { DatabaseBackup, Download, FileSpreadsheet, AlertCircle } from 'lucide-react';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faDatabase, faDownload, faFileExcel, faExclamationCircle } from '@fortawesome/free-solid-svg-icons';;
 import { toast, ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 
@@ -65,7 +66,7 @@ const DataBackup = () => {
           disabled={isBackingUp}
           className="w-full md:w-auto bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2 px-6 rounded-lg flex items-center justify-center gap-2 disabled:bg-slate-500 disabled:cursor-not-allowed"
         >
-          <DatabaseBackup size={18} />
+          <FontAwesomeIcon icon={faDatabase} size={18} />
           {isBackingUp ? 'Backup in Progress...' : 'Backup Now'}
         </button>
       </div>
@@ -75,9 +76,9 @@ const DataBackup = () => {
         <h2 className="text-2xl font-bold text-white mb-4">Export Data</h2>
         <p className="text-slate-400 mb-6">Export specific data tables as CSV files for external analysis or record-keeping.</p>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          <button onClick={() => handleExport('Users')} className="bg-sky-600 hover:bg-sky-700 text-white font-semibold py-3 px-4 rounded-lg flex items-center gap-3"><FileSpreadsheet /> Export Users</button>
-          <button onClick={() => handleExport('Organizations')} className="bg-sky-600 hover:bg-sky-700 text-white font-semibold py-3 px-4 rounded-lg flex items-center gap-3"><FileSpreadsheet /> Export Organizations</button>
-          <button onClick={() => handleExport('Students')} className="bg-sky-600 hover:bg-sky-700 text-white font-semibold py-3 px-4 rounded-lg flex items-center gap-3"><FileSpreadsheet /> Export Students</button>
+          <button onClick={() => handleExport('Users')} className="bg-sky-600 hover:bg-sky-700 text-white font-semibold py-3 px-4 rounded-lg flex items-center gap-3"><FontAwesomeIcon icon={faFileExcel} /> Export Users</button>
+          <button onClick={() => handleExport('Organizations')} className="bg-sky-600 hover:bg-sky-700 text-white font-semibold py-3 px-4 rounded-lg flex items-center gap-3"><FontAwesomeIcon icon={faFileExcel} /> Export Organizations</button>
+          <button onClick={() => handleExport('Students')} className="bg-sky-600 hover:bg-sky-700 text-white font-semibold py-3 px-4 rounded-lg flex items-center gap-3"><FontAwesomeIcon icon={faFileExcel} /> Export Students</button>
         </div>
       </div>
 
@@ -107,7 +108,7 @@ const DataBackup = () => {
                   </td>
                   <td className="px-6 py-4 text-center">
                     <button onClick={() => handleDownload(backup.file)} className="font-medium text-emerald-400 hover:text-emerald-300 flex items-center gap-2 mx-auto">
-                      <Download size={16} /> Download
+                      <FontAwesomeIcon icon={faDownload} size={16} /> faDownload
                     </button>
                   </td>
                 </tr>

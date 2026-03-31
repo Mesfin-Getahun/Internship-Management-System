@@ -1,47 +1,47 @@
+import React, { useState, useEffect } from 'react';
+import axios from 'axios';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faTimes, faSpinner, faBuilding } from '@fortawesome/free-solid-svg-icons';
 
-import React, { useState } from 'react';
-import { X } from 'lucide-react';
-
-const StudentDetailModal = ({ student, onClose }) => {
-    if (!student) return null;
+const InternshipDetailModal = ({ internship, onClose }) => {
+    if (!internship) return null;
 
     return (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50">
-            <div className="bg-white rounded-2xl shadow-xl p-8 max-w-md w-full m-4">
-                <div className="flex justify-between items-center mb-4">
-                    <h3 className="text-xl font-bold text-slate-800">{student.name}</h3>
-                    <button onClick={onClose} className="text-slate-500 hover:text-slate-800">
-                        <X size={24} />
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex justify-center items-center z-50 animate-fade-in">
+            <div className="bg-white rounded-3xl shadow-2xl p-8 max-w-md w-full m-4 border border-slate-200">
+                <div className="flex justify-between items-center mb-6 border-b border-slate-100 pb-4">
+                    <h3 className="text-xl font-bold text-slate-800 tracking-tight">{internship.title}</h3>
+                    <button onClick={onClose} className="text-slate-400 hover:text-slate-800 bg-slate-50 hover:bg-slate-100 p-2 rounded-full transition-all">
+                        <FontAwesomeIcon icon={faTimes} size="lg" />
                     </button>
                 </div>
-                <div className="space-y-4">
+                <div className="space-y-6">
                     <div>
-                        <p className="text-sm text-slate-500">Student ID</p>
-                        <p className="font-semibold text-slate-700">{student.id}</p>
+                        <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">Hosting Organization</p>
+                        <p className="font-bold text-slate-700 flex items-center gap-2">
+                           <FontAwesomeIcon icon={faBuilding} className="text-slate-400" />
+                           {internship.company_name || internship.company_id?.company_name || 'Organization'}
+                        </p>
                     </div>
                     <div>
-                        <p className="text-sm text-slate-500">Faculty</p>
-                        <p className="font-semibold text-slate-700">{student.faculty}</p>
+                        <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">Location Details</p>
+                        <p className="font-semibold text-slate-700">{internship.location || 'Not Specified'}</p>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                        <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100">
+                           <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">Start Date</p>
+                           <p className="font-bold text-slate-700">{internship.start_date ? new Date(internship.start_date).toLocaleDateString() : 'TBD'}</p>
+                        </div>
+                        <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100">
+                           <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">End Date</p>
+                           <p className="font-bold text-slate-700">{internship.end_date ? new Date(internship.end_date).toLocaleDateString() : 'TBD'}</p>
+                        </div>
                     </div>
                     <div>
-                        <p className="text-sm text-slate-500">Hosting Company</p>
-                        <p className="font-semibold text-slate-700">{student.org}</p>
-                    </div>
-                    <div>
-                        <p className="text-sm text-slate-500">University Mentor</p>
-                        <p className="font-semibold text-slate-700">{student.mentor}</p>
-                    </div>
-                    <div>
-                        <p className="text-sm text-slate-500">Company Supervisor</p>
-                        <p className="font-semibold text-slate-700">{student.companySupervisor}</p>
-                    </div>
-                     <div>
-                        <p className="text-sm text-slate-500">Contact</p>
-                        <p className="font-semibold text-slate-700">{student.email} | {student.phone}</p>
-                    </div>
-                    <div>
-                        <p className="text-sm text-slate-500">Internship Status</p>
-                        <p className={`font-bold ${student.status === 'Completed' ? 'text-green-600' : 'text-indigo-600'}`}>{student.status}</p>
+                        <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">Program Status</p>
+                        <p className={`font-black uppercase text-sm ${internship.status === 'Approved' ? 'text-green-600' : internship.status === 'Pending' ? 'text-amber-500' : 'text-indigo-600'}`}>
+                           {internship.status || 'Active'}
+                        </p>
                     </div>
                 </div>
             </div>
@@ -49,74 +49,112 @@ const StudentDetailModal = ({ student, onClose }) => {
     );
 };
 
-
 const InternshipMonitoring = () => {
-  const [selectedStudent, setSelectedStudent] = useState(null);
-  const data = [
-    { name: 'Abebe Bikila', id: 'BIT/102/13', faculty: 'Computing', org: 'EAL Group', mentor: 'Dr. Belayneh', companySupervisor: 'Mr. John Smith', status: 'Active', prog: 65, email: 'abebe.bikila@example.com', phone: '0912345678' },
-    { name: 'Saba Tadesse', id: 'BIT/155/13', faculty: 'Civil', org: 'Safaricom', mentor: 'Eng. Solomon', companySupervisor: 'Ms. Jane Doe', status: 'Active', prog: 40, email: 'saba.tadesse@example.com', phone: '0912345679' },
-    { name: 'Mulugeta Seraw', id: 'BIT/201/13', faculty: 'Electrical', org: 'CBE', mentor: 'Dr. Yilma', companySupervisor: 'Mr. Alex Brown', status: 'Active', prog: 20, email: 'mulugeta.seraw@example.com', phone: '0912345680' },
-    { name: 'Eden Kebede', id: 'BIT/088/13', faculty: 'Computing', org: 'Hybrid Sys.', mentor: 'Dr. Belayneh', companySupervisor: 'Ms. Sarah Green', status: 'Completed', prog: 100, email: 'eden.kebede@example.com', phone: '0912345681' },
-  ];
+  const [internships, setInternships] = useState([]);
+  const [selectedInternship, setSelectedInternship] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState('');
+
+  const fetchInternships = async () => {
+     try {
+        setLoading(true);
+        const res = await axios.get(`${import.meta.env.VITE_BACKEND_URL}/api/UIL/internships`);
+        if (res.data.success) {
+           setInternships(res.data.internships);
+        } else if (res.data && Array.isArray(res.data)) {
+           setInternships(res.data);
+        }
+     } catch (err) {
+        console.error("Failed to fetch internships", err);
+     } finally {
+        setLoading(false);
+     }
+  };
+
+  useEffect(() => {
+     fetchInternships();
+  }, []);
+
+  const filteredInternships = internships.filter(i => 
+      i.title.toLowerCase().includes(search.toLowerCase()) || 
+      (i.company_name || '').toLowerCase().includes(search.toLowerCase())
+  );
 
   return (
-    <div className="animate-fade-in space-y-6">
+    <div className="animate-fade-in space-y-6 pb-12">
       <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
-          <h2 className="text-2xl font-black text-slate-800 tracking-tight">Internship Oversight</h2>
-          <p className="text-slate-500 text-sm mt-1">Real-time tracking of all active university internship placements.</p>
+          <h2 className="text-3xl font-bold text-slate-800 tracking-tight">Internship Oversight</h2>
+          <p className="text-slate-500 text-sm mt-1">Real-time status tracking of all registered internship structural programs.</p>
         </div>
-        <div className="flex flex-wrap gap-2">
-          <input type="text" placeholder="Filter by Student ID..." className="px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-xs focus:ring-2 focus:ring-indigo-500 outline-none w-48" />
-          <button className="px-5 py-2.5 bg-indigo-600 text-white text-xs font-black uppercase tracking-widest rounded-xl hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-500/20 active:scale-95">Search</button>
+        <div className="flex flex-wrap gap-3 w-full md:w-auto">
+          <input 
+             type="text" 
+             placeholder="Search title or company..." 
+             value={search}
+             onChange={(e) => setSearch(e.target.value)}
+             className="flex-grow md:w-64 px-5 py-3.5 bg-white border border-slate-200 rounded-xl text-sm font-semibold focus:ring-2 focus:ring-indigo-500 outline-none shadow-sm transition-all" 
+          />
+          <button onClick={fetchInternships} className="px-6 py-3.5 bg-indigo-600 text-white text-xs font-black uppercase tracking-widest rounded-xl hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-500/20 active:scale-95 shrink-0">
+             Refresh
+          </button>
         </div>
       </header>
 
-      <div className="bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left">
-            <thead>
-              <tr className="bg-slate-50/50 border-b border-slate-100 text-[10px] font-black uppercase text-slate-400 tracking-widest">
-                <th className="p-5">Student Entity</th>
-                <th className="p-5">Faculty</th>
-                <th className="p-5">Hosting Company</th>
-                <th className="p-5">University Mentor</th>
-                <th className="p-5">Company Supervisor</th>
-                <th className="p-5">Completion</th>
-                <th className="p-5 text-right">Status</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-50 text-sm">
-              {data.map((row, i) => (
-                <tr key={i} onClick={() => setSelectedStudent(row)} className="hover:bg-slate-50/50 transition-colors group cursor-pointer">
-                  <td className="p-5">
-                    <div className="font-bold text-slate-800 group-hover:text-indigo-600 transition-colors">{row.name}</div>
-                    <div className="text-[11px] text-slate-400 font-medium font-mono">{row.id}</div>
-                  </td>
-                  <td className="p-5 text-slate-500 font-bold text-xs">{row.faculty}</td>
-                  <td className="p-5 text-slate-500 font-bold text-xs">{row.org}</td>
-                  <td className="p-5 text-slate-500 font-bold text-xs">{row.mentor}</td>
-                  <td className="p-5 text-slate-500 font-bold text-xs">{row.companySupervisor}</td>
-                  <td className="p-5 w-48">
-                    <div className="flex items-center gap-3">
-                      <div className="flex-grow h-1.5 bg-slate-100 rounded-full overflow-hidden">
-                        <div className={`h-full transition-all duration-1000 ${row.prog === 100 ? 'bg-green-500' : 'bg-indigo-500'}`} style={{ width: `${row.prog}%` }}></div>
-                      </div>
-                      <span className="text-[10px] font-black text-slate-400 shrink-0">{row.prog}%</span>
-                    </div>
-                  </td>
-                  <td className="p-5 text-right">
-                    <span className={`px-2 py-1 rounded-lg text-[10px] font-black uppercase ${row.status === 'Completed' ? 'bg-green-100 text-green-700' : 'bg-indigo-100 text-indigo-700'}`}>
-                      {row.status}
-                    </span>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+      <div className="bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden min-h-[400px]">
+        {loading ? (
+           <div className="flex flex-col justify-center items-center h-64 text-slate-400">
+               <FontAwesomeIcon icon={faSpinner} spin size="2x" className="mb-4 text-indigo-500" />
+               <p className="font-bold">Aggregating program data...</p>
+           </div>
+        ) : filteredInternships.length === 0 ? (
+           <div className="flex justify-center items-center h-64 text-slate-500">
+               <p className="font-semibold">No active internship program entries spotted.</p>
+           </div>
+        ) : (
+           <div className="overflow-x-auto">
+             <table className="w-full text-left">
+               <thead>
+                 <tr className="bg-slate-50/80 border-b border-slate-100 text-[10px] font-black uppercase text-slate-400 tracking-widest">
+                   <th className="p-5 whitespace-nowrap">Program Title</th>
+                   <th className="p-5 whitespace-nowrap">Hosting Company</th>
+                   <th className="p-5 whitespace-nowrap">Location</th>
+                   <th className="p-5 whitespace-nowrap">Dates</th>
+                   <th className="p-5 text-right whitespace-nowrap">Global Status</th>
+                 </tr>
+               </thead>
+               <tbody className="divide-y divide-slate-50 text-sm">
+                 {filteredInternships.map((row, i) => (
+                   <tr key={row.internship_id || i} onClick={() => setSelectedInternship(row)} className="hover:bg-indigo-50/50 transition-colors group cursor-pointer">
+                     <td className="p-5">
+                       <div className="font-bold text-slate-800 group-hover:text-indigo-600 transition-colors">{row.title}</div>
+                       <div className="text-[10px] text-slate-400 font-black uppercase tracking-widest mt-1">ID: {row.internship_id ? row.internship_id.substring(0,8) : 'PROG'}</div>
+                     </td>
+                     <td className="p-5 font-bold text-slate-600 text-xs uppercase tracking-wider">{row.company_name || row.company_id?.company_name || 'N/A'}</td>
+                     <td className="p-5 text-slate-500 font-semibold text-xs">{row.location || 'Remote'}</td>
+                     <td className="p-5 text-slate-500 text-[11px] font-bold">
+                        <div>{row.start_date ? new Date(row.start_date).toLocaleDateString() : '-'}</div>
+                        <div className="text-slate-400">to</div>
+                        <div>{row.end_date ? new Date(row.end_date).toLocaleDateString() : '-'}</div>
+                     </td>
+                     <td className="p-5 text-right">
+                       <span className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest shadow-sm ${
+                          row.status === 'Approved' ? 'bg-green-50 text-green-700 border border-green-200' : 
+                          row.status === 'Pending' ? 'bg-amber-50 text-amber-700 border border-amber-200 animate-pulse' : 
+                          row.status === 'Rejected' ? 'bg-red-50 text-red-700 border border-red-200' : 
+                          'bg-indigo-50 text-indigo-700 border border-indigo-200'
+                       }`}>
+                         {row.status || 'Active'}
+                       </span>
+                     </td>
+                   </tr>
+                 ))}
+               </tbody>
+             </table>
+           </div>
+        )}
       </div>
-      <StudentDetailModal student={selectedStudent} onClose={() => setSelectedStudent(null)} />
+      <InternshipDetailModal internship={selectedInternship} onClose={() => setSelectedInternship(null)} />
     </div>
   );
 };

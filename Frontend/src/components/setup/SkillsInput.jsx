@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { X } from 'lucide-react';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faTimes } from '@fortawesome/free-solid-svg-icons';;
 
 const SkillsInput = ({
   label,
@@ -69,7 +70,7 @@ const SkillsInput = ({
                 handleRemoveSkill(skill);
               }}
             >
-              <X size={14} />
+              <FontAwesomeIcon icon={faTimes} size={14} />
             </button>
           </span>
         ))}

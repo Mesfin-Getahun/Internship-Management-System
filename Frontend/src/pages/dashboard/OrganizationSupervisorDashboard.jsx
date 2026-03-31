@@ -3,22 +3,29 @@ import { Routes, Route, Navigate, useLocation } from "react-router-dom";
 import OrgSupervisorNavbar from "../../components/dashboard/org_supervisor/OrgSupervisorNavbar.jsx";
 import OrgSupervisorSidebar from "../../components/dashboard/org_supervisor/OrgSupervisorSidebar.jsx";
 import OrgSupervisorOverview from "../../components/dashboard/org_supervisor/OrgSupervisorOverview.jsx";
+import Attendance from "../../components/dashboard/org_supervisor/Attendance.jsx";
+import Evaluation from "../../components/dashboard/org_supervisor/Evaluation.jsx";
+import SupervisorStudentEvaluation from "../../components/dashboard/org_supervisor/SupervisorStudentEvaluation.jsx";
 
 const OrganizationSupervisorDashboard = () => {
   const location = useLocation();
   const activeTab = location.pathname.split("/").pop() || "overview";
 
   return (
-    <div className="flex min-h-screen bg-slate-50 dark:bg-slate-900">
+    <div className="min-h-screen bg-[#f5f7fb] flex font-['Inter']">
       <OrgSupervisorSidebar activeTab={activeTab} />
-      <div className="flex-1 flex flex-col overflow-hidden">
+      <div className="flex-grow flex flex-col min-w-0">
         <OrgSupervisorNavbar />
-        <main className="flex-1 p-6 pt-20">
-          <Routes>
-            <Route index element={<OrgSupervisorOverview />} />
-            {/* Add other routes here */}
-            <Route path="*" element={<Navigate to="" replace />} />
-          </Routes>
+        <main className="flex-grow pl-[288px] pr-8 pt-28 pb-12 overflow-x-hidden">
+          <div className="max-w-7xl mx-auto">
+            <Routes>
+              <Route path="/" element={<Navigate to="overview" replace />} />
+              <Route path="overview" element={<OrgSupervisorOverview />} />
+              <Route path="attendance" element={<Attendance />} />
+              <Route path="evaluation" element={<Evaluation />} />
+              <Route path="evaluate/:studentId" element={<SupervisorStudentEvaluation />} />
+            </Routes>
+          </div>
         </main>
       </div>
     </div>
