@@ -6,9 +6,10 @@ import {
   updateInternship,
   accept,
   reject,
-  postEvaluation,
   assignMentor,
   updateProfile,
+  getProfile,
+  getCompanyMentors,
   viewApplication,
   activeInternships,
   registerCompany,
@@ -67,7 +68,7 @@ companyRoute.post(
     { name: "profileFile", maxCount: 1 },
     { name: "licenseFile", maxCount: 1 },
   ]),
-  registerCompany
+  registerCompany,
 );
 
 /**
@@ -103,28 +104,6 @@ companyRoute.post("/postInternship", authCompany, postInternship);
 
 /**
  * @swagger
- * /api/company/evaluation/{internship_id}:
- *   post:
- *     summary: Post an end-of-internship evaluation
- *     tags: [Company]
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: path
- *         name: internship_id
- *         schema:
- *           type: string
- *         required: true
- *     responses:
- *       200:
- *         description: Evaluation recorded successfully
- *       500:
- *         description: Server error
- */
-companyRoute.post("/evaluation/:internship_id", authCompany, postEvaluation);
-
-/**
- * @swagger
  * /api/company/deleteInternship/{internship_id}:
  *   delete:
  *     summary: Remove an active internship posting
@@ -144,7 +123,7 @@ companyRoute.post("/evaluation/:internship_id", authCompany, postEvaluation);
 companyRoute.delete(
   "/deleteInternship/:internship_id",
   authCompany,
-  deleteInternship
+  deleteInternship,
 );
 
 /**
@@ -168,7 +147,7 @@ companyRoute.delete(
 companyRoute.put(
   "/updateInternship/:internship_id",
   authCompany,
-  updateInternship
+  updateInternship,
 );
 
 /**
@@ -206,7 +185,7 @@ companyRoute.get("/getApplications", authCompany, getApplications);
 companyRoute.get(
   "/viewApplication/:application_id",
   authCompany,
-  viewApplication
+  viewApplication,
 );
 
 /**
@@ -222,6 +201,8 @@ companyRoute.get(
  *         description: Active internships returned
  */
 companyRoute.get("/activeInternships", authCompany, activeInternships);
+companyRoute.get("/profile", authCompany, getProfile);
+companyRoute.get("/mentors", authCompany, getCompanyMentors);
 
 /**
  * @swagger

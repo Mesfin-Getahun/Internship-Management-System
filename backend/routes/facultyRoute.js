@@ -5,6 +5,9 @@ import {
   companyEvaluation,
   deleteMentor,
   getStudents,
+  getMentors,
+  getPaymentData,
+  getFacultyProfile,
   facultyViewReports,
   evaluation,
 } from "../controller/facultyController.js";
@@ -73,6 +76,20 @@ facultyRoute.get("/companyEvaluation", authFaculty, companyEvaluation);
  *         description: Faculty student list returned successfully
  */
 facultyRoute.get("/students", authFaculty, getStudents);
+
+/**
+ * @swagger
+ * /api/faculty/mentors:
+ *   get:
+ *     summary: Get available university mentors with current assignment load
+ *     tags: [Faculty]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Faculty mentor list returned successfully
+ */
+facultyRoute.get("/mentors", authFaculty, getMentors);
 
 /**
  * @swagger
@@ -156,5 +173,7 @@ facultyRoute.put("/changeMentor/:id", authFaculty, changeMentor);
  *         description: Reports listed successfully
  */
 facultyRoute.get("/reports", authFaculty, facultyViewReports);
+facultyRoute.get("/payments", authFaculty, getPaymentData);
+facultyRoute.get("/profile", authFaculty, getFacultyProfile);
 
 export default facultyRoute;

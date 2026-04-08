@@ -68,18 +68,24 @@ const MyStudents = () => {
                  {students.map((student, i) => (
                    <tr key={student.student_id || student.id || i} className="hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors group">
                      <td className="p-5">
-                       <div className="font-bold text-sm text-slate-800 dark:text-white group-hover:text-teal-600 dark:group-hover:text-teal-400 transition-colors">{student.student_name || student.name || student.first_name}</div>
-                       <div className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1">ID: {student.student_id ? student.student_id.substring(0,8) : 'N/A'} • {student.department || student.faculty || 'Engineering'}</div>
+                       <div className="font-bold text-sm text-slate-800 dark:text-white group-hover:text-teal-600 dark:group-hover:text-teal-400 transition-colors">{student.student_name || student.full_name || student.name || 'Student'}</div>
+                       <div className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1">ID: {student.student_id ? String(student.student_id).slice(0, 8) : 'N/A'} • {student.department || student.faculty || 'Engineering'}</div>
                      </td>
                      <td className="p-5 text-sm text-slate-600 dark:text-slate-400 font-semibold">{student.company_name || student.org || 'Unassigned'}</td>
                      <td className="p-5">
-                       <span className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest ${
-                         student.status === 'Active' || student.status === 'On Track' ? 'bg-teal-50 text-teal-700 dark:bg-teal-900/30 dark:text-teal-400 border border-teal-100 dark:border-teal-900/50' :
-                         student.status === 'Delayed' ? 'bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 border border-amber-100 dark:border-amber-900/50' :
+                       {(() => {
+                         const status = (student.status || '').toLowerCase();
+                         const statusLabel = student.status || 'Active';
+                         return (
+                        <span className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest ${
+                         status === 'active' || status === 'on track' || status === 'in progress' ? 'bg-teal-50 text-teal-700 dark:bg-teal-900/30 dark:text-teal-400 border border-teal-100 dark:border-teal-900/50' :
+                         status === 'delayed' ? 'bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 border border-amber-100 dark:border-amber-900/50' :
                          'bg-slate-50 text-slate-700 dark:bg-slate-800/50 dark:text-slate-400 border border-slate-200 dark:border-slate-700'
                        }`}>
-                         {student.status || 'Active'}
+                         {statusLabel}
                        </span>
+                         );
+                       })()}
                      </td>
                      <td className="p-5 text-right">
                        <button 
@@ -109,7 +115,7 @@ const MyStudents = () => {
                 </div>
                 <div>
                   <h3 className="text-2xl font-bold text-slate-800 dark:text-white leading-none mb-2">{selectedStudent.student_name || selectedStudent.name}</h3>
-                  <span className="text-[10px] bg-slate-100 dark:bg-slate-800 px-3 py-1 rounded-md text-slate-500 font-black uppercase tracking-widest border border-slate-200 dark:border-slate-700">{selectedStudent.student_id ? selectedStudent.student_id.substring(0,8) : 'N/A'}</span>
+                  <span className="text-[10px] bg-slate-100 dark:bg-slate-800 px-3 py-1 rounded-md text-slate-500 font-black uppercase tracking-widest border border-slate-200 dark:border-slate-700">{selectedStudent.student_id ? String(selectedStudent.student_id).slice(0, 8) : 'N/A'}</span>
                   <p className="text-[10px] text-teal-600 dark:text-teal-400 font-black mt-2 uppercase tracking-widest">{selectedStudent.department || selectedStudent.faculty || 'Engineering'} Student</p>
                 </div>
               </div>
@@ -153,3 +159,4 @@ const MyStudents = () => {
 };
 
 export default MyStudents;
+

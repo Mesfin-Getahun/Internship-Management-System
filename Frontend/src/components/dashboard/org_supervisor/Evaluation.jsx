@@ -1,55 +1,112 @@
-import React from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
+import axios from 'axios';
+import { useAuth } from '../../../AuthContext';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faUser, faChevronRight } from '@fortawesome/free-solid-svg-icons';;
-
-// This would typically come from a context or API call
-const mockStudents = [
-  { id: '1', name: 'John Doe', universityId: 'BDU12345', department: 'Software Engineering', status: 'Pending' },
-  { id: '2', name: 'Jane Smith', universityId: 'BDU67890', department: 'Computer Science', status: 'Completed' },
-];
+import { faChevronRight, faClipboardCheck, faSpinner, faUser, faUsersSlash } from '@fortawesome/free-solid-svg-icons';
 
 const Evaluation = () => {
+  const { user } = useAuth();
+  const [students, setStudents] = useState([]);
+  const [feedbacks, setFeedbacks] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        setLoading(true);
+        const [studentsRes, feedbacksRes] = await Promise.all([
+          axios.get(`${import.meta.env.VITE_BACKEND_URL}/api/company_mentor/students`, {
+            headers: { Authorization: `Bearer ${user?.token}` },
+          }),
+          axios.get(`${import.meta.env.VITE_BACKEND_URL}/api/company_mentor/feedbacks`, {
+            headers: { Authorization: `Bearer ${user?.token}` },
+          }),
+        ]);
+
+        setStudents(Array.isArray(studentsRes.data?.students) ? studentsRes.data.students : []);
+        setFeedbacks(Array.isArray(feedbacksRes.data?.feedbacks) ? feedbacksRes.data.feedbacks : []);
+      } catch (error) {
+        console.error('Failed to load evaluation roster.', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    if (user?.token) {
+      fetchData();
+    } else {
+      setLoading(false);
+    }
+  }, [user?.token]);
+
+  const feedbackKeys = useMemo(
+    () => new Set(feedbacks.map((item) => `${item.internship_id}_${item.student_id}`)),
+    [feedbacks]
+  );
+
   return (
     <div className="animate-fade-in">
       <div className="flex justify-between items-center mb-6">
         <div>
           <h2 className="text-3xl font-bold text-slate-800 dark:text-white">Student Evaluations</h2>
-          <p className="text-slate-500 text-sm mt-1">Select a student to fill out or review their assessment form.</p>
+          <p className="text-slate-500 text-sm mt-1">Select one of your assigned students to complete the full evaluation and attendance submission.</p>
         </div>
       </div>
-      
-      <div className="space-y-4">
-        {mockStudents.map(student => (
-          <Link 
-            to={`/org-supervisor/evaluate/${student.id}`} 
-            key={student.id}
-            className="block bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700/50 p-4 rounded-xl transition-all shadow-sm border border-slate-200 dark:border-slate-700"
-          >
-            <div className="flex justify-between items-center">
-              <div className="flex items-center gap-4">
-                <div className="bg-indigo-100 dark:bg-indigo-900/50 p-3 rounded-full">
-                  <FontAwesomeIcon icon={faUser} className="text-indigo-600 dark:text-indigo-300" />
+
+      {loading ? (
+        <div className="flex items-center justify-center h-48 text-emerald-500">
+          <FontAwesomeIcon icon={faSpinner} spin size="2x" />
+        </div>
+      ) : students.length === 0 ? (
+        <div className="bg-white dark:bg-slate-800 p-10 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 text-center">
+          <FontAwesomeIcon icon={faUsersSlash} size="3x" className="text-slate-300 mb-4" />
+          <p className="text-xl font-bold text-slate-800 dark:text-white">No assigned students found</p>
+          <p className="text-slate-500 text-sm mt-2">Assigned interns will appear here once the company links them to your supervisor account.</p>
+        </div>
+      ) : (
+        <div className="space-y-4">
+          {students.map((student) => {
+            const evaluationKey = `${student.internship_id}_${student.student_id}`;
+            const hasFeedback = feedbackKeys.has(evaluationKey);
+
+            return (
+              <Link
+                to={`/org-supervisor/evaluate/${student.internship_id}_${student.student_id}`}
+                key={evaluationKey}
+                className="block bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700/50 p-5 rounded-2xl transition-all shadow-sm border border-slate-200 dark:border-slate-700"
+              >
+                <div className="flex justify-between items-center gap-4">
+                  <div className="flex items-center gap-4">
+                    <div className="bg-emerald-100 dark:bg-emerald-900/30 p-4 rounded-2xl">
+                      <FontAwesomeIcon icon={faUser} className="text-emerald-600 dark:text-emerald-300" />
+                    </div>
+                    <div>
+                      <h3 className="font-bold text-lg text-slate-800 dark:text-white">{student.student_name || 'Assigned Intern'}</h3>
+                      <p className="text-sm text-slate-500 dark:text-slate-400">
+                        {student.department || 'Department unavailable'} • {student.company_name || 'Company'} • {student.internship_title || 'Internship'}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-4">
+                    <span className={`px-3 py-1 text-xs font-semibold rounded-full ${
+                      hasFeedback
+                        ? 'bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300'
+                        : 'bg-amber-100 text-amber-800 dark:bg-amber-900/50 dark:text-amber-300'
+                    }`}>
+                      {hasFeedback ? 'Feedback Sent' : 'Evaluation Ready'}
+                    </span>
+                    <div className="flex items-center gap-2 text-slate-400 dark:text-slate-500">
+                      <FontAwesomeIcon icon={faClipboardCheck} />
+                      <FontAwesomeIcon icon={faChevronRight} />
+                    </div>
+                  </div>
                 </div>
-                <div>
-                  <h3 className="font-bold text-lg text-slate-800 dark:text-white">{student.name}</h3>
-                  <p className="text-sm text-slate-500 dark:text-slate-400">{student.department} - {student.universityId}</p>
-                </div>
-              </div>
-              <div className="flex items-center gap-4">
-                <span className={`px-3 py-1 text-xs font-semibold rounded-full ${
-                  student.status === 'Completed' 
-                    ? 'bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300' 
-                    : 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/50 dark:text-yellow-300'
-                }`}>
-                  {student.status}
-                </span>
-                <FontAwesomeIcon icon={faChevronRight} className="text-slate-400 dark:text-slate-500" />
-              </div>
-            </div>
-          </Link>
-        ))}
-      </div>
+              </Link>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 };

@@ -1,14 +1,27 @@
-
-import React from 'react';
+import React, { useEffect, useState } from 'react';
+import axios from 'axios';
+import { useAuth } from '../../../AuthContext';
 
 const AuditLogs = () => {
-  const logs = [
-    { ts: '2023-11-20 14:22:12', admin: 'Root_Sys', action: 'SCHEMA_UPDATE', entity: 'Role_Faculty', ip: '192.168.1.1' },
-    { ts: '2023-11-20 12:05:55', admin: 'Root_Sys', action: 'BACKUP_GENERATE', entity: 'System_DB', ip: '192.168.1.1' },
-    { ts: '2023-11-20 09:44:02', admin: 'Root_Sys', action: 'USER_ROLE_CHANGE', entity: 'yonas.uil', ip: '10.0.0.12' },
-    { ts: '2023-11-19 17:12:30', admin: 'Auto_Agent', action: 'INDEX_REBUILD', entity: 'Student_Records', ip: 'Localhost' },
-    { ts: '2023-11-19 15:30:11', admin: 'Root_Sys', action: 'FACULTY_CREATE', entity: 'Computing', ip: '192.168.1.1' },
-  ];
+  const { user } = useAuth();
+  const [logs, setLogs] = useState([]);
+
+  useEffect(() => {
+    const fetchLogs = async () => {
+      try {
+        const res = await axios.get(`${import.meta.env.VITE_BACKEND_URL}/api/admin/logs`, {
+          headers: { Authorization: `Bearer ${user?.token}` },
+        });
+        setLogs(Array.isArray(res.data?.logs) ? res.data.logs : []);
+      } catch (error) {
+        console.error('Failed to load audit logs.', error);
+      }
+    };
+
+    if (user?.token) {
+      fetchLogs();
+    }
+  }, [user?.token]);
 
   return (
     <div className="animate-fade-in space-y-6">
@@ -41,13 +54,13 @@ const AuditLogs = () => {
             <tbody className="divide-y divide-slate-50 font-mono">
               {logs.map((log, i) => (
                 <tr key={i} className="hover:bg-slate-50/50 transition-colors">
-                  <td className="p-5 text-slate-400">{log.ts}</td>
-                  <td className="p-5 text-slate-800 font-bold">{log.admin}</td>
+                  <td className="p-5 text-slate-400">{log.created_at ? new Date(log.created_at).toLocaleString() : 'N/A'}</td>
+                  <td className="p-5 text-slate-800 font-bold">{log.user_id || 'System'}</td>
                   <td className="p-5">
                     <span className="px-2 py-0.5 bg-slate-100 text-slate-600 rounded font-black text-[9px] uppercase tracking-tighter border border-slate-200">{log.action}</span>
                   </td>
-                  <td className="p-5 text-slate-500">{log.entity}</td>
-                  <td className="p-5 text-right font-black tracking-widest opacity-50">{log.ip}</td>
+                  <td className="p-5 text-slate-500">system_logs</td>
+                  <td className="p-5 text-right font-black tracking-widest opacity-50">N/A</td>
                 </tr>
               ))}
             </tbody>

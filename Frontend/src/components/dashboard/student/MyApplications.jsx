@@ -21,7 +21,7 @@ const MyApplications = () => {
         
         // Ensure we arrayify it depending on backend response shape.
         // It could be res.data.applications or res.data.internship
-        const data = res.data.applications || res.data.internships || res.data.data;
+        const data = res.data.applications || res.data.internships || res.data.data || [];
         if (Array.isArray(data)) {
            setApplications(data);
         } else if (data) {
@@ -87,9 +87,9 @@ const MyApplications = () => {
                       </td>
                       <td className="p-5 text-center">
                         <span className={`px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest ${
-                          app.status === 'Accepted' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' :
-                          app.status === 'Rejected' ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' :
-                          app.status === 'Pending' || app.status === 'Under Review' ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400' :
+                          app.status?.toLowerCase() === 'accepted' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' :
+                          app.status?.toLowerCase() === 'rejected' ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' :
+                          app.status?.toLowerCase() === 'pending' || app.status === 'Under Review' ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400' :
                           'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'
                         }`}>
                           {app.status || 'Applied'}

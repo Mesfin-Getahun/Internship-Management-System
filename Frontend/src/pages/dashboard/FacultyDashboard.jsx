@@ -2,14 +2,14 @@ import React from 'react';
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import FacultySidebar from '../../components/dashboard/faculty/FacultySidebar.jsx';
 import FacultyNavbar from '../../components/dashboard/faculty/FacultyNavbar.jsx';
-import FacultyOverview from '../../components/dashboard/faculty/FacultyOverview.jsx';
-import FacultyManageStudents from '../../components/dashboard/faculty/FacultyManageStudents';
+import FacultyOverview from '../../components/dashboard/faculty/FacultyOverviewLive.jsx';
+import FacultyManageStudents from '../../components/dashboard/faculty/FacultyManageStudentsLive.jsx';
 import FacultyAssignMentors from '../../components/dashboard/faculty/FacultyAssignMentors';
-import FacultyReports from '../../components/dashboard/faculty/FacultyReports';
+import FacultyReports from '../../components/dashboard/faculty/FacultyReportsLive.jsx';
 import FacultyOrgEvaluations from '../../components/dashboard/faculty/FacultyOrgEvaluations';
 import FacultyMonitorProgress from '../../components/dashboard/faculty/FacultyMonitorProgress';
-import FacultyStipendManagement from '../../components/dashboard/faculty/FacultyStipendManagement';
-import FacultyProfile from '../../components/dashboard/faculty/FacultyProfile';
+import FacultyStipendManagement from '../../components/dashboard/faculty/FacultyStipendManagementLive.jsx';
+import FacultyProfile from '../../components/dashboard/faculty/FacultyProfileLive.jsx';
 
 const FacultyDashboard = () => {
   const location = useLocation();

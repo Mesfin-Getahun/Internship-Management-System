@@ -27,7 +27,7 @@ export const registerStudent = async (req, res) => {
         hashedPassword,
         faculty,
         department,
-      ]
+      ],
     );
 
     res.status(201).json({
@@ -51,7 +51,7 @@ export const createCompanyMentor = async (req, res) => {
       `INSERT INTO company_mentor
        (company_mentor_id, full_name, email, phone_number, password)
        VALUES (?, ?, ?, ?, ?)`,
-      [company_mentor_id, full_name, email, phone_number, hashedPassword]
+      [company_mentor_id, full_name, email, phone_number, hashedPassword],
     );
 
     res.json({ success: true, message: "Mentor created successfully" });
@@ -68,7 +68,7 @@ export const createFaculty = async (req, res) => {
   await db.query(
     `INSERT INTO faculty (faculty_id, faculty_name, email, password)
      VALUES (?, ?, ?, ?)`,
-    [faculty_id, faculty_name, email, hashedPassword]
+    [faculty_id, faculty_name, email, hashedPassword],
   );
 
   res.json({ success: true, message: "Faculty created" });
@@ -81,7 +81,7 @@ export const createMentor = async (req, res) => {
     // check if mentor already exists
     const [[exists]] = await db.query(
       "SELECT mentor_id FROM mentor WHERE mentor_id = ? OR email = ?",
-      [mentor_id, email]
+      [mentor_id, email],
     );
 
     if (exists) {
@@ -101,7 +101,7 @@ export const createMentor = async (req, res) => {
       (mentor_id, full_name, email, phone_number, password)
       VALUES (?, ?, ?, ?, ?)
       `,
-      [mentor_id, full_name, email, phone_number, hashedPassword]
+      [mentor_id, full_name, email, phone_number, hashedPassword],
     );
 
     res.status(201).json({
@@ -117,5 +117,78 @@ export const createMentor = async (req, res) => {
   }
 };
 
-// INSERT INTO uil_admin (email, password)
-// VALUES ('uil@bit.edu.et', '<hashed_password>');
+export const createUIL = async (req, res) => {
+  try {
+    const { UIL_id, full_name, email, phone_number, password } = req.body;
+
+    const [[exists]] = await db.query(
+      "SELECT UIL_id FROM UIL WHERE UIL_id = ? OR email = ?",
+      [UIL_id, email],
+    );
+
+    if (exists) {
+      return res.status(409).json({
+        success: false,
+        message: "UIL account already exists",
+      });
+    }
+
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    await db.query(
+      `INSERT INTO UIL
+       (UIL_id, full_name, email, phone_number, password, must_change_password)
+       VALUES (?, ?, ?, ?, ?, TRUE)`,
+      [UIL_id, full_name, email, phone_number, hashedPassword],
+    );
+
+    res.status(201).json({
+      success: true,
+      message: "UIL registered successfully",
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to register UIL",
+    });
+  }
+};
+
+export const createAdmin = async (req, res) => {
+  try {
+    const { admin_id, full_name, email, phone_number, password } = req.body;
+
+    const [[exists]] = await db.query(
+      "SELECT admin_id FROM admin WHERE admin_id = ? OR email = ?",
+      [admin_id, email],
+    );
+
+    if (exists) {
+      return res.status(409).json({
+        success: false,
+        message: "Admin account already exists",
+      });
+    }
+
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    await db.query(
+      `INSERT INTO admin
+       (admin_id, full_name, email, phone_number, password, must_change_password)
+       VALUES (?, ?, ?, ?, ?, TRUE)`,
+      [admin_id, full_name, email, phone_number, hashedPassword],
+    );
+
+    res.status(201).json({
+      success: true,
+      message: "Admin registered successfully",
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to register admin",
+    });
+  }
+};

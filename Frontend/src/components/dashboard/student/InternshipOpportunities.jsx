@@ -8,6 +8,7 @@ import { faSearch, faFilter, faMapMarkerAlt, faClock, faTimes, faSpinner, faBuil
 const InternshipOpportunities = () => {
   const [selectedInternship, setSelectedInternship] = useState(null);
   const [opportunities, setOpportunities] = useState([]);
+  const [searchTerm, setSearchTerm] = useState('');
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -37,6 +38,21 @@ const InternshipOpportunities = () => {
     if (user?.token) fetchInternships();
   }, [user]);
 
+  const filteredOpportunities = opportunities.filter((opp) => {
+    const query = searchTerm.trim().toLowerCase();
+    if (!query) return true;
+
+    return [
+      opp.title,
+      opp.company_name,
+      opp.location,
+      opp.description,
+      opp.skills,
+    ]
+      .filter(Boolean)
+      .some((value) => String(value).toLowerCase().includes(query));
+  });
+
   return (
     <div className="animate-fade-in space-y-8">
       <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-6">
@@ -47,7 +63,7 @@ const InternshipOpportunities = () => {
         <div className="w-full sm:w-auto flex gap-3">
           <div className="relative flex-grow sm:flex-none">
             <FontAwesomeIcon icon={faSearch} className="h-5 w-5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-            <input type="text" placeholder="Search roles..." className="w-full sm:w-64 pl-10 pr-4 py-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+            <input value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} type="text" placeholder="Search roles..." className="w-full sm:w-64 pl-10 pr-4 py-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
           </div>
         </div>
       </header>
@@ -56,14 +72,14 @@ const InternshipOpportunities = () => {
         <div className="flex justify-center items-center h-64 text-blue-500">
            <FontAwesomeIcon icon={faSpinner} spin size="2x" />
         </div>
-      ) : opportunities.length === 0 ? (
+      ) : filteredOpportunities.length === 0 ? (
         <div className="bg-white p-8 rounded-3xl text-center shadow-sm">
            <FontAwesomeIcon icon={faBuilding} size="3x" className="text-slate-300 mb-4" />
            <p className="text-slate-500 font-bold">No listed opportunities available right now.</p>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-8">
-          {opportunities.map((opp) => (
+          {filteredOpportunities.map((opp) => (
             <div key={opp.internship_id} className="bg-white dark:bg-slate-900 rounded-3xl p-8 border border-slate-100 dark:border-slate-800 shadow-sm hover:shadow-xl transition-all group flex flex-col relative overflow-hidden">
               <div className="flex justify-between items-start mb-6">
                 <div className="w-14 h-14 rounded-2xl bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 flex items-center justify-center text-xl font-black">

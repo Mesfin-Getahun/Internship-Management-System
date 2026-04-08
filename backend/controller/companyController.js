@@ -4,34 +4,46 @@ import generateAssessmentPDF from "../utils/generateAssessmentPDF.js";
 import generateAttendancePDF from "../utils/generateAttendancePDF.js";
 import { uploadToCloudinary } from "../utils/cloudinaryUpload.js";
 import fs from "fs";
+import createLog from "../utils/createLog.js";
 
 const postInternship = async (req, res) => {
   const company_id = req.user.company_id;
   try {
-    const { title, description, image, start_date, end_date, skill } = req.body;
+    const {
+      title,
+      description,
+      image,
+      start_date,
+      end_date,
+      skill,
+      skills,
+      requirements,
+      location,
+    } = req.body;
 
     // Basic validation
-    if (!title || !description || !start_date || !end_date) {
+    if (!title || !description) {
       return res.status(400).json({
         success: false,
-        message: "All required fields must be filled",
+        message: "Title and description are required",
       });
     }
 
     // Insert into database
     const query = `
       INSERT INTO internship 
-      (title, description, image, start_date, end_date,skills,company_id)
-      VALUES (?, ?, ?, ?, ?,?,?)
+      (title, description, image, start_date, end_date, skills, location, company_id)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
     `;
 
     const [result] = await db.query(query, [
       title,
       description,
       image || null,
-      start_date,
-      end_date,
-      skill,
+      start_date || null,
+      end_date || null,
+      requirements || skills || skill || null,
+      location || null,
       company_id,
     ]);
 
@@ -50,9 +62,10 @@ const postInternship = async (req, res) => {
 
 const deleteInternship = async (req, res) => {
   try {
-    const { id } = req.params;
+    const { internship_id } = req.params;
+    const company_id = req.user.company_id;
 
-    if (!id) {
+    if (!internship_id) {
       return res.status(400).json({
         success: false,
         message: "Internship ID is required",
@@ -60,8 +73,8 @@ const deleteInternship = async (req, res) => {
     }
 
     const [result] = await db.query(
-      "DELETE FROM internship WHERE internship_id = ?",
-      [id]
+      "DELETE FROM internship WHERE internship_id = ? AND company_id = ?",
+      [internship_id, company_id],
     );
 
     if (result.affectedRows === 0) {
@@ -86,10 +99,21 @@ const deleteInternship = async (req, res) => {
 
 const updateInternship = async (req, res) => {
   try {
-    const { id } = req.params;
-    const { title, description, image, start_date, end_date } = req.body;
+    const { internship_id } = req.params;
+    const company_id = req.user.company_id;
+    const {
+      title,
+      description,
+      image,
+      start_date,
+      end_date,
+      skill,
+      skills,
+      requirements,
+      location,
+    } = req.body;
 
-    if (!id) {
+    if (!internship_id) {
       return res.status(400).json({
         success: false,
         message: "Internship ID is required",
@@ -98,8 +122,8 @@ const updateInternship = async (req, res) => {
 
     // Optional: check if internship exists
     const [existing] = await db.query(
-      "SELECT * FROM internship WHERE internship_id = ?",
-      [id]
+      "SELECT * FROM internship WHERE internship_id = ? AND company_id = ?",
+      [internship_id, company_id],
     );
 
     if (existing.length === 0) {
@@ -112,17 +136,19 @@ const updateInternship = async (req, res) => {
     // Update internship
     const query = `
       UPDATE internship
-      SET title = ?, description = ?, image = ?, start_date = ?, end_date = ?
+      SET title = ?, description = ?, image = ?, start_date = ?, end_date = ?, skills = ?, location = ?
       WHERE internship_id = ?
     `;
 
     await db.query(query, [
-      title,
-      description,
+      title || existing[0].title,
+      description || existing[0].description,
       image || existing[0].image,
-      start_date,
-      end_date,
-      id,
+      start_date || existing[0].start_date,
+      end_date || existing[0].end_date,
+      requirements || skills || skill || existing[0].skills,
+      location || existing[0].location,
+      internship_id,
     ]);
 
     res.status(200).json({
@@ -141,7 +167,19 @@ const updateInternship = async (req, res) => {
 const updateProfile = async (req, res) => {
   try {
     const company_id = req.user.company_id; // from JWT
-    const { company_name, email, phone_number, profile_pic, password } =
+    const {
+      company_name,
+      company_type,
+      industry,
+      website,
+      email,
+      phone_number,
+      location,
+      city,
+      region,
+      profile_pic,
+      password,
+    } =
       req.body;
 
     if (!company_id) {
@@ -154,7 +192,7 @@ const updateProfile = async (req, res) => {
     // Fetch existing company
     const [existing] = await db.query(
       "SELECT * FROM company WHERE company_id = ?",
-      [company_id]
+      [company_id],
     );
 
     if (existing.length === 0) {
@@ -174,18 +212,30 @@ const updateProfile = async (req, res) => {
     // Update profile
     const query = `
       UPDATE company
-      SET company_name = ?, email = ?, phone_number = ?, profile_pic = ?, password = ?
+      SET company_name = ?, company_type = ?, industry = ?, website = ?, email = ?, phone_number = ?, location = ?, city = ?, region = ?, profile_pic = ?, password = ?
       WHERE company_id = ?
     `;
 
     await db.query(query, [
       company_name || existing[0].company_name,
+      company_type || existing[0].company_type,
+      industry || existing[0].industry,
+      website || existing[0].website,
       email || existing[0].email,
       phone_number || existing[0].phone_number,
+      location || existing[0].location,
+      city || existing[0].city,
+      region || existing[0].region,
       profile_pic || existing[0].profile_pic,
       hashedPassword,
       company_id,
     ]);
+
+    await createLog(
+      company_id,
+      "COMPANY_PROFILE_UPDATED",
+      `Company profile updated for ${company_name || existing[0].company_name} (${email || existing[0].email})`
+    );
 
     res.status(200).json({
       success: true,
@@ -196,6 +246,80 @@ const updateProfile = async (req, res) => {
     res.status(500).json({
       success: false,
       message: "Failed to update profile",
+    });
+  }
+};
+
+const getProfile = async (req, res) => {
+  try {
+    const company_id = req.user.company_id;
+
+    const [rows] = await db.query(
+      `
+      SELECT
+        company_id,
+        company_name,
+        company_type,
+        industry,
+        website,
+        email,
+        phone_number,
+        location,
+        city,
+        region,
+        profile_pic,
+        license_url,
+        status
+      FROM company
+      WHERE company_id = ?
+      `,
+      [company_id]
+    );
+
+    if (rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: "Company profile not found",
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      profile: rows[0],
+    });
+  } catch (error) {
+    console.error("Get company profile error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to fetch company profile",
+    });
+  }
+};
+
+const getCompanyMentors = async (req, res) => {
+  try {
+    const [mentors] = await db.query(
+      `
+      SELECT
+        company_mentor_id,
+        full_name,
+        email,
+        phone_number
+      FROM company_mentor
+      ORDER BY full_name
+      `
+    );
+
+    res.status(200).json({
+      success: true,
+      count: mentors.length,
+      mentors,
+    });
+  } catch (error) {
+    console.error("Get company mentors error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to fetch company mentors",
     });
   }
 };
@@ -212,6 +336,8 @@ const getApplications = async (req, res) => {
       SELECT 
         a.application_id,
         a.status,
+        a.applied_date,
+        a.statement,
        
         a.cv_file,
         a.academic_doc,
@@ -219,13 +345,23 @@ const getApplications = async (req, res) => {
         s.student_id,
         s.full_name AS student_name,
         s.email AS student_email,
+        s.department,
+        s.faculty,
 
         i.internship_id,
-        i.title AS internship_title
+        i.title AS internship_title,
+
+        si.id AS student_internship_id,
+        si.company_mentor_id,
+        cm.full_name AS company_mentor_name
 
       FROM application a
       JOIN student s ON a.student_id = s.student_id
       JOIN internship i ON a.internship_id = i.internship_id
+      LEFT JOIN student_internship si
+        ON a.student_id = si.student_id AND a.internship_id = si.internship_id
+      LEFT JOIN company_mentor cm
+        ON si.company_mentor_id = cm.company_mentor_id
       WHERE i.company_id = ?
      
     `;
@@ -243,10 +379,10 @@ const getApplications = async (req, res) => {
 
 const viewApplication = async (req, res) => {
   try {
-    const { id } = req.params; // application_id
+    const { application_id } = req.params;
     const company_id = req.user.company_id;
 
-    if (!id) {
+    if (!application_id) {
       return res
         .status(400)
         .json({ success: false, message: "Application ID is required" });
@@ -256,18 +392,22 @@ const viewApplication = async (req, res) => {
       SELECT 
         a.application_id,
         a.status,
-        a.submitted_at,
+        a.applied_date,
+        a.statement,
         a.cv_file,
-        a.cover_letter_file,
+        a.academic_doc,
 
         s.student_id,
         s.full_name AS student_name,
         s.email AS student_email,
         s.phone_number,
+        s.department,
+        s.faculty,
 
         i.internship_id,
         i.title AS internship_title,
-        i.description AS internship_description
+        i.description AS internship_description,
+        i.location AS internship_location
 
       FROM application a
       JOIN student s ON a.student_id = s.student_id
@@ -276,7 +416,7 @@ const viewApplication = async (req, res) => {
         AND i.company_id = ?
     `;
 
-    const [application] = await db.query(query, [id, company_id]);
+    const [application] = await db.query(query, [application_id, company_id]);
 
     if (application.length === 0) {
       return res.status(404).json({
@@ -297,14 +437,8 @@ const viewApplication = async (req, res) => {
 const accept = async (req, res) => {
   try {
     const { application_id } = req.params;
+    const company_id = req.user.company_id;
 
-    // 1️⃣ Update application status
-    await db.query(
-      "UPDATE application SET status = 'accepted' WHERE application_id = ?",
-      [application_id]
-    );
-
-    // 2️⃣ Get student_id & internship_id from application
     const [rows] = await db.query(
       `
       SELECT 
@@ -315,19 +449,52 @@ const accept = async (req, res) => {
       JOIN internship i 
         ON a.internship_id = i.internship_id
       WHERE a.application_id = ?
+        AND i.company_id = ?
       `,
-      [application_id]
+      [application_id, company_id],
     );
 
-    const { student_id, internship_id, company_id } = rows[0];
+    if (rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: "Application not found",
+      });
+    }
 
-    // 3️⃣ Insert into student_internship
+    const { student_id, internship_id, company_id: applicationCompanyId } = rows[0];
+
     await db.query(
-      `INSERT INTO student_internship 
-      (student_id, internship_id, company_id, status, start_date) 
-      VALUES (?, ?, ?, 'in progress', CURDATE())`,
-      [student_id, internship_id, company_id]
+      "UPDATE application SET status = 'accepted' WHERE application_id = ?",
+      [application_id],
     );
+
+    const [existingPlacement] = await db.query(
+      `
+      SELECT id
+      FROM student_internship
+      WHERE student_id = ? AND internship_id = ?
+      LIMIT 1
+      `,
+      [student_id, internship_id]
+    );
+
+    if (existingPlacement.length === 0) {
+      await db.query(
+        `INSERT INTO student_internship 
+        (student_id, internship_id, company_id, status, start_date) 
+        VALUES (?, ?, ?, 'in progress', CURDATE())`,
+        [student_id, internship_id, applicationCompanyId],
+      );
+    } else {
+      await db.query(
+        `
+        UPDATE student_internship
+        SET status = 'in progress'
+        WHERE id = ?
+        `,
+        [existingPlacement[0].id]
+      );
+    }
 
     res.status(200).json({
       success: true,
@@ -344,6 +511,7 @@ const accept = async (req, res) => {
 const reject = async (req, res) => {
   try {
     const { application_id } = req.params;
+    const company_id = req.user.company_id;
 
     if (!application_id) {
       return res
@@ -353,8 +521,13 @@ const reject = async (req, res) => {
 
     // Check if application exists
     const [existing] = await db.query(
-      "SELECT * FROM application WHERE application_id = ?",
-      [application_id]
+      `
+      SELECT a.application_id
+      FROM application a
+      JOIN internship i ON a.internship_id = i.internship_id
+      WHERE a.application_id = ? AND i.company_id = ?
+      `,
+      [application_id, company_id],
     );
 
     if (existing.length === 0) {
@@ -366,7 +539,7 @@ const reject = async (req, res) => {
     // Update application status to 'rejected'
     await db.query(
       "UPDATE application SET status = 'rejected' WHERE application_id = ?",
-      [application_id]
+      [application_id],
     );
 
     res
@@ -382,19 +555,50 @@ const reject = async (req, res) => {
 
 const assignMentor = async (req, res) => {
   try {
-    const { student_internship_id, company_mentor_id } = req.body;
+    const company_id = req.user.company_id;
+    const {
+      student_internship_id,
+      company_mentor_id,
+      student_id,
+      mentor_id,
+    } = req.body;
 
-    if (!student_internship_id || !company_mentor_id) {
+    const resolvedMentorId = company_mentor_id || mentor_id;
+    let resolvedInternshipId = student_internship_id;
+
+    if ((!resolvedInternshipId && !student_id) || !resolvedMentorId) {
       return res.status(400).json({
         success: false,
-        message: "Student internship ID and company mentor ID are required",
+        message:
+          "Student internship reference and company mentor ID are required",
       });
+    }
+
+    if (!resolvedInternshipId && student_id) {
+      const [placements] = await db.query(
+        `
+        SELECT id
+        FROM student_internship
+        WHERE student_id = ? AND company_id = ? AND status = 'in progress'
+        ORDER BY id DESC
+        LIMIT 1
+        `,
+        [student_id, company_id]
+      );
+
+      if (placements.length === 0) {
+        return res
+          .status(404)
+          .json({ success: false, message: "Student internship not found" });
+      }
+
+      resolvedInternshipId = placements[0].id;
     }
 
     // Check if student_internship exists
     const [existing] = await db.query(
-      "SELECT * FROM student_internship WHERE id = ?",
-      [student_internship_id]
+      "SELECT * FROM student_internship WHERE id = ? AND company_id = ?",
+      [resolvedInternshipId, company_id],
     );
 
     if (existing.length === 0) {
@@ -406,7 +610,7 @@ const assignMentor = async (req, res) => {
     // Optional: check if company_mentor exists
     const [mentor] = await db.query(
       "SELECT * FROM company_mentor WHERE company_mentor_id = ?",
-      [company_mentor_id]
+      [resolvedMentorId],
     );
 
     if (mentor.length === 0) {
@@ -418,7 +622,7 @@ const assignMentor = async (req, res) => {
     // Assign the mentor
     await db.query(
       "UPDATE student_internship SET company_mentor_id = ? WHERE id = ?",
-      [company_mentor_id, student_internship_id]
+      [resolvedMentorId, resolvedInternshipId],
     );
 
     res
@@ -451,7 +655,7 @@ const postEvaluation = async (req, res) => {
           ON si.company_mentor_id = cm.company_mentor_id
       WHERE si.internship_id = ?
       `,
-      [internship_id]
+      [internship_id],
     );
 
     if (!student) {
@@ -472,7 +676,7 @@ const postEvaluation = async (req, res) => {
     const assessmentURL = await uploadToCloudinary(
       assessmentBuffer,
       "internship/assessment",
-      `${student.student_id}_assessment.pdf`
+      `${student.student_id}_assessment.pdf`,
     );
 
     // const assessmentURL = await uploadToCloudinary(
@@ -491,7 +695,7 @@ const postEvaluation = async (req, res) => {
     const attendanceURL = await uploadToCloudinary(
       attendanceBuffer,
       "internship/attendance",
-      `${student.student_id}_attendance.pdf`
+      `${student.student_id}_attendance.pdf`,
     );
 
     fs.unlinkSync(assessmentPath);
@@ -516,7 +720,7 @@ const postEvaluation = async (req, res) => {
         assessmentURL,
         attendanceURL,
         totalMark,
-      ]
+      ],
     );
 
     res.status(201).json({
@@ -551,25 +755,26 @@ const activeInternships = async (req, res) => {
       SELECT 
         i.internship_id,
         i.title,
+        i.description,
         i.start_date,
         i.end_date,
-        i.department,
+        i.skills,
+        i.skills AS requirements,
         i.location,
+        i.status,
 
-        COUNT(si.student_id) AS active_students
+        COUNT(CASE WHEN si.status = 'in progress' THEN si.student_id END) AS active_students
 
       FROM internship i
-      JOIN student_internship si 
+      LEFT JOIN student_internship si 
         ON i.internship_id = si.internship_id
 
-      WHERE 
-        i.company_id = ?
-        AND si.status = 'in progress'
-        AND CURDATE() BETWEEN i.start_date AND i.end_date
+      WHERE i.company_id = ?
 
       GROUP BY i.internship_id
+      ORDER BY i.internship_id DESC
       `,
-      [company_id]
+      [company_id],
     );
 
     res.status(200).json({
@@ -585,29 +790,6 @@ const activeInternships = async (req, res) => {
     });
   }
 };
-
-// const registerCompany = async (req, res) => {
-//   try {
-//     const { company_name, email, phone_number, password } = req.body;
-
-//     const hashedPassword = await bcrypt.hash(password, 10);
-
-//     await db.query(
-//       `INSERT INTO company
-//        ( company_name, email, phone_number, password, status)
-//        VALUES (?, ?, ?, ?, ?, 'pending')`,
-//       [company_name, email, phone_number, hashedPassword]
-//     );
-
-//     res.status(201).json({
-//       success: true,
-//       message: "Company registration submitted for approval",
-//     });
-//   } catch (error) {
-//     console.log(error);
-//     res.status(500).json({ success: false });
-//   }
-// };
 
 const registerCompany = async (req, res) => {
   try {
@@ -652,20 +834,20 @@ const registerCompany = async (req, res) => {
     if (req.files?.profileFile) {
       profileURL = await uploadToCloudinary(
         req.files.profileFile[0].buffer,
-        "company/profile"
+        "company/profile",
       );
     }
 
     if (req.files?.licenseFile) {
       licenseURL = await uploadToCloudinary(
         req.files.licenseFile[0].buffer,
-        "company/license"
+        "company/license",
       );
     }
 
     /* ===== Insert into DB ===== */
 
-    await db.query(
+    const [result] = await db.query(
       `
       INSERT INTO company
       (company_name, company_type, industry, website, email, phone_number,
@@ -686,10 +868,14 @@ const registerCompany = async (req, res) => {
         profileURL,
         licenseURL,
         agreedValue,
-      ]
+      ],
     );
 
-    
+    await createLog(
+      result.insertId,
+      "COMPANY_REGISTERED",
+      `Company registration submitted by ${orgName} (${orgEmail})`
+    );
 
     res.status(201).json({
       success: true,
@@ -710,6 +896,8 @@ export {
   reject,
   deleteInternship,
   updateInternship,
+  getProfile,
+  getCompanyMentors,
   getApplications,
   postEvaluation,
   assignMentor,

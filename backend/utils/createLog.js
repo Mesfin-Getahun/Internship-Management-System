@@ -1,10 +1,11 @@
-import db from "../config/mysql.js";
+import { insertSystemLog } from "./systemLogService.js";
 const createLog = async (userId, action, description) => {
   try {
-    await db.query(
-      "INSERT INTO system_logs (user_id, action, description) VALUES (?, ?, ?)",
-      [userId, action, description]
-    );
+    await insertSystemLog({
+      actorId: userId,
+      action,
+      description,
+    });
   } catch (error) {
     console.error("Log error:", error);
   }

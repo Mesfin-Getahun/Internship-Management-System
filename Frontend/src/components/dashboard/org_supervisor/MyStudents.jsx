@@ -52,7 +52,7 @@ const MyStudents = () => {
         <div className="space-y-4">
           {students.map(student => (
             <Link 
-              to={`/dashboard/org-supervisor/evaluate/${student.internship_id || student.id || 'default'}_${student.student_id || student.user_id || 'student'}`} 
+              to={`/org-supervisor/evaluate/${student.internship_id || student.id || 'default'}_${student.student_id || student.user_id || 'student'}`} 
               key={student.student_id || student.id}
               className="block bg-slate-800/50 hover:bg-slate-700 p-6 rounded-2xl transition-all border border-slate-700 hover:border-slate-600 group shadow-sm hover:shadow-lg"
             >
@@ -62,7 +62,7 @@ const MyStudents = () => {
                     <FontAwesomeIcon icon={faUser} size="lg" />
                   </div>
                   <div>
-                    <h3 className="font-bold text-lg text-white group-hover:text-emerald-400 transition-colors">{student.student_name || student.name || 'Assigned Intern'}</h3>
+                    <h3 className="font-bold text-lg text-white group-hover:text-emerald-400 transition-colors">{student.student_name || student.full_name || student.name || 'Assigned Intern'}</h3>
                     <p className="text-xs text-slate-400 font-medium uppercase tracking-widest mt-1">ID: {student.student_id ? student.student_id.substring(0,8) : 'N/A'} {student.department ? `· ${student.department}` : ''}</p>
                   </div>
                 </div>

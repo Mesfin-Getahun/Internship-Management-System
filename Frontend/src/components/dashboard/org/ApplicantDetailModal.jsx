@@ -5,6 +5,10 @@ import { faTimes, faFilePdf, faFileAlt } from '@fortawesome/free-solid-svg-icons
 const ApplicantDetailModal = ({ applicant, isOpen, onClose, onAction }) => {
   if (!isOpen || !applicant) return null;
 
+  const studentName = applicant.student_name || applicant.name || 'Unknown Student';
+  const faculty = applicant.faculty || applicant.department || 'Not specified';
+  const applicationDate = applicant.applied_date || applicant.submitted_at;
+
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 sm:p-6">
       {/* Backdrop */}
@@ -20,11 +24,11 @@ const ApplicantDetailModal = ({ applicant, isOpen, onClose, onAction }) => {
         <div className="p-6 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center bg-slate-50/50 dark:bg-slate-800/50">
           <div className="flex items-center gap-4">
             <div className="w-12 h-12 rounded-2xl bg-blue-600 text-white flex items-center justify-center font-bold text-xl shadow-lg shadow-blue-600/20">
-              {applicant.name.charAt(0)}
+              {studentName.charAt(0)}
             </div>
             <div>
-              <h3 className="text-xl font-bold text-slate-800 dark:text-white leading-tight">{applicant.name}</h3>
-              <p className="text-xs text-slate-500 font-bold uppercase tracking-widest">{applicant.faculty}</p>
+              <h3 className="text-xl font-bold text-slate-800 dark:text-white leading-tight">{studentName}</h3>
+              <p className="text-xs text-slate-500 font-bold uppercase tracking-widest">{faculty}</p>
             </div>
           </div>
           <button 
@@ -44,19 +48,19 @@ const ApplicantDetailModal = ({ applicant, isOpen, onClose, onAction }) => {
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
               <div className="p-4 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-100 dark:border-slate-800">
                 <p className="text-[10px] text-slate-400 font-bold uppercase mb-1">Cumulative GPA</p>
-                <p className="text-lg font-black text-blue-600 dark:text-blue-400">{applicant.gpa || '3.85'}</p>
+                <p className="text-lg font-black text-blue-600 dark:text-blue-400">{applicant.gpa || 'N/A'}</p>
               </div>
               <div className="p-4 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-100 dark:border-slate-800">
                 <p className="text-[10px] text-slate-400 font-bold uppercase mb-1">Year of Study</p>
-                <p className="text-sm font-bold text-slate-700 dark:text-slate-300">4th Year</p>
+                <p className="text-sm font-bold text-slate-700 dark:text-slate-300">{applicant.year_of_study || 'Not provided'}</p>
               </div>
               <div className="p-4 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-100 dark:border-slate-800">
                 <p className="text-[10px] text-slate-400 font-bold uppercase mb-1">Department</p>
-                <p className="text-sm font-bold text-slate-700 dark:text-slate-300">SE</p>
+                <p className="text-sm font-bold text-slate-700 dark:text-slate-300">{faculty}</p>
               </div>
               <div className="p-4 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-100 dark:border-slate-800">
                 <p className="text-[10px] text-slate-400 font-bold uppercase mb-1">ID Number</p>
-                <p className="text-sm font-bold text-slate-700 dark:text-slate-300">BIT/102/13</p>
+                <p className="text-sm font-bold text-slate-700 dark:text-slate-300">{applicant.student_id || 'Not provided'}</p>
               </div>
             </div>
           </section>
@@ -65,7 +69,7 @@ const ApplicantDetailModal = ({ applicant, isOpen, onClose, onAction }) => {
           <section>
             <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-4">Motivation Statement</h4>
             <div className="bg-slate-50 dark:bg-slate-800/30 p-6 rounded-2xl border border-slate-100 dark:border-slate-800 leading-relaxed text-slate-600 dark:text-slate-400 text-sm italic">
-              "I am highly motivated to join your organization as an intern to apply my skills in full-stack development. During my time at BIT, I have developed a strong foundation in React and Node.js. I am particularly interested in how your group handles large-scale aviation logistics systems and hope to contribute while learning from your expert engineering team."
+              {applicant.statement || 'No motivation statement was included with this application.'}
             </div>
           </section>
 
@@ -80,10 +84,19 @@ const ApplicantDetailModal = ({ applicant, isOpen, onClose, onAction }) => {
                   </div>
                   <div>
                     <p className="text-sm font-bold text-slate-700 dark:text-slate-200">Curriculum Vitae (CV)</p>
-                    <p className="text-[10px] text-slate-400 font-medium">Uploaded on {applicant.date}</p>
+                    <p className="text-[10px] text-slate-400 font-medium">
+                      Uploaded on {applicationDate ? new Date(applicationDate).toLocaleDateString() : 'N/A'}
+                    </p>
                   </div>
                 </div>
-                <button className="text-blue-600 dark:text-blue-400 text-xs font-bold hover:underline">Preview PDF</button>
+                <a
+                  href={applicant.cv_file}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-blue-600 dark:text-blue-400 text-xs font-bold hover:underline"
+                >
+                  Preview PDF
+                </a>
               </div>
 
               <div className="flex items-center justify-between p-4 bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 group hover:border-blue-400 transition-colors cursor-pointer">
@@ -93,10 +106,17 @@ const ApplicantDetailModal = ({ applicant, isOpen, onClose, onAction }) => {
                   </div>
                   <div>
                     <p className="text-sm font-bold text-slate-700 dark:text-slate-200">Academic Transcript</p>
-                    <p className="text-[10px] text-slate-400 font-medium">Verified by Registrar</p>
+                    <p className="text-[10px] text-slate-400 font-medium">Supporting academic document</p>
                   </div>
                 </div>
-                <button className="text-blue-600 dark:text-blue-400 text-xs font-bold hover:underline">View Transcript</button>
+                <a
+                  href={applicant.academic_doc}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-blue-600 dark:text-blue-400 text-xs font-bold hover:underline"
+                >
+                  View Transcript
+                </a>
               </div>
             </div>
           </section>

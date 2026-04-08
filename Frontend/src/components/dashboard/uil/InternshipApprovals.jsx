@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
+import { useAuth } from '../../../AuthContext';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faTimes, faEye, faSpinner, faCheckCircle, faTimesCircle, faCheckSquare } from '@fortawesome/free-solid-svg-icons';
 
@@ -63,46 +64,79 @@ const InternshipApprovals = () => {
   const [selectedInternship, setSelectedInternship] = useState(null);
   const [loading, setLoading] = useState(true);
   const [processing, setProcessing] = useState(false);
+  const [error, setError] = useState('');
+  const { user } = useAuth();
 
   const fetchPendingInternships = async () => {
+    if (!user?.token) return;
+
     try {
       setLoading(true);
-      const res = await axios.get(`${import.meta.env.VITE_BACKEND_URL}/api/UIL/internships/pending`);
-      if (res.data.success) {
-        setInternships(res.data.internships);
-      }
+      setError('');
+      const res = await axios.get(`${import.meta.env.VITE_BACKEND_URL}/api/UIL/internships/pending`, {
+        headers: { Authorization: `Bearer ${user?.token}` }
+      });
+      const pendingItems = Array.isArray(res.data?.internships) ? res.data.internships : [];
+      setInternships(pendingItems);
     } catch (err) {
       console.error("Failed to fetch pending internships", err);
+      setError(err.response?.data?.message || 'Failed to load pending internship requests.');
+      setInternships([]);
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchPendingInternships();
-  }, []);
+    if (user?.token) {
+      fetchPendingInternships();
+    } else {
+      setLoading(false);
+      setError('UIL session token is missing. Please sign in again.');
+    }
+  }, [user]);
 
   const handleApprove = async (internship_id) => {
+    if (!internship_id || !user?.token) {
+      setError('Unable to approve internship. Missing internship id or UIL session.');
+      return;
+    }
+
     try {
       setProcessing(true);
-      await axios.put(`${import.meta.env.VITE_BACKEND_URL}/api/UIL/approveInternship/${internship_id}`);
+      setError('');
+      await axios.put(`${import.meta.env.VITE_BACKEND_URL}/api/UIL/approveInternship/${encodeURIComponent(internship_id)}`, {}, {
+        headers: { Authorization: `Bearer ${user?.token}` }
+      });
+      setInternships((prev) => prev.filter((internship) => internship.internship_id !== internship_id));
       setSelectedInternship(null);
-      fetchPendingInternships();
+      await fetchPendingInternships();
     } catch (err) {
       console.error("Failed to approve internship", err);
+      setError(err.response?.data?.message || 'Failed to approve internship.');
     } finally {
       setProcessing(false);
     }
   };
 
   const handleReject = async (internship_id) => {
+    if (!internship_id || !user?.token) {
+      setError('Unable to reject internship. Missing internship id or UIL session.');
+      return;
+    }
+
     try {
       setProcessing(true);
-      await axios.put(`${import.meta.env.VITE_BACKEND_URL}/api/UIL/rejectInternship/${internship_id}`, { reason: "Administratively rejected." });
+      setError('');
+      await axios.put(`${import.meta.env.VITE_BACKEND_URL}/api/UIL/rejectInternship/${encodeURIComponent(internship_id)}`, { reason: "Administratively rejected." }, {
+        headers: { Authorization: `Bearer ${user?.token}` }
+      });
+      setInternships((prev) => prev.filter((internship) => internship.internship_id !== internship_id));
       setSelectedInternship(null);
-      fetchPendingInternships();
+      await fetchPendingInternships();
     } catch (err) {
       console.error("Failed to reject internship", err);
+      setError(err.response?.data?.message || 'Failed to reject internship.');
     } finally {
       setProcessing(false);
     }
@@ -128,6 +162,10 @@ const InternshipApprovals = () => {
             <div className="flex flex-col justify-center items-center h-64 text-slate-400">
                 <FontAwesomeIcon icon={faSpinner} spin size="2x" className="mb-4 text-indigo-500" />
                 <p className="font-bold">Loading pending internships...</p>
+            </div>
+        ) : error ? (
+            <div className="flex flex-col justify-center items-center h-64 text-slate-400 bg-slate-50/30">
+                <p className="font-bold">{error}</p>
             </div>
         ) : internships.length === 0 ? (
             <div className="flex flex-col justify-center items-center h-64 text-slate-400 bg-slate-50/30">

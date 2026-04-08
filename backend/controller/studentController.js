@@ -1,11 +1,12 @@
 import db from "../config/mysql.js";
 import bcrypt from "bcryptjs";
 import { uploadToCloudinary } from "../utils/cloudinaryUpload.js";
+import createLog from "../utils/createLog.js";
 
 const fetchInternships = async (req, res) => {
   try {
     const query = `
-       SELECT i.*, c.company_name, c.location
+       SELECT i.*, c.company_name, COALESCE(i.location, c.location) AS location
       FROM internship i
       JOIN company c ON i.company_id = c.company_id
       WHERE i.status = 'approved'
@@ -151,7 +152,7 @@ const applyInternships = async (req, res) => {
 const cancelApplication = async (req, res) => {
   try {
     const student_id = req.user.student_id; // from auth middleware
-    const { application_id } = req.params;
+    const application_id = req.params.application_id || req.params.id;
 
     if (!application_id) {
       return res
@@ -232,9 +233,15 @@ const updateProfile = async (req, res) => {
       student_id,
     ]);
 
+    await createLog(
+      student_id,
+      "STUDENT_PROFILE_UPDATED",
+      `Student profile updated for ${full_name || existing[0].full_name} (${email || existing[0].email})`
+    );
+
     res
       .status(200)
-      .json({ success: false, message: "Profile updated successfully" });
+      .json({ success: true, message: "Profile updated successfully" });
   } catch (error) {
     console.error("Update profile error:", error);
     res
@@ -257,12 +264,23 @@ const myInternship = async (req, res) => {
         i.end_date,
         i.skills,
         c.company_name,
-        si.status
+        COALESCE(i.location, c.location) AS location,
+        si.status,
+        si.company_mentor_id,
+        cm.full_name AS company_mentor_name,
+        s.assigned_mentor AS university_mentor_id,
+        m.full_name AS university_mentor_name
       FROM student_internship si
       JOIN internship i 
         ON si.internship_id = i.internship_id
       JOIN company c
         ON i.company_id = c.company_id
+      JOIN student s
+        ON si.student_id = s.student_id
+      LEFT JOIN company_mentor cm
+        ON si.company_mentor_id = cm.company_mentor_id
+      LEFT JOIN mentor m
+        ON s.assigned_mentor = m.mentor_id
       WHERE si.student_id = ?
         AND si.status = 'in progress'
       LIMIT 1
@@ -270,16 +288,38 @@ const myInternship = async (req, res) => {
       [studentId]
     );
 
-    if (rows.length === 0) {
-      return res.status(404).json({
-        success: false,
-        message: "You do not have an active internship",
-      });
-    }
+    const [applications] = await db.query(
+      `
+      SELECT
+        a.application_id,
+        a.applied_date,
+        a.status,
+        a.statement,
+        a.cv_file,
+        a.academic_doc,
+        i.internship_id,
+        i.title,
+        i.description,
+        i.start_date,
+        i.end_date,
+        i.skills,
+        COALESCE(i.location, c.location) AS location,
+        c.company_name
+      FROM application a
+      JOIN internship i
+        ON a.internship_id = i.internship_id
+      JOIN company c
+        ON i.company_id = c.company_id
+      WHERE a.student_id = ?
+      ORDER BY a.applied_date DESC, a.application_id DESC
+      `,
+      [studentId]
+    );
 
     res.status(200).json({
       success: true,
-      internship: rows[0],
+      internship: rows[0] || null,
+      applications,
     });
   } catch (error) {
     console.error(error);
@@ -319,6 +359,115 @@ const uploadInternshipReport = async (req, res) => {
   }
 };
 
+const getPaymentApplication = async (req, res) => {
+  try {
+    const student_id = req.user.student_id;
+
+    const [rows] = await db.query(
+      `
+      SELECT *
+      FROM payment
+      WHERE student_id = ?
+      ORDER BY COALESCE(updated_at, created_at) DESC, payment_id DESC
+      LIMIT 1
+      `,
+      [student_id]
+    );
+
+    res.status(200).json({
+      success: true,
+      payment: rows[0] || null,
+    });
+  } catch (error) {
+    console.error("Fetch payment application error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to fetch payment application",
+    });
+  }
+};
+
+const submitPaymentApplication = async (req, res) => {
+  try {
+    const student_id = req.user.student_id;
+    const { bankName, accountHolder, accountNumber } = req.body;
+
+    if (!bankName || !accountHolder || !accountNumber) {
+      return res.status(400).json({
+        success: false,
+        message: "Bank name, account holder, and account number are required",
+      });
+    }
+
+    if (!req.file) {
+      return res.status(400).json({
+        success: false,
+        message: "Signed acceptance letter PDF is required",
+      });
+    }
+
+    const acceptanceLetterUrl = await uploadToCloudinary(
+      req.file.buffer,
+      "stipend_applications/acceptance_letters",
+      req.file.originalname
+    );
+
+    const [existing] = await db.query(
+      "SELECT payment_id FROM payment WHERE student_id = ? ORDER BY payment_id DESC LIMIT 1",
+      [student_id]
+    );
+
+    if (existing.length > 0) {
+      await db.query(
+        `
+        UPDATE payment
+        SET
+          bank_name = ?,
+          account_holder = ?,
+          account_number = ?,
+          acceptance_letter_url = ?,
+          status = 'Pending Approval'
+        WHERE payment_id = ?
+        `,
+        [
+          bankName,
+          accountHolder,
+          accountNumber,
+          acceptanceLetterUrl,
+          existing[0].payment_id,
+        ]
+      );
+    } else {
+      await db.query(
+        `
+        INSERT INTO payment
+          (student_id, bank_name, account_holder, account_number, acceptance_letter_url, status)
+        VALUES
+          (?, ?, ?, ?, ?, 'Pending Approval')
+        `,
+        [student_id, bankName, accountHolder, accountNumber, acceptanceLetterUrl]
+      );
+    }
+
+    const [savedRows] = await db.query(
+      "SELECT * FROM payment WHERE student_id = ? ORDER BY payment_id DESC LIMIT 1",
+      [student_id]
+    );
+
+    res.status(200).json({
+      success: true,
+      message: "Payment application submitted successfully",
+      payment: savedRows[0] || null,
+    });
+  } catch (error) {
+    console.error("Submit payment application error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to submit payment application",
+    });
+  }
+};
+
 const submitSignedReportToFaculty = async (req, res) => {
   try {
     const student_id = req.user.student_id;
@@ -354,11 +503,26 @@ const feedbacks = async (req, res) => {
          suggestions,
          overall_comment,
          created_at,
-         updated_at
+         updated_at,
+         CASE
+           WHEN mf.company_mentor_id IS NULL THEN 'faculty_mentor'
+           ELSE 'company_mentor'
+         END AS source_role,
+         CASE
+           WHEN mf.company_mentor_id IS NULL THEN m.full_name
+           ELSE cm.full_name
+         END AS source_name,
+         cm.full_name AS company_mentor_name,
+         m.full_name AS mentor_name
          
-       FROM mentor_feedback 
-       
-       WHERE student_id = ?
+       FROM mentor_feedback mf
+       LEFT JOIN company_mentor cm
+         ON mf.company_mentor_id = cm.company_mentor_id
+       LEFT JOIN student s
+         ON mf.student_id = s.student_id
+       LEFT JOIN mentor m
+         ON s.assigned_mentor = m.mentor_id
+       WHERE mf.student_id = ?
        ORDER BY created_at DESC`,
       [student_id]
     );
@@ -381,6 +545,8 @@ export {
   applyInternships,
   myInternship,
   uploadInternshipReport,
+  getPaymentApplication,
+  submitPaymentApplication,
   feedbacks,
   updateProfile,
   cancelApplication,

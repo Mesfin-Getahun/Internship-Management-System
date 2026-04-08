@@ -10,6 +10,7 @@ import ProgressTracker from '../../components/dashboard/mentor/ProgressTracker';
 import MentorEvaluation from '../../components/dashboard/mentor/MentorEvaluation';
 import StudentSubmissions from '../../components/dashboard/mentor/StudentSubmissions';
 import OrganizationUpdates from '../../components/dashboard/mentor/OrganizationUpdates';
+import MentorProfileLive from '../../components/dashboard/mentor/MentorProfileLive.jsx';
 
 const PlaceholderScreen = ({ title, description }) => (
   <div className="p-20 text-center animate-fade-in bg-white dark:bg-slate-900 rounded-3xl border border-slate-100 dark:border-slate-800 shadow-sm">
@@ -52,10 +53,7 @@ const MentorDashboard = () => {
                 path="communication" 
                 element={<PlaceholderScreen title="Messaging Hub" description="Communicate directly with your assigned students and the Faculty of Computing administration." />} 
               />
-              <Route 
-                path="profile" 
-                element={<PlaceholderScreen title="Mentor Profile" description="Manage your academic background, specialization areas, and portal security settings." />} 
-              />
+              <Route path="profile" element={<MentorProfileLive />} />
             </Routes>
           </div>
         </main>

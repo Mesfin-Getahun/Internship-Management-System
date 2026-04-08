@@ -25,8 +25,10 @@ const AssignedStudents = () => {
          headers: { Authorization: `Bearer ${user?.token}` }
       });
       const applications = res.data.applications || res.data || [];
-      // Filter only accepted/approved students to manifest in this view
-      const activePlacements = applications.filter(app => app.status === 'Accepted' || app.status === 'Approved' || app.status === 'Active');
+      const activePlacements = applications.filter(app => {
+        const status = (app.status || '').toLowerCase();
+        return status === 'accepted' || status === 'approved' || status === 'active';
+      });
       setStudents(activePlacements);
     } catch (err) {
       console.error(err);
@@ -55,7 +57,6 @@ const AssignedStudents = () => {
     }
 
     try {
-      // API expects { student_id, mentor_id }
       await axios.post(`${import.meta.env.VITE_BACKEND_URL}/api/company/assignMentor`, 
       {
          student_id: studentId,

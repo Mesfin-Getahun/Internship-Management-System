@@ -4,6 +4,8 @@ import {
   fetchInternships,
   myInternship,
   uploadInternshipReport,
+  getPaymentApplication,
+  submitPaymentApplication,
   feedbacks,
   updateProfile,
   cancelApplication,
@@ -91,8 +93,6 @@ studentRoute.post(
  *       500:
  *         description: Server error
  */
-studentRoute.delete("/cancelApplication/:id", cancelApplication);
-
 /**
  * @swagger
  * /api/student/internships:
@@ -128,6 +128,7 @@ studentRoute.get("/internships", authStudent, fetchInternships);
  *         description: Server error
  */
 studentRoute.get("/myInternship", authStudent, myInternship);
+studentRoute.get("/paymentApplication", authStudent, getPaymentApplication);
 
 /**
  * @swagger
@@ -174,7 +175,7 @@ studentRoute.get("/viewFeedbacks", authStudent, feedbacks);
  *       500:
  *         description: Server error
  */
-studentRoute.put("/updateProfile", updateProfile);
+studentRoute.put("/updateProfile", authStudent, updateProfile);
 
 /**
  * @swagger
@@ -218,6 +219,12 @@ studentRoute.post(
   authStudent,
   uploadInternshipReport
 );
+studentRoute.post(
+  "/paymentApplication",
+  authStudent,
+  uploadPDF.single("acceptanceLetter"),
+  submitPaymentApplication
+);
 
 /**
  * @swagger
@@ -242,6 +249,11 @@ studentRoute.post(
  *       500:
  *         description: Server error
  */
-studentRoute.put("/submitToFaculty/:report_id", submitSignedReportToFaculty);
+studentRoute.delete("/cancelApplication/:id", authStudent, cancelApplication);
+studentRoute.put(
+  "/submitToFaculty/:report_id",
+  authStudent,
+  submitSignedReportToFaculty
+);
 
 export default studentRoute;

@@ -1,6 +1,7 @@
 import express from "express";
 import {
   fetchStudents,
+  getMentorProfile,
   provideFeedback,
   reviewReport,
   mentorSignReport,
@@ -32,6 +33,7 @@ const mentorRoute = express.Router();
  *         description: Students retrieved successfully
  */
 mentorRoute.get("/students", authMentor, fetchStudents);
+mentorRoute.get("/profile", authMentor, getMentorProfile);
 
 /**
  * @swagger
@@ -124,7 +126,7 @@ mentorRoute.post(
   "/signReport/:report_id",
   authMentor,
   uploadPDF.single("report"),
-  mentorSignReport
+  mentorSignReport,
 );
 
 /**
@@ -148,7 +150,7 @@ mentorRoute.post(
 mentorRoute.get(
   "/feedback/:feedback_id",
   authMentor, // faculty mentor auth
-  getSingleFeedback
+  getSingleFeedback,
 );
 
 export default mentorRoute;

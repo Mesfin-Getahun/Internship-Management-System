@@ -2,6 +2,8 @@ import express from "express";
 import {
   giveFeedBack,
   fetchStudents,
+  postEvaluation,
+  getFeedbacks,
 } from "../controller/companyMentorController.js";
 import { authCompanyMentor } from "../middleware/auth.js";
 
@@ -13,6 +15,15 @@ import { authCompanyMentor } from "../middleware/auth.js";
  */
 
 const companyMentorRoute = express.Router();
+
+companyMentorRoute.get("/students", authCompanyMentor, fetchStudents);
+companyMentorRoute.get("/feedbacks", authCompanyMentor, getFeedbacks);
+
+companyMentorRoute.post(
+  "/evaluation/:internship_id/:student_id",
+  authCompanyMentor,
+  postEvaluation
+);
 
 /**
  * @swagger
@@ -61,23 +72,5 @@ companyMentorRoute.post(
   authCompanyMentor,
   giveFeedBack
 );
-
-/**
- * @swagger
- * /api/company_mentor/students:
- *   get:
- *     summary: Fetch all students assigned to the current company mentor
- *     tags: [CompanyMentor]
- *     security:
- *       - bearerAuth: []
- *     responses:
- *       200:
- *         description: List of assigned students retrieved successfully
- *       401:
- *         description: Unauthorized
- *       500:
- *         description: Server error
- */
-companyMentorRoute.get("/students", authCompanyMentor, fetchStudents);
 
 export default companyMentorRoute;

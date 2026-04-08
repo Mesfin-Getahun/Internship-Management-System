@@ -12,14 +12,45 @@ const LoginPage = () => {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
 
+  const normalizeRole = (role) => {
+    switch (role) {
+      case "company":
+        return "organization";
+      case "UIL":
+        return "uil";
+      case "company_mentor":
+        return "org_supervisor";
+      default:
+        return role?.toLowerCase?.() || role;
+    }
+  };
+
+  const getHomeRoute = (role) => {
+    switch (role) {
+      case "student":
+        return "/student";
+      case "admin":
+        return "/admin";
+      case "faculty":
+        return "/faculty";
+      case "mentor":
+        return "/mentor";
+      case "organization":
+        return "/organization";
+      case "uil":
+        return "/uil";
+      case "org_supervisor":
+        return "/org-supervisor";
+      default:
+        return "/login";
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
 
     try {
-      // The backend login checks `email` for company login
-      // and checks `id` for student/admin/mentor/faculty login.
-      // We pass the same field (email) to both since the input is generic.
       const response = await axios.post(`${import.meta.env.VITE_BACKEND_URL}/api/login`, {
         id: email,
         email: email,
@@ -27,17 +58,22 @@ const LoginPage = () => {
       });
 
       if (response.data.success) {
-        const { user, role, token } = response.data;
+        const { user, role, token, firstLogin } = response.data;
+        const normalizedRole = normalizeRole(role);
         
-        // Add token and role directly onto the user object if needed by AuthContext
-        const authenticatedUser = { ...user, role, token };
+        const authenticatedUser = {
+          ...user,
+          role: normalizedRole,
+          token,
+          isFirstLogin: !!firstLogin,
+        };
+
         login(authenticatedUser);
 
-        // Navigation logic based on role
         if (authenticatedUser.isFirstLogin) {
           navigate('/change-password');
         } else {
-          navigate(`/${role}`);
+          navigate(getHomeRoute(normalizedRole));
         }
       }
     } catch (err) {

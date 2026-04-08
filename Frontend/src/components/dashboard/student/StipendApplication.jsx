@@ -1,6 +1,8 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
+import axios from 'axios';
+import { useAuth } from '../../../AuthContext';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faDollarSign, faCloudUploadAlt, faMoneyBillWave, faUser, faHashtag, faCheckCircle, faClock, faTimesCircle } from '@fortawesome/free-solid-svg-icons';;
+import { faCloudUploadAlt, faMoneyBillWave, faCheckCircle, faClock, faTimesCircle, faSpinner } from '@fortawesome/free-solid-svg-icons';
 
 const StatusDisplay = ({ status }) => {
   const statusConfig = {
@@ -19,9 +21,14 @@ const StatusDisplay = ({ status }) => {
       text: 'Your stipend application has been approved.',
       bg: 'bg-emerald-100 dark:bg-emerald-900/30',
     },
+    'Rejected': {
+      icon: <FontAwesomeIcon icon={faTimesCircle} className="text-rose-500" />,
+      text: 'Your stipend application was rejected. Please review and resubmit your details.',
+      bg: 'bg-rose-100 dark:bg-rose-900/30',
+    },
   };
 
-  const current = statusConfig[status];
+  const current = statusConfig[status] || statusConfig['Not Submitted'];
 
   return (
     <div className={`p-6 rounded-3xl border border-slate-200 dark:border-slate-700 flex items-center gap-4 ${current.bg}`}>
@@ -44,26 +51,106 @@ const StipendApplication = () => {
     accountNumber: '',
     acceptanceLetter: null,
   });
-  const [status, setStatus] = useState('Not Submitted'); // 'Not Submitted', 'Pending Approval', 'Approved'
+  const [status, setStatus] = useState('Not Submitted');
+  const [submitting, setSubmitting] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
+  const [existingPayment, setExistingPayment] = useState(null);
+  const { user } = useAuth();
+
+  useEffect(() => {
+    const fetchPaymentApplication = async () => {
+      try {
+        setLoading(true);
+        setError('');
+        const res = await axios.get(
+          `${import.meta.env.VITE_BACKEND_URL}/api/student/paymentApplication`,
+          { headers: { Authorization: `Bearer ${user?.token}` } }
+        );
+
+        const payment = res.data?.payment || null;
+        setExistingPayment(payment);
+
+        if (payment) {
+          setFormData((prev) => ({
+            ...prev,
+            bankName: payment.bank_name || payment.bank || '',
+            accountHolder: payment.account_holder || payment.student_name || '',
+            accountNumber: payment.account_number || payment.account_no || '',
+          }));
+          setStatus(payment.status || 'Pending Approval');
+        } else {
+          setStatus('Not Submitted');
+        }
+      } catch (err) {
+        console.error(err);
+        setError(err.response?.data?.message || 'Failed to load stipend application data.');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    if (user?.token) {
+      fetchPaymentApplication();
+    } else {
+      setLoading(false);
+      setError('Student session token is missing. Please sign in again.');
+    }
+  }, [user?.token]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
+    setError('');
+    setSuccess('');
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
   const handleFileChange = (e) => {
+    setError('');
+    setSuccess('');
     setFormData(prev => ({ ...prev, acceptanceLetter: e.target.files[0] }));
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    // Basic validation
+    setError('');
+    setSuccess('');
+
     if (!formData.bankName || !formData.accountHolder || !formData.accountNumber || !formData.acceptanceLetter) {
-      alert('Please fill all fields and upload the acceptance letter.');
+      setError('Please fill all fields and upload the acceptance letter.');
       return;
     }
-    console.log('Submitting Stipend Application:', formData);
-    setStatus('Pending Approval');
+
+    try {
+      setSubmitting(true);
+      const payload = new FormData();
+      payload.append('bankName', formData.bankName);
+      payload.append('accountHolder', formData.accountHolder);
+      payload.append('accountNumber', formData.accountNumber);
+      payload.append('acceptanceLetter', formData.acceptanceLetter);
+
+      const res = await axios.post(
+        `${import.meta.env.VITE_BACKEND_URL}/api/student/paymentApplication`,
+        payload,
+        {
+          headers: {
+            Authorization: `Bearer ${user?.token}`,
+            'Content-Type': 'multipart/form-data',
+          },
+        }
+      );
+
+      const payment = res.data?.payment || null;
+      setExistingPayment(payment);
+      setStatus(payment?.status || 'Pending Approval');
+      setSuccess(res.data?.message || 'Payment application submitted successfully.');
+    } catch (err) {
+      console.error(err);
+      setError(err.response?.data?.message || 'Failed to submit stipend application.');
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -77,6 +164,11 @@ const StipendApplication = () => {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-12">
           {/* Form */}
           <div className="lg:col-span-2">
+            {loading ? (
+              <div className="flex justify-center items-center min-h-[320px] text-indigo-500">
+                <FontAwesomeIcon icon={faSpinner} spin size="2x" />
+              </div>
+            ) : (
             <form onSubmit={handleSubmit} className="space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="md:col-span-2 font-semibold text-slate-700 dark:text-slate-300 flex items-center gap-2">
@@ -111,18 +203,32 @@ const StipendApplication = () => {
                   className="block w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 dark:file:bg-blue-900/20 file:text-blue-700 dark:file:text-blue-300 hover:file:bg-blue-100 dark:hover:file:bg-blue-900"
                 />
                 {formData.acceptanceLetter && <p className="text-xs text-green-600 mt-2">File selected: {formData.acceptanceLetter.name}</p>}
+                {!formData.acceptanceLetter && existingPayment?.acceptance_letter_url && (
+                  <a
+                    href={existingPayment.acceptance_letter_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-xs text-blue-600 mt-2 inline-block"
+                  >
+                    View previously submitted acceptance letter
+                  </a>
+                )}
               </div>
+
+              {error && <p className="text-sm text-red-500">{error}</p>}
+              {success && <p className="text-sm text-green-600">{success}</p>}
 
               <div className="pt-4">
                 <button
                   type="submit"
-                  disabled={status !== 'Not Submitted'}
+                  disabled={submitting}
                   className="w-full bg-blue-600 text-white px-8 py-3 rounded-xl font-semibold transition-all shadow-lg shadow-blue-500/20 hover:bg-blue-700 disabled:bg-slate-400 disabled:shadow-none disabled:cursor-not-allowed"
                 >
-                  {status === 'Not Submitted' ? 'Submit Application' : 'Submitted'}
+                  {submitting ? 'Submitting...' : existingPayment ? 'Update Application' : 'Submit Application'}
                 </button>
               </div>
             </form>
+            )}
           </div>
 
           {/* Status */}

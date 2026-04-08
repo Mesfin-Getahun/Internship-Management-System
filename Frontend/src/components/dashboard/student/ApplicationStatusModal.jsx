@@ -42,6 +42,18 @@ const StatusTimeline = ({ statusHistory, currentStatus }) => {
 const ApplicationStatusModal = ({ application, onClose }) => {
   if (!application) return null;
 
+  const currentStatus = application.status || 'Applied';
+  const statusHistory = application.statusHistory || [
+    {
+      status: 'Applied',
+      date: application.applied_date ? new Date(application.applied_date).toLocaleDateString() : 'Submitted',
+    },
+    {
+      status: currentStatus,
+      date: 'Current',
+    },
+  ];
+
   return (
     <div 
       className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 animate-fade-in-fast"
@@ -54,7 +66,7 @@ const ApplicationStatusModal = ({ application, onClose }) => {
         <div className="p-6 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center">
           <div>
             <h3 className="text-lg font-bold text-slate-800 dark:text-white">{application.title}</h3>
-            <p className="text-sm text-slate-500">{application.org}</p>
+            <p className="text-sm text-slate-500">{application.org || application.company_name || 'Organization'}</p>
           </div>
           <button 
             onClick={onClose} 
@@ -65,7 +77,7 @@ const ApplicationStatusModal = ({ application, onClose }) => {
         </div>
         <div className="p-6">
           <h4 className="text-sm font-bold uppercase text-slate-400 tracking-wider mb-4">Status History</h4>
-          <StatusTimeline statusHistory={application.statusHistory} currentStatus={application.status} />
+          <StatusTimeline statusHistory={statusHistory} currentStatus={currentStatus} />
         </div>
       </div>
     </div>

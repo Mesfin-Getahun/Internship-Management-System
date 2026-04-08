@@ -10,6 +10,12 @@ import 'react-toastify/dist/ReactToastify.css';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faSpinner } from '@fortawesome/free-solid-svg-icons';
 
+const evaluationSections = {
+    general: ['grooming', 'workAttitude', 'consistency', 'selfConfidence', 'communicationSkills'],
+    personal: ['qualityWorkAccuracy', 'engagement', 'creativityInnovation', 'independentPotential', 'teamwork'],
+    professional: ['technicalSkills', 'organizationSkills', 'coordinationSkills', 'responsibilitySkills', 'problemSolvingSkills'],
+};
+
 const SupervisorStudentEvaluation = () => {
     const { studentId: paramId } = useParams(); // Format should be internshipId_studentId
     const navigate = useNavigate();
@@ -26,6 +32,38 @@ const SupervisorStudentEvaluation = () => {
     const [studentProfile, setStudentProfile] = useState(null);
     const [loading, setLoading] = useState(true);
 
+    const buildAttendanceRecords = () => {
+       const absentDays = attendanceData.absentDays || {};
+       const records = {};
+
+       Object.entries(absentDays).forEach(([weekKey, absentCount], index) => {
+          const absent = Math.max(0, Math.min(5, Number(absentCount || 0)));
+          const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'];
+          const weekLabel = `Week_${index + 1}`;
+
+          records[weekLabel] = Object.fromEntries(
+             days.map((day, dayIndex) => [day, dayIndex < absent ? 'A' : 'P'])
+          );
+       });
+
+       return {
+          Month_1: records,
+       };
+    };
+
+    const buildAssessmentPayload = () => ({
+       general: Object.fromEntries(
+          evaluationSections.general.map((key) => [key, Number(performanceData.scores?.[key] || 0)])
+       ),
+       personal: Object.fromEntries(
+          evaluationSections.personal.map((key) => [key, Number(performanceData.scores?.[key] || 0)])
+       ),
+       professional: Object.fromEntries(
+          evaluationSections.professional.map((key) => [key, Number(performanceData.scores?.[key] || 0)])
+       ),
+       comments: performanceData.comments || '',
+    });
+
     // Fetch basic matched student profile from the backend assignment list
     useEffect(() => {
        const fetchRoster = async () => {
@@ -39,7 +77,7 @@ const SupervisorStudentEvaluation = () => {
              );
              setStudentProfile(match || { 
                 id: trueStudentId, 
-                name: match?.student_name || 'Assigned Intern', 
+                name: match?.student_name || match?.full_name || 'Assigned Intern', 
                 universityId: trueStudentId.substring(0,8), 
                 department: match?.department || 'Target Department',
                 company: match?.company_name || 'Your Company'
@@ -77,35 +115,24 @@ const SupervisorStudentEvaluation = () => {
 
     const handleSubmitEvaluationToAPI = async () => {
        try {
-           // Calculate the final marks matching EvaluationSummary
-           const getAttMark = (absent) => {
-               if (absent === 0) return 10;
-               if (absent <= 2) return 8;
-               if (absent <= 4) return 6;
-               if (absent <= 10) return 2;
-               return 0;
-           };
-           const attendanceMark = getAttMark(attendanceData.totalAbsent || 0);
-           const totalCompanyResult = ((performanceData.totalMark || 0) / 70) * 30;
-           const finalGradeRaw = attendanceMark + totalCompanyResult;
-
            const payload = {
-              rating: (finalGradeRaw / 40) * 5, // Convert 40-point scale back to 5-star standard rating format
-              feedback_text: `[SYS_V2] Final Corporate Appraisal Score: ${finalGradeRaw.toFixed(2)} / 40.00. (Attendance: ${attendanceMark}/10, Rubric: ${(performanceData.totalMark || 0)}/70 -> Scaled: ${totalCompanyResult.toFixed(2)}/30). Assessed via Form.`
+              assessment: buildAssessmentPayload(),
+              attendanceData: {
+                 ...attendanceData,
+                 records: buildAttendanceRecords(),
+              },
            };
-           
-           // Dispatch to active integration endpoint
+
            await axios.post(
-              `${import.meta.env.VITE_BACKEND_URL}/api/company_mentor/feedBack/${internshipId}/${trueStudentId}`, 
+              `${import.meta.env.VITE_BACKEND_URL}/api/company_mentor/evaluation/${internshipId}/${trueStudentId}`,
               payload,
               { headers: { Authorization: `Bearer ${user?.token}` } }
            );
-           
-           // Generation logic handles the success PDF inside the EvaluationSummary component manually via jsPDF.
-           // Toast happens there.
+
+           toast.success("Evaluation and attendance were submitted successfully.");
        } catch (err) {
            console.error("Submission trigger failed.", err);
-           toast.error("Failed to transmit the final grade to the university registry.");
+           toast.error(err.response?.data?.message || "Failed to transmit the final grade to the university registry.");
        }
     };
 

@@ -1,10 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import axios from 'axios';
 import { useAuth } from '../../../AuthContext';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faUser, faBuilding, faStar, faSpinner, faCommentSlash } from '@fortawesome/free-solid-svg-icons';
 
-const FeedbackCard = ({ author, role, date, content, rating }) => (
+const FeedbackCard = ({ author, role, date, content, rating, strengths, weaknesses, suggestions }) => (
   <div className="bg-white dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-3xl p-8 mb-6 shadow-sm transition-all hover:shadow-lg group">
     <div className="flex items-start justify-between mb-4">
       <div className="flex items-center">
@@ -35,6 +35,22 @@ const FeedbackCard = ({ author, role, date, content, rating }) => (
       </div>
     </div>
     <p className="text-slate-600 dark:text-slate-300 leading-relaxed mt-4">{content}</p>
+    {(strengths || weaknesses || suggestions) && (
+      <div className="grid gap-3 mt-6 md:grid-cols-3">
+        <div className="rounded-2xl bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-100 dark:border-emerald-900 p-4">
+          <div className="text-[10px] font-bold uppercase tracking-widest text-emerald-600 dark:text-emerald-400">Strengths</div>
+          <p className="text-sm text-slate-600 dark:text-slate-300 mt-2">{strengths || 'Not provided'}</p>
+        </div>
+        <div className="rounded-2xl bg-amber-50 dark:bg-amber-950/20 border border-amber-100 dark:border-amber-900 p-4">
+          <div className="text-[10px] font-bold uppercase tracking-widest text-amber-600 dark:text-amber-400">Weaknesses</div>
+          <p className="text-sm text-slate-600 dark:text-slate-300 mt-2">{weaknesses || 'Not provided'}</p>
+        </div>
+        <div className="rounded-2xl bg-sky-50 dark:bg-sky-950/20 border border-sky-100 dark:border-sky-900 p-4">
+          <div className="text-[10px] font-bold uppercase tracking-widest text-sky-600 dark:text-sky-400">Suggestions</div>
+          <p className="text-sm text-slate-600 dark:text-slate-300 mt-2">{suggestions || 'Not provided'}</p>
+        </div>
+      </div>
+    )}
   </div>
 );
 
@@ -66,6 +82,48 @@ const FeedbackAndEvaluation = () => {
     if (user?.token) fetchFeedback();
   }, [user]);
 
+  const categorizedFeedbacks = useMemo(() => {
+    return feedbacks.reduce(
+      (groups, feedback) => {
+        if (feedback.source_role === 'company_mentor') {
+          groups.companyMentor.push(feedback);
+        } else {
+          groups.facultyMentor.push(feedback);
+        }
+        return groups;
+      },
+      { companyMentor: [], facultyMentor: [] }
+    );
+  }, [feedbacks]);
+
+  const renderFeedbackList = (items, emptyMessage) => {
+    if (items.length === 0) {
+      return (
+        <div className="rounded-3xl border border-dashed border-slate-300 dark:border-slate-700 bg-white/70 dark:bg-slate-800/40 p-8 text-center">
+          <p className="text-sm text-slate-500 dark:text-slate-400">{emptyMessage}</p>
+        </div>
+      );
+    }
+
+    return items.map((fb, index) => (
+      <FeedbackCard
+        key={`${fb.feedback_id || index}-${fb.source_role}`}
+        author={fb.source_name || fb.company_mentor_name || fb.mentor_name || 'Supervisor'}
+        role={
+          fb.source_role === 'company_mentor'
+            ? 'Company Mentor Feedback'
+            : 'Faculty Mentor Feedback'
+        }
+        date={fb.created_at || fb.date}
+        content={fb.overall_comment || fb.comments || fb.feedback_text || fb.content || 'No feedback comment provided.'}
+        rating={fb.rating || fb.score}
+        strengths={fb.strengths}
+        weaknesses={fb.weaknesses}
+        suggestions={fb.suggestions}
+      />
+    ));
+  };
+
   return (
     <div className="animate-fade-in space-y-8 pb-12">
       <header>
@@ -81,16 +139,31 @@ const FeedbackAndEvaluation = () => {
          </div>
       ) : feedbacks.length > 0 ? (
         <div className="space-y-6">
-           {feedbacks.map((fb, index) => (
-             <FeedbackCard 
-                key={index} 
-                author={fb.mentor_name || fb.company_name || fb.author || 'Supervisor'}
-                role={fb.feedback_type || fb.role || 'Evaluation'}
-                date={fb.created_at || fb.date}
-                content={fb.overall_comment || fb.comments || fb.feedback_text || fb.content}
-                rating={fb.rating || fb.score}
-             />
-           ))}
+          <section className="space-y-4">
+            <div>
+              <h2 className="text-xl font-bold text-slate-800 dark:text-white">Company Mentor Feedback</h2>
+              <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
+                Performance observations and workplace feedback from your organization supervisor.
+              </p>
+            </div>
+            {renderFeedbackList(
+              categorizedFeedbacks.companyMentor,
+              'No company mentor feedback has been submitted yet.'
+            )}
+          </section>
+
+          <section className="space-y-4">
+            <div>
+              <h2 className="text-xl font-bold text-slate-800 dark:text-white">Faculty Mentor Feedback</h2>
+              <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
+                Academic supervision notes and university-side evaluation from your faculty mentor.
+              </p>
+            </div>
+            {renderFeedbackList(
+              categorizedFeedbacks.facultyMentor,
+              'No faculty mentor feedback has been submitted yet.'
+            )}
+          </section>
         </div>
       ) : (
         <div className="flex flex-col justify-center items-center p-12 h-64 bg-white dark:bg-slate-800/50 rounded-3xl border border-slate-200 dark:border-slate-700 shadow-sm">

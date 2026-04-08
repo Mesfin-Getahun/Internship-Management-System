@@ -1,18 +1,28 @@
 import React, { useState, useEffect } from 'react';
+import axios from 'axios';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faDatabase, faDownload, faFileExcel, faExclamationCircle } from '@fortawesome/free-solid-svg-icons';;
+import { faDatabase, faDownload, faFileExcel } from '@fortawesome/free-solid-svg-icons';
 import { toast, ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
-
-const mockBackupHistory = [
-  { id: 1, date: '2024-06-28 02:00', fileSize: '15.2 MB', status: 'Completed', file: 'backup-20240628.sql.gz' },
-  { id: 2, date: '2024-06-27 02:00', fileSize: '15.1 MB', status: 'Completed', file: 'backup-20240627.sql.gz' },
-  { id: 3, date: '2024-06-26 02:00', fileSize: '14.9 MB', status: 'Completed', file: 'backup-20240626.sql.gz' },
-];
+import { useAuth } from '../../../AuthContext';
 
 const DataBackup = () => {
+  const { user } = useAuth();
   const [isBackingUp, setIsBackingUp] = useState(false);
   const [progress, setProgress] = useState(0);
+  const [backupHistory, setBackupHistory] = useState([]);
+  const [activeExport, setActiveExport] = useState('');
+
+  const fetchBackups = async () => {
+    try {
+      const res = await axios.get(`${import.meta.env.VITE_BACKEND_URL}/api/admin/backups`, {
+        headers: { Authorization: `Bearer ${user?.token}` },
+      });
+      setBackupHistory(Array.isArray(res.data?.backups) ? res.data.backups : []);
+    } catch (error) {
+      console.error('Failed to load backup history.', error);
+    }
+  };
 
   useEffect(() => {
     let timer;
@@ -25,19 +35,66 @@ const DataBackup = () => {
     return () => clearTimeout(timer);
   }, [isBackingUp, progress]);
 
-  const handleBackup = () => {
+  useEffect(() => {
+    if (user?.token) {
+      fetchBackups();
+    }
+  }, [user?.token]);
+
+  const handleBackup = async () => {
     if (isBackingUp) return;
     setIsBackingUp(true);
     setProgress(0);
     toast.info('Starting database backup...');
+    try {
+      await axios.post(`${import.meta.env.VITE_BACKEND_URL}/api/admin/backup`, {}, {
+        headers: { Authorization: `Bearer ${user?.token}` },
+      });
+      await fetchBackups();
+    } catch (error) {
+      console.error('Failed to create backup.', error);
+      setIsBackingUp(false);
+      setProgress(0);
+      toast.error(error.response?.data?.message || 'Backup failed.');
+    }
   };
 
   const handleDownload = (file) => {
-    toast.info(`Simulating download for ${file}`);
+    toast.info(`Backup file saved on server: ${file}`);
   };
 
-  const handleExport = (dataType) => {
-    toast.success(`Successfully exported ${dataType} as a CSV file.`);
+  const handleExport = async (dataType) => {
+    try {
+      setActiveExport(dataType);
+      const res = await axios.get(
+        `${import.meta.env.VITE_BACKEND_URL}/api/admin/export/${dataType}`,
+        {
+          headers: { Authorization: `Bearer ${user?.token}` },
+          responseType: 'blob',
+        }
+      );
+
+      const contentDisposition = res.headers['content-disposition'] || '';
+      const fileNameMatch = contentDisposition.match(/filename="?([^"]+)"?/i);
+      const fileName = fileNameMatch?.[1] || `${dataType}.csv`;
+
+      const blob = new Blob([res.data], { type: 'text/csv;charset=utf-8;' });
+      const downloadUrl = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = downloadUrl;
+      link.setAttribute('download', fileName);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(downloadUrl);
+
+      toast.success(`Successfully exported ${dataType} as a CSV file.`);
+    } catch (error) {
+      console.error(`Failed to export ${dataType}.`, error);
+      toast.error(error.response?.data?.message || `Failed to export ${dataType}.`);
+    } finally {
+      setActiveExport('');
+    }
   };
 
   return (
@@ -76,9 +133,9 @@ const DataBackup = () => {
         <h2 className="text-2xl font-bold text-white mb-4">Export Data</h2>
         <p className="text-slate-400 mb-6">Export specific data tables as CSV files for external analysis or record-keeping.</p>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          <button onClick={() => handleExport('Users')} className="bg-sky-600 hover:bg-sky-700 text-white font-semibold py-3 px-4 rounded-lg flex items-center gap-3"><FontAwesomeIcon icon={faFileExcel} /> Export Users</button>
-          <button onClick={() => handleExport('Organizations')} className="bg-sky-600 hover:bg-sky-700 text-white font-semibold py-3 px-4 rounded-lg flex items-center gap-3"><FontAwesomeIcon icon={faFileExcel} /> Export Organizations</button>
-          <button onClick={() => handleExport('Students')} className="bg-sky-600 hover:bg-sky-700 text-white font-semibold py-3 px-4 rounded-lg flex items-center gap-3"><FontAwesomeIcon icon={faFileExcel} /> Export Students</button>
+          <button onClick={() => handleExport('users')} disabled={activeExport === 'users'} className="bg-sky-600 hover:bg-sky-700 disabled:bg-slate-600 text-white font-semibold py-3 px-4 rounded-lg flex items-center gap-3"><FontAwesomeIcon icon={faFileExcel} /> {activeExport === 'users' ? 'Exporting Users...' : 'Export Users'}</button>
+          <button onClick={() => handleExport('organizations')} disabled={activeExport === 'organizations'} className="bg-sky-600 hover:bg-sky-700 disabled:bg-slate-600 text-white font-semibold py-3 px-4 rounded-lg flex items-center gap-3"><FontAwesomeIcon icon={faFileExcel} /> {activeExport === 'organizations' ? 'Exporting Organizations...' : 'Export Organizations'}</button>
+          <button onClick={() => handleExport('students')} disabled={activeExport === 'students'} className="bg-sky-600 hover:bg-sky-700 disabled:bg-slate-600 text-white font-semibold py-3 px-4 rounded-lg flex items-center gap-3"><FontAwesomeIcon icon={faFileExcel} /> {activeExport === 'students' ? 'Exporting Students...' : 'Export Students'}</button>
         </div>
       </div>
 
@@ -97,10 +154,10 @@ const DataBackup = () => {
               </tr>
             </thead>
             <tbody>
-              {mockBackupHistory.map(backup => (
+              {backupHistory.map(backup => (
                 <tr key={backup.id} className="bg-slate-800/50 border-b border-slate-700 hover:bg-slate-700/50">
-                  <td className="px-6 py-4 font-medium text-white">{backup.date}</td>
-                  <td className="px-6 py-4">{backup.fileSize}</td>
+                  <td className="px-6 py-4 font-medium text-white">{backup.created_at ? new Date(backup.created_at).toLocaleString() : 'N/A'}</td>
+                  <td className="px-6 py-4">{backup.file_size}</td>
                   <td className="px-6 py-4">
                     <span className="flex items-center gap-2 px-2 py-1 rounded-full text-xs font-semibold bg-emerald-900 text-emerald-300">
                       {backup.status}
@@ -108,7 +165,7 @@ const DataBackup = () => {
                   </td>
                   <td className="px-6 py-4 text-center">
                     <button onClick={() => handleDownload(backup.file)} className="font-medium text-emerald-400 hover:text-emerald-300 flex items-center gap-2 mx-auto">
-                      <FontAwesomeIcon icon={faDownload} size={16} /> faDownload
+                      <FontAwesomeIcon icon={faDownload} size={16} /> Download Info
                     </button>
                   </td>
                 </tr>

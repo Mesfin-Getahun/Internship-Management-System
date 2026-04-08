@@ -9,33 +9,23 @@ router.post("/", async (req, res) => {
   const { id, email, password } = req.body;
 
   try {
-    // Generic helper
-    // const tryLoginById = async (table, idColumn, role) => {
-    //   const [rows] = await db.query(
-    //     `SELECT * FROM ${table} WHERE ${idColumn} = ?`,
-    //     [id]
-    //   );
+    const identifier = id || email;
+    const [maintenanceRows] = await db.query(
+      "SELECT setting_value FROM system_settings WHERE setting_key = 'maintenance_mode' LIMIT 1"
+    );
+    const maintenanceMode = maintenanceRows[0]?.setting_value === "true";
 
-    //   if (rows.length === 0) return null;
+    const sanitizeUser = (user) => {
+      const { password: _password, ...safeUser } = user;
+      return safeUser;
+    };
 
-    //   const user = rows[0];
-    //   const match = await bcrypt.compare(password, user.password);
+    const tryLoginByIdOrEmail = async (table, idColumn, role) => {
+      if (!identifier) return null;
 
-    //   if (!match) return null;
-
-    //   const token = jwt.sign(
-    //     { id: user[idColumn], role },
-    //     process.env.JWT_SECRET,
-    //     { expiresIn: "1d" }
-    //   );
-
-    //   return { user, role, token };
-    // };
-
-    const tryLoginById = async (table, idColumn, role) => {
       const [rows] = await db.query(
-        `SELECT * FROM ${table} WHERE ${idColumn} = ?`,
-        [id]
+        `SELECT * FROM ${table} WHERE ${idColumn} = ? OR email = ? LIMIT 1`,
+        [identifier, identifier]
       );
 
       if (rows.length === 0) return null;
@@ -45,10 +35,18 @@ router.post("/", async (req, res) => {
 
       if (!match) return null;
 
+      if (maintenanceMode && role !== "admin") {
+        return {
+          blocked: true,
+          status: 503,
+          message: "System is under maintenance. Only admin login is allowed right now.",
+        };
+      }
+
       // 🔥 CHECK FIRST LOGIN
       if (user.must_change_password) {
         return {
-          user,
+          user: sanitizeUser(user),
           role,
           firstLogin: true,
         };
@@ -60,16 +58,22 @@ router.post("/", async (req, res) => {
         { expiresIn: "1d" }
       );
 
-      return { user, role, token, firstLogin: false };
+      return {
+        user: sanitizeUser(user),
+        role,
+        token,
+        firstLogin: false,
+      };
     };
 
-    // Company login (EMAIL based)
+    // Company login (EMAIL or company_id based)
     const tryCompanyLogin = async () => {
-      if (!email) return null;
+      if (!identifier) return null;
 
-      const [rows] = await db.query("SELECT * FROM company WHERE email = ? ", [
-        email,
-      ]);
+      const [rows] = await db.query(
+        "SELECT * FROM company WHERE email = ? OR company_id = ? LIMIT 1",
+        [identifier, identifier]
+      );
 
       if (rows.length === 0) return null;
 
@@ -78,11 +82,29 @@ router.post("/", async (req, res) => {
 
       if (!match) return null;
 
-      // const token = jwt.sign(
-      //   { id: company.company_id, role: "company" },
-      //   process.env.JWT_SECRET,
-      //   { expiresIn: "1d" }
-      // );
+      if (maintenanceMode) {
+        return {
+          blocked: true,
+          status: 503,
+          message: "System is under maintenance. Only admin login is allowed right now.",
+        };
+      }
+
+      if (company.status === "pending") {
+        return {
+          blocked: true,
+          status: 403,
+          message: "Company account is pending UIL approval",
+        };
+      }
+
+      if (company.status === "rejected") {
+        return {
+          blocked: true,
+          status: 403,
+          message: "Company account was rejected",
+        };
+      }
 
       const token = jwt.sign(
         { company_id: company.company_id },
@@ -90,7 +112,12 @@ router.post("/", async (req, res) => {
         { expiresIn: "1d" }
       );
 
-      return { user: company, role: "company", token };
+      return {
+        user: sanitizeUser(company),
+        role: "company",
+        token,
+        firstLogin: false,
+      };
     };
 
     let result = null;
@@ -98,42 +125,42 @@ router.post("/", async (req, res) => {
     // Try company first (email)
     result = await tryCompanyLogin();
 
+    if (result?.blocked) {
+      return res.status(result.status).json({
+        success: false,
+        message: result.message,
+      });
+    }
+
     // Others use ID
-    if (!result && id)
-      result = await tryLoginById("student", "student_id", "student");
-    if (!result && id)
-      result = await tryLoginById("admin", "admin_id", "admin");
-    if (!result && id)
-      result = await tryLoginById("mentor", "mentor_id", "mentor");
-    if (!result && id)
-      result = await tryLoginById("faculty", "faculty_id", "faculty");
-    if (!result && id) result = await tryLoginById("UIL", "UIL_id", "UIL");
-    if (!result && id)
-      result = await tryLoginById(
+    if (!result && identifier)
+      result = await tryLoginByIdOrEmail("student", "student_id", "student");
+    if (!result && identifier)
+      result = await tryLoginByIdOrEmail("admin", "admin_id", "admin");
+    if (!result && identifier)
+      result = await tryLoginByIdOrEmail("mentor", "mentor_id", "mentor");
+    if (!result && identifier)
+      result = await tryLoginByIdOrEmail("faculty", "faculty_id", "faculty");
+    if (!result && identifier)
+      result = await tryLoginByIdOrEmail("UIL", "UIL_id", "UIL");
+    if (!result && identifier)
+      result = await tryLoginByIdOrEmail(
         "company_mentor",
         "company_mentor_id",
         "company_mentor"
       );
 
-    // if (!result) {
-    //   return res.status(401).json({
-    //     success: false,
-    //     message: "Invalid credentials",
-    //   });
-    // }
-
-    // res.status(200).json({
-    //   success: true,
-    //   message: "Login successful",
-    //   role: result.role,
-    //   token: result.token,
-    //   user: result.user,
-    // });
-
     if (!result) {
       return res.status(401).json({
         success: false,
         message: "Invalid credentials",
+      });
+    }
+
+    if (result?.blocked) {
+      return res.status(result.status).json({
+        success: false,
+        message: result.message,
       });
     }
 

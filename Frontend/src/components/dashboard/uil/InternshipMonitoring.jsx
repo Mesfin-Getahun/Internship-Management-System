@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
+import { useAuth } from '../../../AuthContext';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faTimes, faSpinner, faBuilding } from '@fortawesome/free-solid-svg-icons';
 
@@ -54,11 +55,14 @@ const InternshipMonitoring = () => {
   const [selectedInternship, setSelectedInternship] = useState(null);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
+  const { user } = useAuth();
 
   const fetchInternships = async () => {
      try {
         setLoading(true);
-        const res = await axios.get(`${import.meta.env.VITE_BACKEND_URL}/api/UIL/internships`);
+        const res = await axios.get(`${import.meta.env.VITE_BACKEND_URL}/api/UIL/internships`, {
+          headers: { Authorization: `Bearer ${user?.token}` }
+        });
         if (res.data.success) {
            setInternships(res.data.internships);
         } else if (res.data && Array.isArray(res.data)) {
@@ -72,8 +76,8 @@ const InternshipMonitoring = () => {
   };
 
   useEffect(() => {
-     fetchInternships();
-  }, []);
+     if (user?.token) fetchInternships();
+  }, [user]);
 
   const filteredInternships = internships.filter(i => 
       i.title.toLowerCase().includes(search.toLowerCase()) || 
@@ -124,11 +128,11 @@ const InternshipMonitoring = () => {
                  </tr>
                </thead>
                <tbody className="divide-y divide-slate-50 text-sm">
-                 {filteredInternships.map((row, i) => (
+                {filteredInternships.map((row, i) => (
                    <tr key={row.internship_id || i} onClick={() => setSelectedInternship(row)} className="hover:bg-indigo-50/50 transition-colors group cursor-pointer">
                      <td className="p-5">
                        <div className="font-bold text-slate-800 group-hover:text-indigo-600 transition-colors">{row.title}</div>
-                       <div className="text-[10px] text-slate-400 font-black uppercase tracking-widest mt-1">ID: {row.internship_id ? row.internship_id.substring(0,8) : 'PROG'}</div>
+                       <div className="text-[10px] text-slate-400 font-black uppercase tracking-widest mt-1">ID: {row.internship_id ? String(row.internship_id).slice(0, 8) : 'PROG'}</div>
                      </td>
                      <td className="p-5 font-bold text-slate-600 text-xs uppercase tracking-wider">{row.company_name || row.company_id?.company_name || 'N/A'}</td>
                      <td className="p-5 text-slate-500 font-semibold text-xs">{row.location || 'Remote'}</td>
@@ -137,15 +141,20 @@ const InternshipMonitoring = () => {
                         <div className="text-slate-400">to</div>
                         <div>{row.end_date ? new Date(row.end_date).toLocaleDateString() : '-'}</div>
                      </td>
-                     <td className="p-5 text-right">
+                      <td className="p-5 text-right">
+                       {(() => {
+                         const status = (row.status || '').toLowerCase();
+                         return (
                        <span className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest shadow-sm ${
-                          row.status === 'Approved' ? 'bg-green-50 text-green-700 border border-green-200' : 
-                          row.status === 'Pending' ? 'bg-amber-50 text-amber-700 border border-amber-200 animate-pulse' : 
-                          row.status === 'Rejected' ? 'bg-red-50 text-red-700 border border-red-200' : 
+                          status === 'approved' ? 'bg-green-50 text-green-700 border border-green-200' : 
+                          status === 'pending' ? 'bg-amber-50 text-amber-700 border border-amber-200 animate-pulse' : 
+                          status === 'rejected' ? 'bg-red-50 text-red-700 border border-red-200' : 
                           'bg-indigo-50 text-indigo-700 border border-indigo-200'
                        }`}>
                          {row.status || 'Active'}
                        </span>
+                         );
+                       })()}
                      </td>
                    </tr>
                  ))}

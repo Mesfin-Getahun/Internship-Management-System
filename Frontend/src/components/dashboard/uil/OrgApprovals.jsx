@@ -1,50 +1,111 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
+import { useAuth } from '../../../AuthContext';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faTimes, faEye, faSpinner } from '@fortawesome/free-solid-svg-icons';
 
 const OrgDetailModal = ({ org, onClose, onApprove, onReject, processing }) => {
     if (!org) return null;
 
+    const profilePic = org.profile_pic || org.company_profile_pic;
+    const licenseUrl = org.company_license_url || org.license_url;
+
+    const detailItems = [
+      { label: 'Company Type', value: org.company_type },
+      { label: 'Industry', value: org.industry },
+      { label: 'Website', value: org.website },
+      { label: 'Email', value: org.email },
+      { label: 'Phone', value: org.phone_number },
+      { label: 'Region', value: org.region },
+      { label: 'City', value: org.city },
+      { label: 'Address', value: org.location },
+      { label: 'Profile Picture URL', value: profilePic },
+      { label: 'Company License URL', value: licenseUrl },
+      { label: 'Status', value: org.status },
+    ];
+
     return (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50">
-            <div className="bg-white rounded-2xl shadow-xl p-8 max-w-lg w-full m-4">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50 p-4">
+            <div className="bg-white rounded-2xl shadow-xl p-8 max-w-3xl w-full max-h-[90vh] overflow-y-auto m-4">
                 <div className="flex justify-between items-center mb-6">
                     <h3 className="text-2xl font-bold text-slate-800">{org.company_name}</h3>
                     <button onClick={onClose} className="text-slate-500 hover:text-slate-800" disabled={processing}>
                         <FontAwesomeIcon icon={faTimes} size="lg" />
                     </button>
                 </div>
+
+                {(profilePic || licenseUrl) && (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                    {profilePic && (
+                      <div>
+                        <p className="text-sm text-slate-500 mb-2">Profile Picture</p>
+                        <a
+                          href={profilePic}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="block rounded-xl overflow-hidden border border-slate-200 hover:border-indigo-400 transition-colors"
+                        >
+                          <img
+                            src={profilePic}
+                            alt={`${org.company_name} profile`}
+                            className="w-full h-48 object-cover bg-slate-100"
+                          />
+                        </a>
+                      </div>
+                    )}
+                    {licenseUrl && (
+                      <div>
+                        <p className="text-sm text-slate-500 mb-2">Business License</p>
+                        <a
+                          href={licenseUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex h-48 items-center justify-center rounded-xl border border-dashed border-slate-300 bg-slate-50 text-indigo-600 font-semibold hover:bg-indigo-50 transition-colors"
+                        >
+                          Open license document
+                        </a>
+                      </div>
+                    )}
+                  </div>
+                )}
+
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div>
-                        <p className="text-sm text-slate-500">Email</p>
-                        <p className="font-semibold text-slate-700">{org.email}</p>
-                    </div>
-                    <div>
-                        <p className="text-sm text-slate-500">Phone</p>
-                        <p className="font-semibold text-slate-700">{org.phone_number}</p>
-                    </div>
-                     <div className="md:col-span-2">
-                        <p className="text-sm text-slate-500">Status</p>
-                        <p className="font-bold text-amber-600 uppercase text-xs tracking-wide">{org.status}</p>
-                    </div>
+                    {detailItems.map((item) => (
+                      <div key={item.label}>
+                        <p className="text-sm text-slate-500">{item.label}</p>
+                        {item.label === 'Website' && item.value ? (
+                          <a
+                            href={item.value}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="font-semibold text-indigo-600 hover:underline break-all"
+                          >
+                            {item.value}
+                          </a>
+                        ) : (
+                          <p className="font-semibold text-slate-700 break-words">{item.value || 'Not provided'}</p>
+                        )}
+                      </div>
+                    ))}
                 </div>
-                 <div className="mt-8 flex justify-end gap-3">
-                    <button 
-                        onClick={() => onReject(org.company_id)}
-                        disabled={processing}
-                        className="px-6 py-2 bg-red-600 text-white text-sm font-bold rounded-lg hover:bg-red-700 disabled:opacity-50"
-                    >
-                        {processing ? 'Processing...' : 'Reject'}
-                    </button>
-                    <button 
-                        onClick={() => onApprove(org.company_id)}
-                        disabled={processing}
-                        className="px-6 py-2 bg-green-600 text-white text-sm font-bold rounded-lg hover:bg-green-700 disabled:opacity-50"
-                    >
-                        {processing ? 'Processing...' : 'Approve'}
-                    </button>
-                </div>
+                {org.status === 'pending' && (
+                  <div className="mt-8 flex justify-end gap-3">
+                      <button 
+                          onClick={() => onReject(org.company_id)}
+                          disabled={processing}
+                          className="px-6 py-2 bg-red-600 text-white text-sm font-bold rounded-lg hover:bg-red-700 disabled:opacity-50"
+                      >
+                          {processing ? 'Processing...' : 'Reject'}
+                      </button>
+                      <button 
+                          onClick={() => onApprove(org.company_id)}
+                          disabled={processing}
+                          className="px-6 py-2 bg-green-600 text-white text-sm font-bold rounded-lg hover:bg-green-700 disabled:opacity-50"
+                      >
+                          {processing ? 'Processing...' : 'Approve'}
+                      </button>
+                  </div>
+                )}
             </div>
         </div>
     );
@@ -53,49 +114,87 @@ const OrgDetailModal = ({ org, onClose, onApprove, onReject, processing }) => {
 
 const OrgApprovals = () => {
   const [requests, setRequests] = useState([]);
+  const [activeTab, setActiveTab] = useState('pending');
   const [selectedOrg, setSelectedOrg] = useState(null);
   const [loading, setLoading] = useState(true);
   const [processing, setProcessing] = useState(false);
+  const [error, setError] = useState('');
+  const { user } = useAuth();
 
   useEffect(() => {
-    fetchRequests();
-  }, []);
+    if (user?.token) {
+      fetchRequests(activeTab);
+    } else {
+      setLoading(false);
+      setError('UIL session token is missing. Please sign in again.');
+    }
+  }, [user, activeTab]);
 
-  const fetchRequests = async () => {
+  const fetchRequests = async (tab = activeTab) => {
+    if (!user?.token) return;
+
     try {
       setLoading(true);
-      const res = await axios.get(`${import.meta.env.VITE_BACKEND_URL}/api/UIL/companyRequest`);
-      if (res.data.success) {
-        setRequests(res.data.companies);
-      }
+      setError('');
+      const endpoint =
+        tab === 'approved'
+          ? '/api/UIL/companies/active'
+          : '/api/UIL/companyRequest';
+      const res = await axios.get(`${import.meta.env.VITE_BACKEND_URL}${endpoint}`, {
+        headers: { Authorization: `Bearer ${user?.token}` }
+      });
+      const companies = Array.isArray(res.data?.companies) ? res.data.companies : [];
+      setRequests(companies);
     } catch (err) {
       console.error("Failed to fetch requests", err);
+      setError(err.response?.data?.message || 'Failed to load pending company requests.');
+      setRequests([]);
     } finally {
       setLoading(false);
     }
   };
 
   const handleApprove = async (company_id) => {
+    if (!company_id || !user?.token) {
+      setError('Unable to approve company. Missing company id or UIL session.');
+      return;
+    }
+
     try {
       setProcessing(true);
-      await axios.put(`${import.meta.env.VITE_BACKEND_URL}/api/UIL/acceptCompany/${company_id}`);
+      setError('');
+      await axios.put(`${import.meta.env.VITE_BACKEND_URL}/api/UIL/acceptCompany/${encodeURIComponent(company_id)}`, {}, {
+        headers: { Authorization: `Bearer ${user?.token}` }
+      });
+      setRequests((prev) => prev.filter((company) => company.company_id !== company_id));
       setSelectedOrg(null);
-      fetchRequests();
+      await fetchRequests(activeTab);
     } catch (err) {
       console.error("Failed to approve company", err);
+      setError(err.response?.data?.message || 'Failed to approve company.');
     } finally {
       setProcessing(false);
     }
   };
 
   const handleReject = async (company_id) => {
+    if (!company_id || !user?.token) {
+      setError('Unable to reject company. Missing company id or UIL session.');
+      return;
+    }
+
     try {
        setProcessing(true);
-       await axios.put(`${import.meta.env.VITE_BACKEND_URL}/api/UIL/rejectCompany/${company_id}`);
+       setError('');
+       await axios.put(`${import.meta.env.VITE_BACKEND_URL}/api/UIL/rejectCompany/${encodeURIComponent(company_id)}`, {}, {
+         headers: { Authorization: `Bearer ${user?.token}` }
+       });
+       setRequests((prev) => prev.filter((company) => company.company_id !== company_id));
        setSelectedOrg(null);
-       fetchRequests();
+       await fetchRequests(activeTab);
     } catch (err) {
        console.error("Failed to reject company", err);
+       setError(err.response?.data?.message || 'Failed to reject company.');
     } finally {
        setProcessing(false);
     }
@@ -106,7 +205,31 @@ const OrgApprovals = () => {
       <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h2 className="text-2xl font-black text-slate-800 tracking-tight">Organization Requests</h2>
-          <p className="text-slate-500 text-sm mt-1">Review and verify new industry partner registrations.</p>
+          <p className="text-slate-500 text-sm mt-1">Review pending registrations and inspect approved industry partners.</p>
+        </div>
+        <div className="flex gap-2 bg-slate-100 p-1.5 rounded-xl border border-slate-200">
+          <button
+            type="button"
+            onClick={() => setActiveTab('pending')}
+            className={`px-4 py-2 text-xs font-black uppercase tracking-widest rounded-lg transition-all ${
+              activeTab === 'pending'
+                ? 'bg-indigo-600 text-white'
+                : 'text-slate-500 hover:bg-white'
+            }`}
+          >
+            Pending
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab('approved')}
+            className={`px-4 py-2 text-xs font-black uppercase tracking-widest rounded-lg transition-all ${
+              activeTab === 'approved'
+                ? 'bg-emerald-600 text-white'
+                : 'text-slate-500 hover:bg-white'
+            }`}
+          >
+            Approved
+          </button>
         </div>
       </header>
 
@@ -116,9 +239,13 @@ const OrgApprovals = () => {
               <FontAwesomeIcon icon={faSpinner} spin size="2x" className="mb-4 text-indigo-500" />
               <p>Loading requests...</p>
            </div>
+        ) : error ? (
+           <div className="flex justify-center items-center h-64 text-slate-500">
+               <p>{error}</p>
+           </div>
         ) : requests.length === 0 ? (
            <div className="flex justify-center items-center h-64 text-slate-500">
-               <p>No pending organization requests found.</p>
+               <p>{activeTab === 'approved' ? 'No approved organizations found.' : 'No pending organization requests found.'}</p>
            </div>
         ) : (
           <div className="overflow-x-auto">
@@ -138,7 +265,11 @@ const OrgApprovals = () => {
                       <div className="text-[11px] text-slate-400 font-medium">{org.email} | {org.phone_number}</div>
                     </td>
                     <td className="p-5 text-center">
-                      <span className="px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest bg-amber-100 text-amber-700 animate-pulse">
+                      <span className={`px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest ${
+                        (org.status || '').toLowerCase() === 'approved'
+                          ? 'bg-emerald-100 text-emerald-700'
+                          : 'bg-amber-100 text-amber-700 animate-pulse'
+                      }`}>
                         {org.status}
                       </span>
                     </td>

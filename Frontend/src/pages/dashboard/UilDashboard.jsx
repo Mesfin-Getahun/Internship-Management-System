@@ -1,5 +1,7 @@
 import React from 'react';
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faInfoCircle } from '@fortawesome/free-solid-svg-icons';
 import UilSidebar from '../../components/dashboard/uil/UilSidebar.jsx';
 import UilNavbar from '../../components/dashboard/uil/UilNavbar.jsx';
 import UilOverview from '../../components/dashboard/uil/UilOverview.jsx';

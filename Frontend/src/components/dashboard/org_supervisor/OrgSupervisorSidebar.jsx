@@ -1,12 +1,35 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faTableCellsLarge, faUsers, faCheckCircle, faFileAlt, faSignOutAlt } from '@fortawesome/free-solid-svg-icons';;
+import { faTableCellsLarge, faUsers, faCheckCircle, faFileAlt, faSignOutAlt, faCommentDots, faSpinner } from '@fortawesome/free-solid-svg-icons';
 import { useAuth } from "../../../AuthContext";
+import axios from "axios";
 
 const OrgSupervisorSidebar = ({ activeTab }) => {
-  const { logout } = useAuth();
+  const { logout, user } = useAuth();
   const navigate = useNavigate();
+  const [studentCount, setStudentCount] = useState(null);
+
+  useEffect(() => {
+    const fetchStudentCount = async () => {
+      try {
+        const res = await axios.get(`${import.meta.env.VITE_BACKEND_URL}/api/company_mentor/students`, {
+          headers: { Authorization: `Bearer ${user?.token}` },
+        });
+        const students = Array.isArray(res.data?.students) ? res.data.students : [];
+        setStudentCount(students.length);
+      } catch (error) {
+        console.error("Failed to load supervisor students.", error);
+        setStudentCount(0);
+      }
+    };
+
+    if (user?.token) {
+      fetchStudentCount();
+    } else {
+      setStudentCount(0);
+    }
+  }, [user?.token]);
 
   const handleLogout = () => {
     logout();
@@ -15,8 +38,10 @@ const OrgSupervisorSidebar = ({ activeTab }) => {
 
   const menuItems = [
     { id: "overview", label: "Dashboard", icon: faTableCellsLarge },
+    { id: "students", label: "Students", icon: faUsers, badge: studentCount },
     { id: "attendance", label: "Attendance", icon: faCheckCircle },
     { id: "evaluation", label: "Evaluation", icon: faFileAlt },
+    { id: "feedback", label: "Feedback", icon: faCommentDots },
   ];
 
   return (
@@ -39,6 +64,13 @@ const OrgSupervisorSidebar = ({ activeTab }) => {
           >
             <FontAwesomeIcon icon={item.icon} className="h-5 w-5 shrink-0" />
             <span className="truncate">{item.label}</span>
+            {item.id === "students" && (
+              <span className={`ml-auto min-w-7 h-7 rounded-full text-[10px] font-black flex items-center justify-center ${
+                activeTab === item.id ? "bg-white/20 text-white" : "bg-slate-800 text-slate-300"
+              }`}>
+                {studentCount === null ? <FontAwesomeIcon icon={faSpinner} spin className="h-3 w-3" /> : studentCount}
+              </span>
+            )}
           </Link>
         ))}
       </nav>

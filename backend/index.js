@@ -4,7 +4,7 @@ import { setupSwagger } from "./utils/swagger.js";
 import express from "express";
 import cors from "cors";
 import studentRoute from "./routes/studentRoute.js";
-//import adminRoute from "./routes/adminRoute.js";
+import adminDashboardRoute from "./routes/adminDashboardRoute.js";
 import mentorRoute from "./routes/mentorRoute.js";
 import facultyRoute from "./routes/facultyRoute.js";
 import UILroute from "./routes/UILroute.js";
@@ -15,6 +15,8 @@ import {
   createCompanyMentor,
   createFaculty,
   createMentor,
+  createUIL,
+  createAdmin,
 } from "./middleware/register.js";
 import { checkMaintenanceMode } from "./middleware/Maintenance.js";
 
@@ -36,13 +38,14 @@ app.use("/api/mentor", mentorRoute);
 app.use("/api/company", companyRoute);
 app.use("/api/company_mentor", companyMentorRoute);
 app.use("/api/UIL", UILroute);
-//app.use("/api/admin", adminRoute);
+app.use("/api/admin", adminDashboardRoute);
 
 app.use("/api/registerStudent", registerStudent);
 app.use("/api/registerMentor", createMentor);
 app.use("/api/registerCompanyMentor", createCompanyMentor);
 app.use("/api/registerFaculty", createFaculty);
-//app.use("/api/registerUIL", UILroute);
+app.use("/api/registerUIL", createUIL);
+app.use("/api/registerAdmin", createAdmin);
 
 app.use("/api/login", router);
 app.use("/api/change-password", changeRouter);

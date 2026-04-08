@@ -1,19 +1,19 @@
 import React from "react";
 import { Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { useAuth } from "../../AuthContext";
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faInfoCircle } from '@fortawesome/free-solid-svg-icons';
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faInfoCircle } from "@fortawesome/free-solid-svg-icons";
 import StudentNavbar from "../../components/dashboard/student/StudentNavbar.jsx";
 import StudentSidebar from "../../components/dashboard/student/StudentSidebar.jsx";
 import StudentOverview from "../../components/dashboard/student/StudentOverview.jsx";
 import InternshipOpportunities from "../../components/dashboard/student/InternshipOpportunities.jsx";
 import MyApplications from "../../components/dashboard/student/MyApplications.jsx";
-import WeeklyReports from "../../components/dashboard/student/WeeklyReports.jsx";
+//import WeeklyReports from "../../components/dashboard/student/WeeklyReports.jsx";
 import StipendApplication from "../../components/dashboard/student/StipendApplication.jsx";
 import StudentProfile from "./StudentProfile.jsx";
 import FeedbackAndEvaluation from "../../components/dashboard/student/FeedbackAndEvaluation.jsx";
 import InternshipStatus from "../../components/dashboard/student/InternshipStatus.jsx";
-import ApplicationPage from '../../components/dashboard/student/ApplicationPage.jsx';
+import ApplicationPage from "../../components/dashboard/student/ApplicationPage.jsx";
 import StudentRecommendationLetter from "../../components/dashboard/student/StudentRecommendationLetter.jsx";
 
 const PlaceholderScreen = ({ title, description }) => (
@@ -46,15 +46,21 @@ const StudentDashboard = () => {
         <main className="flex-1 overflow-y-auto p-6 pt-20">
           <Routes>
             <Route index element={<Navigate to="overview" replace />} />
-            <Route path="overview" element={<StudentOverview studentData={user} />} />
+            <Route
+              path="overview"
+              element={<StudentOverview studentData={user} />}
+            />
             <Route path="opportunities" element={<InternshipOpportunities />} />
             <Route path="my-applications" element={<MyApplications />} />
-            <Route path="reports" element={<WeeklyReports />} />
+            {/* <Route path="reports" element={<WeeklyReports />} /> */}
             <Route path="stipend" element={<StipendApplication />} />
             <Route path="profile" element={<StudentProfile />} />
             <Route path="feedback" element={<FeedbackAndEvaluation />} />
             <Route path="status" element={<InternshipStatus />} />
-            <Route path="recommendation" element={<StudentRecommendationLetter />} />
+            <Route
+              path="recommendation"
+              element={<StudentRecommendationLetter />}
+            />
             <Route path="apply/:id" element={<ApplicationPage />} />
             <Route path="*" element={<Navigate to="overview" replace />} />
           </Routes>

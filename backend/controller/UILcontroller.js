@@ -2,6 +2,12 @@ import db from "../config/mysql.js";
 import { sendEmail } from "../utils/sendEmail.js";
 import createLog from "../utils/createLog.js";
 
+const getEmailFailurePayload = () => ({
+  emailSent: false,
+  emailWarning:
+    "Status was updated, but the notification email could not be sent.",
+});
+
 const allInternships = async (req, res) => {
   try {
     const [internships] = await db.query(`
@@ -68,7 +74,7 @@ const approveInternship = async (req, res) => {
 
     const [existing] = await db.query(
       "SELECT status FROM internship WHERE internship_id = ?",
-      [internship_id]
+      [internship_id],
     );
 
     if (existing.length === 0) {
@@ -85,14 +91,16 @@ const approveInternship = async (req, res) => {
 
     await db.query(
       "UPDATE internship SET status = 'approved' WHERE internship_id = ?",
-      [internship_id]
+      [internship_id],
     );
-     // 🔥 Save Log
-     await createLog(
-      req.user.UIL_id,
-      "INTERNSHIP_APPROVED",
-      `UIL approved internship with ID ${internship_id}`
-    );
+    // 🔥 Save Log
+    if (req.user?.UIL_id) {
+      await createLog(
+        req.user.UIL_id,
+        "INTERNSHIP_APPROVED",
+        `UIL approved internship with ID ${internship_id}`,
+      );
+    }
 
     res
       .status(200)
@@ -113,7 +121,7 @@ const rejectInternship = async (req, res) => {
 
     const [existing] = await db.query(
       "SELECT status FROM internship WHERE internship_id = ?",
-      [internship_id]
+      [internship_id],
     );
 
     if (existing.length === 0) {
@@ -124,14 +132,16 @@ const rejectInternship = async (req, res) => {
 
     await db.query(
       "UPDATE internship SET status = 'rejected' WHERE internship_id = ?",
-      [internship_id]
+      [internship_id],
     );
 
-    await createLog(
-      req.user.UIL_id,
-      "INTERNSHIP_REJECTED",
-      `UIL reject internship with ID ${internship_id}`
-    );
+    if (req.user?.UIL_id) {
+      await createLog(
+        req.user.UIL_id,
+        "INTERNSHIP_REJECTED",
+        `UIL reject internship with ID ${internship_id}`,
+      );
+    }
 
     res.status(200).json({
       success: true,
@@ -153,9 +163,18 @@ const companyRequest = async (req, res) => {
       SELECT 
         company_id,
         company_name,
+        company_type,
+        industry,
+        website,
         email,
         phone_number,
+        region,
+        city,
+        location,
         profile_pic,
+        profile_pic AS company_profile_pic,
+        license_url,
+        license_url AS company_license_url,
         status
       FROM company
       WHERE status = 'pending'
@@ -182,9 +201,18 @@ const getActiveCompanies = async (req, res) => {
       SELECT 
         company_id,
         company_name,
+        company_type,
+        industry,
+        website,
         email,
         phone_number,
+        region,
+        city,
+        location,
         profile_pic,
+        profile_pic AS company_profile_pic,
+        license_url,
+        license_url AS company_license_url,
         status
       FROM company
       WHERE status = 'approved'
@@ -254,7 +282,7 @@ const acceptCompany = async (req, res) => {
 
     const [company] = await db.query(
       "SELECT email, company_name, status FROM company WHERE company_id = ?",
-      [company_id]
+      [company_id],
     );
 
     if (company.length === 0) {
@@ -273,31 +301,44 @@ const acceptCompany = async (req, res) => {
 
     await db.query(
       "UPDATE company SET status = 'approved' WHERE company_id = ?",
-      [company_id]
+      [company_id],
     );
 
-    // ✅ Send email
-    await sendEmail(
-      company[0].email,
-      "Company Registration Approved",
-      `
-        <h2>Congratulations ${company[0].company_name} 🎉</h2>
-        <p>Your company registration has been <b>approved</b>.</p>
-        <p>You can now log in and start posting internships.</p>
-        <br/>
-        <p>Best regards,<br/>Internship Management Team</p>
-      `
-    );
+    let emailResult = { emailSent: true };
+    try {
+      await sendEmail(
+        company[0].email,
+        "Company Registration Approved",
+        `
+          <h2>Congratulations ${company[0].company_name}</h2>
+          <p>Your company registration has been <b>approved</b>.</p>
+          <p>You can now log in and start posting internships.</p>
+          <br/>
+          <p>Best regards,<br/>Internship Management Team</p>
+        `,
+      );
+    } catch (emailError) {
+      console.error(
+        "Approval email failed after company was approved:",
+        emailError,
+      );
+      emailResult = getEmailFailurePayload();
+    }
     // 🔥 Save Log
-    await createLog(
-      req.user.UIL_id,
-      "COMPANY_APPROVED",
-      `UIL approved company with ID ${company_id}`
-    );
+    if (req.user?.UIL_id) {
+      await createLog(
+        req.user.UIL_id,
+        "COMPANY_APPROVED",
+        `UIL approved company ${company[0].company_name} (ID ${company_id})`,
+      );
+    }
 
     res.status(200).json({
       success: true,
-      message: "Company approved and email sent",
+      message: emailResult.emailSent
+        ? "Company approved and email sent"
+        : "Company approved, but email notification failed",
+      ...emailResult,
     });
   } catch (error) {
     console.error("Accept company error:", error);
@@ -349,7 +390,7 @@ const rejectCompany = async (req, res) => {
 
     const [company] = await db.query(
       "SELECT email, company_name FROM company WHERE company_id = ?",
-      [company_id]
+      [company_id],
     );
 
     if (company.length === 0) {
@@ -361,32 +402,45 @@ const rejectCompany = async (req, res) => {
 
     await db.query(
       "UPDATE company SET status = 'rejected' WHERE company_id = ?",
-      [company_id]
+      [company_id],
     );
 
-    // ✅ Send rejection email
-    await sendEmail(
-      company[0].email,
-      "Company Registration Rejected",
-      `
-        <h2>Hello ${company[0].company_name}</h2>
-        <p>We regret to inform you that your company registration has been <b>rejected</b>.</p>
-        <p>If you believe this is a mistake, please contact the administrator.</p>
-        <br/>
-        <p>Best regards,<br/>Internship Management Team</p>
-      `
-    );
+    let emailResult = { emailSent: true };
+    try {
+      await sendEmail(
+        company[0].email,
+        "Company Registration Rejected",
+        `
+          <h2>Hello ${company[0].company_name}</h2>
+          <p>We regret to inform you that your company registration has been <b>rejected</b>.</p>
+          <p>If you believe this is a mistake, please contact the administrator.</p>
+          <br/>
+          <p>Best regards,<br/>Internship Management Team</p>
+        `,
+      );
+    } catch (emailError) {
+      console.error(
+        "Rejection email failed after company was rejected:",
+        emailError,
+      );
+      emailResult = getEmailFailurePayload();
+    }
 
     // 🔥 Save Log
-    await createLog(
-      req.user.UIL_id,
-      "COMPANY_REJECTED",
-      `UIL approved company with ID ${company_id}`
-    );
+    if (req.user?.UIL_id) {
+      await createLog(
+        req.user.UIL_id,
+        "COMPANY_REJECTED",
+        `UIL rejected company ${company[0].company_name} (ID ${company_id})`,
+      );
+    }
 
     res.status(200).json({
       success: true,
-      message: "Company rejected and email sent",
+      message: emailResult.emailSent
+        ? "Company rejected and email sent"
+        : "Company rejected, but email notification failed",
+      ...emailResult,
     });
   } catch (error) {
     console.error("Reject company error:", error);

@@ -1,8 +1,17 @@
-import React from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faTableCellsLarge, faUsers, faUniversity, faShieldAlt, faDatabase, faHistory, faSignOutAlt, faChartLine } from '@fortawesome/free-solid-svg-icons';
-import { useAuth } from '../../../AuthContext';
+import React from "react";
+import { Link, useNavigate } from "react-router-dom";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import {
+  faTableCellsLarge,
+  faUsers,
+  faUniversity,
+  faShieldAlt,
+  faDatabase,
+  faHistory,
+  faSignOutAlt,
+  faChartLine,
+} from "@fortawesome/free-solid-svg-icons";
+import { useAuth } from "../../../AuthContext";
 
 const AdminSidebar = ({ activeTab }) => {
   const { logout } = useAuth();
@@ -10,33 +19,35 @@ const AdminSidebar = ({ activeTab }) => {
 
   const handleLogout = () => {
     logout();
-    navigate('/login');
+    navigate("/login");
   };
 
   const menuItems = [
-    { id: 'overview', label: 'Dashboard', icon: faTableCellsLarge },
-    { id: 'faculties', label: 'Manage Faculties', icon: faUniversity },
-    { id: 'users', label: 'Manage Users', icon: faUsers },
-    { id: 'roles', label: 'Roles & Permissions', icon: faShieldAlt },
-    { id: 'data-backup', label: 'Data & Backup', icon: faDatabase },
-    { id: 'logs', label: 'Audit Logs', icon: faHistory },
-    { id: 'monitoring', label: 'Platform Monitoring', icon: faChartLine }
+    { id: "overview", label: "Dashboard", icon: faTableCellsLarge },
+    { id: "faculties", label: "Manage Faculties", icon: faUniversity },
+    { id: "users", label: "Manage Users", icon: faUsers },
+    // { id: 'roles', label: 'Roles & Permissions', icon: faShieldAlt },
+    { id: "data-backup", label: "Data & Backup", icon: faDatabase },
+    { id: "logs", label: "Audit Logs", icon: faHistory },
+    { id: "monitoring", label: "Platform Monitoring", icon: faChartLine },
   ];
 
   return (
     <aside className="w-64 bg-slate-900 border-r border-slate-800 flex flex-col h-screen fixed left-0 top-0 pt-20 z-40 transition-colors">
       <div className="px-6 py-4 border-b border-slate-800 mb-4">
-        <h2 className="text-white font-black text-xs uppercase tracking-[0.2em] opacity-50">System Root</h2>
+        <h2 className="text-white font-black text-xs uppercase tracking-[0.2em] opacity-50">
+          System Root
+        </h2>
       </div>
       <nav className="flex-grow px-4 space-y-1 overflow-y-auto custom-scrollbar">
-        {menuItems.map(item => (
+        {menuItems.map((item) => (
           <Link
             key={item.id}
             to={`/admin/${item.id}`}
             className={`flex items-center gap-3 px-4 py-3 rounded-xl font-semibold transition-all text-sm ${
-              activeTab === item.id 
-                ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/20' 
-                : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200'
+              activeTab === item.id
+                ? "bg-indigo-600 text-white shadow-lg shadow-indigo-500/20"
+                : "text-slate-400 hover:bg-slate-800 hover:text-slate-200"
             }`}
           >
             <FontAwesomeIcon icon={item.icon} className="h-5 w-5 shrink-0" />
@@ -44,14 +55,14 @@ const AdminSidebar = ({ activeTab }) => {
           </Link>
         ))}
       </nav>
-      
+
       <div className="p-4 mt-auto border-t border-slate-800">
         <button
           onClick={handleLogout}
           className="w-full flex items-center gap-3 px-4 py-3 rounded-xl font-semibold text-red-400 hover:bg-red-950/20 transition-colors text-sm"
         >
           <FontAwesomeIcon icon={faSignOutAlt} className="h-5 w-5" />
-          Root Logout
+          Logout
         </button>
       </div>
     </aside>

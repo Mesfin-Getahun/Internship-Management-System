@@ -114,9 +114,9 @@ const UnplacedStudentView = ({ stats, isPlaced, applications }) => (
 );
 
 const StudentOverview = ({ studentData = {} }) => {
-  const { isPlaced = false, appState = 'NOT_STARTED' } = studentData;
   const { user } = useAuth();
   const [applications, setApplications] = useState([]);
+  const [activeInternship, setActiveInternship] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -126,7 +126,8 @@ const StudentOverview = ({ studentData = {} }) => {
         const res = await axios.get(`${import.meta.env.VITE_BACKEND_URL}/api/student/myInternship`, {
           headers: { Authorization: `Bearer ${user?.token}` }
         });
-        const data = res.data.applications || res.data.internships || res.data.data;
+        const data = res.data.applications || res.data.internships || res.data.data || [];
+        setActiveInternship(res.data.internship || null);
         if (Array.isArray(data)) {
            setApplications(data);
         } else if (data) {
@@ -142,9 +143,12 @@ const StudentOverview = ({ studentData = {} }) => {
     if (user?.token) fetchMyApplications();
   }, [user]);
 
+  const isPlaced = Boolean(activeInternship);
+  const appState = isPlaced ? 'ACTIVATED' : 'NOT_STARTED';
+
   const stats = [
     { label: 'Applications Sent', val: applications.length.toString(), icon: faPaperPlane, color: 'sky' },
-    { label: 'Positive Replies', val: applications.filter(a => a.status?.toLowerCase() === 'accepted').length.toString(), icon: faThumbsUp, color: 'amber' },
+    { label: 'Positive Replies', val: applications.filter(a => ['accepted', 'in progress', 'active'].includes((a.status || '').toLowerCase())).length.toString(), icon: faThumbsUp, color: 'amber' },
     { label: 'Interviews', val: '0', icon: faUserTie, color: 'emerald' },
     { label: 'Internship Status', val: getInternshipLabel(appState), icon: faBriefcase, color: 'indigo' }
   ];
@@ -164,7 +168,7 @@ const StudentOverview = ({ studentData = {} }) => {
         <p className="text-slate-500 text-sm mt-1 font-medium">Monitor your internship applications and performance tracking.</p>
       </header>
 
-      {isPlaced ? <PlacedStudentView internship={applications.find(a => a.status?.toLowerCase() === 'accepted' || a.status?.toLowerCase() === 'in progress')} /> : <UnplacedStudentView stats={stats} isPlaced={isPlaced} applications={applications} />}
+      {isPlaced ? <PlacedStudentView internship={activeInternship} /> : <UnplacedStudentView stats={stats} isPlaced={isPlaced} applications={applications} />}
     </div>
   );
 };

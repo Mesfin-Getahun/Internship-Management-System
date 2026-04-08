@@ -1,4 +1,8 @@
 import db from "../config/mysql.js";
+import generateAssessmentPDF from "../utils/generateAssessmentPDF.js";
+import generateAttendancePDF from "../utils/generateAttendancePDF.js";
+import { uploadToCloudinary } from "../utils/cloudinaryUpload.js";
+import fs from "fs";
 
 // const fetchStudents = async (req, res) => {
 //   const mentorId = req.user.company_mentor_id;
@@ -32,10 +36,14 @@ const fetchStudents = async (req, res) => {
     const query = `
       SELECT DISTINCT
         s.student_id,
-        s.full_name,
+        s.full_name AS student_name,
         s.email,
+        s.department,
         si.status,
-        i.title AS internship_title
+        si.id AS student_internship_id,
+        si.internship_id,
+        i.title AS internship_title,
+        c.company_name
       FROM student_internship si
       JOIN student s ON si.student_id = s.student_id
       JOIN internship i ON si.internship_id = i.internship_id
@@ -58,6 +66,135 @@ const fetchStudents = async (req, res) => {
   }
 };
 
+const postEvaluation = async (req, res) => {
+  try {
+    const company_mentor_id = req.user.company_mentor_id;
+    const { internship_id, student_id } = req.params;
+    const { assessment, attendanceData } = req.body;
+
+    if (!internship_id || !student_id) {
+      return res.status(400).json({
+        success: false,
+        message: "Internship ID and student ID are required",
+      });
+    }
+
+    const [[student]] = await db.query(
+      `
+      SELECT
+        s.student_id,
+        s.full_name AS name,
+        s.department,
+        i.internship_id,
+        c.company_name,
+        cm.full_name AS supervisor
+      FROM student_internship si
+      JOIN student s
+        ON si.student_id = s.student_id
+      JOIN internship i
+        ON si.internship_id = i.internship_id
+      JOIN company c
+        ON si.company_id = c.company_id
+      JOIN company_mentor cm
+        ON si.company_mentor_id = cm.company_mentor_id
+      WHERE si.company_mentor_id = ?
+        AND si.internship_id = ?
+        AND s.student_id = ?
+      LIMIT 1
+      `,
+      [company_mentor_id, internship_id, student_id]
+    );
+
+    if (!student) {
+      return res.status(404).json({
+        success: false,
+        message: "Assigned student not found for this company mentor",
+      });
+    }
+
+    if (!assessment || !attendanceData) {
+      return res.status(400).json({
+        success: false,
+        message: "Assessment and attendance data are required",
+      });
+    }
+
+    const assessmentPath = await generateAssessmentPDF({
+      student,
+      assessment,
+      company: student.company_name,
+    });
+
+    const assessmentBuffer = fs.readFileSync(assessmentPath);
+    const assessmentURL = await uploadToCloudinary(
+      assessmentBuffer,
+      "internship/assessment",
+      `${student.student_id}_assessment.pdf`
+    );
+
+    const normalizedAttendanceData = attendanceData.records
+      ? attendanceData
+      : {
+          records: {
+            Month_1: {
+              Week_1: {
+                Mon: "-",
+                Tue: "-",
+                Wed: "-",
+                Thu: "-",
+                Fri: "-",
+              },
+            },
+          },
+          ...attendanceData,
+        };
+
+    const attendancePath = await generateAttendancePDF({
+      student,
+      attendanceData: normalizedAttendanceData,
+      company: student.company_name,
+    });
+
+    const attendanceBuffer = fs.readFileSync(attendancePath);
+    const attendanceURL = await uploadToCloudinary(
+      attendanceBuffer,
+      "internship/attendance",
+      `${student.student_id}_attendance.pdf`
+    );
+
+    fs.unlinkSync(assessmentPath);
+    fs.unlinkSync(attendancePath);
+
+    const totalMark =
+      Object.values(assessment.general || {}).reduce((a, b) => a + Number(b || 0), 0) +
+      Object.values(assessment.personal || {}).reduce((a, b) => a + Number(b || 0), 0) +
+      Object.values(assessment.professional || {}).reduce((a, b) => a + Number(b || 0), 0);
+
+    await db.query(
+      `
+      INSERT INTO internship_evaluation
+      (student_id, internship_id, assessment_pdf_url, attendance_pdf_url, total_mark)
+      VALUES (?, ?, ?, ?, ?)
+      `,
+      [student.student_id, internship_id, assessmentURL, attendanceURL, totalMark]
+    );
+
+    res.status(201).json({
+      success: true,
+      message: "Evaluation submitted successfully",
+      assessment_pdf: assessmentURL,
+      attendance_pdf: attendanceURL,
+      total_mark: totalMark,
+    });
+  } catch (error) {
+    console.error("Post evaluation error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to submit evaluation",
+    });
+  }
+};
+
 const giveFeedBack = async (req, res) => {
   try {
     const company_mentor_id = req.user.company_mentor_id;
@@ -68,6 +205,7 @@ const giveFeedBack = async (req, res) => {
     const {
       feedback_type,
       rating,
+      feedback_text,
       strengths,
       weaknesses,
       suggestions,
@@ -93,10 +231,10 @@ const giveFeedBack = async (req, res) => {
         company_mentor_id,
         feedback_type || "weekly",
         rating,
-        strengths,
-        weaknesses,
-        suggestions,
-        overall_comment,
+        strengths || null,
+        weaknesses || null,
+        suggestions || null,
+        overall_comment || feedback_text || null,
       ]
     );
 
@@ -113,4 +251,55 @@ const giveFeedBack = async (req, res) => {
   }
 };
 
-export { giveFeedBack, fetchStudents };
+const getFeedbacks = async (req, res) => {
+  try {
+    const company_mentor_id = req.user.company_mentor_id;
+
+    const [feedbacks] = await db.query(
+      `
+      SELECT
+        mf.feedback_id,
+        mf.student_id,
+        mf.internship_id,
+        mf.feedback_type,
+        mf.rating,
+        mf.strengths,
+        mf.weaknesses,
+        mf.suggestions,
+        mf.overall_comment,
+        mf.created_at,
+        s.full_name AS student_name,
+        s.department,
+        i.title AS internship_title,
+        c.company_name
+      FROM mentor_feedback mf
+      JOIN student_internship si
+        ON mf.student_id = si.student_id
+       AND mf.internship_id = si.internship_id
+      JOIN student s
+        ON mf.student_id = s.student_id
+      JOIN internship i
+        ON mf.internship_id = i.internship_id
+      JOIN company c
+        ON i.company_id = c.company_id
+      WHERE mf.company_mentor_id = ?
+      ORDER BY mf.created_at DESC
+      `,
+      [company_mentor_id]
+    );
+
+    res.status(200).json({
+      success: true,
+      count: feedbacks.length,
+      feedbacks,
+    });
+  } catch (error) {
+    console.error("Fetch company mentor feedbacks error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to fetch feedback history",
+    });
+  }
+};
+
+export { giveFeedBack, fetchStudents, postEvaluation, getFeedbacks };

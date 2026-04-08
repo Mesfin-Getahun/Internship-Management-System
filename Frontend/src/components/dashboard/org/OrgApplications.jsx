@@ -37,8 +37,22 @@ const OrgApplications = () => {
   }, [user]);
 
   const handleViewDetails = (app) => {
-    setSelectedApplicant(app);
-    setIsModalOpen(true);
+    const fetchDetail = async () => {
+      try {
+        const res = await axios.get(
+          `${import.meta.env.VITE_BACKEND_URL}/api/company/viewApplication/${app.application_id || app.id}`,
+          {
+            headers: { Authorization: `Bearer ${user?.token}` }
+          }
+        );
+        setSelectedApplicant({ ...app, ...(res.data?.application || {}) });
+        setIsModalOpen(true);
+      } catch (err) {
+        console.error(err);
+        toast.error(err.response?.data?.message || 'Failed to load application details.');
+      }
+    };
+    fetchDetail();
   };
 
   const handleAction = async (status) => {
@@ -117,7 +131,7 @@ const OrgApplications = () => {
                            {app.student_name || app.name || 'Anonymous Student'}
                         </div>
                         <div className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mt-1">
-                           ID: {app.student_id ? app.student_id.substring(0,8) : 'N/A'}
+                           ID: {app.student_id ? String(app.student_id).slice(0,8) : 'N/A'}
                         </div>
                       </td>
                       <td className="p-5 text-sm text-slate-600 dark:text-slate-400 font-medium">{app.faculty || app.department || 'Not Specified'}</td>
@@ -127,8 +141,8 @@ const OrgApplications = () => {
                       </td>
                       <td className="p-5 text-center">
                         <span className={`px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest ${
-                          app.status === 'Approved' || app.status === 'Accepted' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' :
-                          app.status === 'Rejected' ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' :
+                          ['approved', 'accepted'].includes((app.status || '').toLowerCase()) ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' :
+                          (app.status || '').toLowerCase() === 'rejected' ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' :
                           'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400'
                         }`}>
                           {app.status || 'Pending'}

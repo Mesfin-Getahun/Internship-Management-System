@@ -139,7 +139,7 @@ const FacultyReports = () => {
                               <td className="p-4 text-sm text-slate-500">{r.report_type || 'Final Report'} <FontAwesomeIcon icon={faFilePdf} className="ml-2 text-rose-500" /></td>
                               <td className="p-4 text-right">
                                  {r.file_url || r.file_path ? (
-                                    <a href={`${import.meta.env.VITE_BACKEND_URL}/${r.file_url || r.file_path}`} target="_blank" rel="noopener noreferrer" className="px-4 py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:hover:bg-indigo-900/50 dark:text-indigo-400 font-bold text-[10px] uppercase tracking-widest rounded-lg transition-colors inline-block">Extract</a>
+                                    <a href={r.file_url || r.file_path} target="_blank" rel="noopener noreferrer" className="px-4 py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:hover:bg-indigo-900/50 dark:text-indigo-400 font-bold text-[10px] uppercase tracking-widest rounded-lg transition-colors inline-block">Extract</a>
                                  ) : <span className="text-xs text-slate-400">Not Available</span>}
                               </td>
                            </tr>

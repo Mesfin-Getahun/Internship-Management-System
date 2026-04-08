@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
 import { useAuth } from '../../../AuthContext';
 import { toast, ToastContainer } from 'react-toastify';
@@ -10,34 +10,51 @@ const MentorEvaluation = () => {
   const [rating, setRating] = useState({ conduct: 0, technical: 0, communication: 0, solving: 0 });
   const [comments, setComments] = useState('');
   const [students, setStudents] = useState([]);
+  const [companyFeedbacks, setCompanyFeedbacks] = useState([]);
   const [selectedStudentId, setSelectedStudentId] = useState('');
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const { user } = useAuth();
 
   useEffect(() => {
-    const fetchStudents = async () => {
+    const fetchMentorData = async () => {
       try {
         setLoading(true);
-        const res = await axios.get(`${import.meta.env.VITE_BACKEND_URL}/api/mentor/students`, {
-           headers: { Authorization: `Bearer ${user?.token}` }
-        });
-        const data = res.data.students || res.data || [];
-        setStudents(data);
+        const [studentsRes, feedbackRes] = await Promise.all([
+          axios.get(`${import.meta.env.VITE_BACKEND_URL}/api/mentor/students`, {
+            headers: { Authorization: `Bearer ${user?.token}` }
+          }),
+          axios.get(`${import.meta.env.VITE_BACKEND_URL}/api/mentor/companyFeedback`, {
+            headers: { Authorization: `Bearer ${user?.token}` }
+          }),
+        ]);
+        setStudents(studentsRes.data?.students || studentsRes.data || []);
+        setCompanyFeedbacks(feedbackRes.data?.feedbacks || feedbackRes.data || []);
       } catch (err) {
         console.error(err);
       } finally {
         setLoading(false);
       }
     };
-    if (user?.token) fetchStudents();
-  }, [user]);
+    if (user?.token) fetchMentorData();
+    else setLoading(false);
+  }, [user?.token]);
 
   const setCriteriaRating = (key, val) => {
     setRating(prev => ({ ...prev, [key]: val }));
   };
 
   const calculateTotal = () => Object.values(rating).reduce((a, b) => a + b, 0);
+
+  const latestCompanyFeedback = useMemo(() => {
+    if (!selectedStudentId) return null;
+
+    const studentFeedbacks = companyFeedbacks
+      .filter((feedback) => String(feedback.student_id || '') === String(selectedStudentId))
+      .sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0));
+
+    return studentFeedbacks[0] || null;
+  }, [companyFeedbacks, selectedStudentId]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -53,12 +70,19 @@ const MentorEvaluation = () => {
     try {
        setSubmitting(true);
        
-       // Formulate the qualitative assessment body as a synthesized string
-       // for the unified comments field expected by the API.
-       const synthesizedComments = `[Mentor Academic Rating: ${calculateTotal()}/20]\nBreakdown:\n- Conduct: ${rating.conduct}/5\n- Tech: ${rating.technical}/5\n- Comm: ${rating.communication}/5\n- Logic: ${rating.solving}/5\n\nQualitative Remarks:\n${comments || 'No specific remarks.'}`;
+       const totalRating = Number((calculateTotal() / 4).toFixed(2));
+       const synthesizedComments = [
+         'Faculty mentor review',
+         `Overall mentor score: ${calculateTotal()}/20`,
+         `Breakdown: conduct ${rating.conduct}/5, technical ${rating.technical}/5, communication ${rating.communication}/5, problem solving ${rating.solving}/5.`,
+         comments?.trim() ? `Comments: ${comments.trim()}` : 'Comments: No additional remarks.',
+       ].join('\n');
 
        await axios.post(`${import.meta.env.VITE_BACKEND_URL}/api/mentor/provideFeedback/${selectedStudentId}`, 
-          { comments: synthesizedComments },
+          {
+            comments: synthesizedComments,
+            rating: totalRating,
+          },
           { headers: { Authorization: `Bearer ${user?.token}` } }
        );
        
@@ -102,7 +126,7 @@ const MentorEvaluation = () => {
               >
                 <option value="">-- Faculty Assignment Roster --</option>
                 {students.map(s => (
-                   <option key={s.student_id || s.id} value={s.student_id || s.id}>{s.student_name || s.name}</option>
+                   <option key={s.student_id || s.id} value={s.student_id || s.id}>{s.student_name || s.full_name || s.name || 'Student'}</option>
                 ))}
               </select>
             </div>
@@ -111,6 +135,20 @@ const MentorEvaluation = () => {
               <input type="text" value="Final Grade Registration" readOnly className="w-full px-5 py-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-800/80 text-slate-500 font-bold focus:outline-none cursor-not-allowed shadow-inner" />
             </div>
           </div>
+
+          {latestCompanyFeedback && (
+            <div className="p-6 bg-blue-50 dark:bg-blue-900/10 border border-blue-100 dark:border-blue-800/30 rounded-2xl">
+              <p className="text-[10px] font-black text-blue-700 dark:text-blue-400 uppercase tracking-widest mb-2">
+                Latest Company Mentor Feedback
+              </p>
+              <p className="text-sm font-bold text-slate-800 dark:text-white">
+                {latestCompanyFeedback.company_mentor_name || 'Company Mentor'} - {latestCompanyFeedback.company_name || 'Company'}
+              </p>
+              <p className="text-sm text-slate-600 dark:text-slate-300 mt-3 leading-relaxed">
+                {latestCompanyFeedback.overall_comment || 'No company mentor comment available.'}
+              </p>
+            </div>
+          )}
 
           <div className="space-y-8">
             <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-100 dark:border-slate-800 pb-2">Scoring Rubric</h4>

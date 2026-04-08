@@ -1,5 +1,5 @@
 import React from "react";
-import { Routes, Route, Navigate } from "react-router-dom";
+import { Routes, Route, Navigate, useLocation } from "react-router-dom";
 import AdminNavbar from "../../components/dashboard/admin/AdminNavbar.jsx";
 import AdminSidebar from "../../components/dashboard/admin/AdminSidebar.jsx";
 import AdminOverview from "../../components/dashboard/admin/AdminOverview.jsx";
@@ -11,13 +11,24 @@ import PlatformMonitoring from "../../components/dashboard/admin/PlatformMonitor
 import DataBackup from "../../components/dashboard/admin/DataBackup.jsx";
 
 const AdminDashboard = () => {
+  const location = useLocation();
+  const activeTab = location.pathname.split("/").pop() || "overview";
+  const titleMap = {
+    overview: "Admin Overview",
+    users: "Manage Users",
+    faculties: "Manage Faculties",
+    roles: "Roles & Permissions",
+    logs: "Audit Logs",
+    monitoring: "Platform Monitoring",
+    "data-backup": "Data & Backup",
+  };
+
   return (
     <div className="flex min-h-screen bg-slate-50 dark:bg-slate-900">
-      <AdminSidebar />
+      <AdminSidebar activeTab={activeTab} />
 
-      {/* Main content */}
       <div className="flex-1 flex flex-col ml-64">
-        <AdminNavbar />
+        <AdminNavbar title={titleMap[activeTab] || "Admin Overview"} />
         <main className="flex-1 p-6">
           <Routes>
             <Route path="/" element={<Navigate to="overview" replace />} />

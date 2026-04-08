@@ -1,6 +1,7 @@
 import { exec } from "child_process";
 import fs from "fs";
 import path from "path";
+import { fetchSystemLogs, insertSystemLog } from "../utils/systemLogService.js";
 
 // export const getAllUsers = async (req, res) => {
 //   try {
@@ -92,20 +93,31 @@ export const updateMaintenanceMode = async (req, res) => {
       });
     }
 
+    const normalizedValue =
+      maintenance_mode === true || maintenance_mode === "true"
+        ? "true"
+        : "false";
+
     await db.query(
-      "UPDATE system_settings SET setting_value = ? WHERE setting_key = 'maintenance_mode'",
-      [maintenance_mode ? "true" : "false"]
+      `
+      INSERT INTO system_settings (setting_key, setting_value)
+      VALUES ('maintenance_mode', ?)
+      ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value)
+      `,
+      [normalizedValue],
     );
 
     // Log action
-    await db.query("INSERT INTO system_logs (user_id, action) VALUES (?, ?)", [
-      req.user.admin_id,
-      `Maintenance mode set to ${maintenance_mode}`,
-    ]);
+    await insertSystemLog({
+      actorId: req.user.admin_id,
+      action: "MAINTENANCE_MODE_UPDATED",
+      description: `Maintenance mode set to ${normalizedValue}`,
+    });
 
     res.json({
       success: true,
-      message: `Maintenance mode ${maintenance_mode ? "enabled" : "disabled"}`,
+      message: `Maintenance mode ${normalizedValue === "true" ? "enabled" : "disabled"}`,
+      maintenance_mode: normalizedValue === "true",
     });
   } catch (error) {
     console.error(error);
@@ -115,34 +127,13 @@ export const updateMaintenanceMode = async (req, res) => {
 
 export const getSystemLogs = async (req, res) => {
   try {
-    const [logs] = await db.query(
-      "SELECT * FROM system_logs ORDER BY created_at DESC"
-    );
+    const logs = await fetchSystemLogs(1000);
 
     res.json({ success: true, logs });
   } catch (error) {
     res.status(500).json({ success: false });
   }
 };
-
-// export const backupDatabase = async (req, res) => {
-//   const fileName = `backup_${Date.now()}.sql`;
-
-//   exec(
-//     `mysqldump -u root -pYOURPASSWORD internship_db > backups/${fileName}`,
-//     (error) => {
-//       if (error) {
-//         return res.status(500).json({ success: false });
-//       }
-
-//       res.json({
-//         success: true,
-//         message: "Backup created",
-//         file: fileName,
-//       });
-//     }
-//   );
-// };
 
 export const backupDatabase = async (req, res) => {
   try {
@@ -168,10 +159,11 @@ export const backupDatabase = async (req, res) => {
 
       try {
         // ✅ Log only after successful backup
-        await db.query(
-          "INSERT INTO system_logs (user_id, action) VALUES (?, ?)",
-          [req.user.admin_id, "Database backup created"]
-        );
+        await insertSystemLog({
+          actorId: req.user.admin_id,
+          action: "DATABASE_BACKUP_CREATED",
+          description: "Database backup created",
+        });
 
         res.json({
           success: true,

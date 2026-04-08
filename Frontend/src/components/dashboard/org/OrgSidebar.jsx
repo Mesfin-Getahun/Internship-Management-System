@@ -39,7 +39,7 @@ const OrgSidebar = () => {
       </div>
 
       <nav className="flex-1 mt-4 px-3 space-y-1">
-        {menuItems.map(({ to, label, icon: Icon }) => (
+        {menuItems.map(({ to, label, icon }) => (
           <NavLink
             key={to}
             to={`/organization/${to}`}
@@ -52,7 +52,7 @@ const OrgSidebar = () => {
               }`
             }
           >
-            <Icon className="h-5 w-5 mr-3" />
+            <FontAwesomeIcon icon={icon} className="h-5 w-5 mr-3" />
             <span className="ml-2">{label}</span>
           </NavLink>
         ))}

@@ -2,12 +2,13 @@ import React, { useState, useEffect, useMemo } from 'react';
 import axios from 'axios';
 import { useAuth } from '../../../AuthContext';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faSearch, faTimes, faStar, faBuilding, faUser, faFileAlt, faSpinner, faCommentSlash } from '@fortawesome/free-solid-svg-icons';
+import { faSearch, faTimes, faStar, faBuilding, faUser, faFileAlt, faSpinner, faCommentSlash, faPaperclip } from '@fortawesome/free-solid-svg-icons';
 
 const EvaluationModal = ({ evaluation, onClose }) => {
   if (!evaluation) return null;
 
   const isOrg = evaluation.type === 'Organization' || !evaluation.university_mentor_id;
+  const rating = evaluation.rating || evaluation.score || (evaluation.total_mark ? Math.min(5, Math.round(evaluation.total_mark / 20)) : 5);
 
   const renderStars = (rating) => (
     <div className="flex">
@@ -50,15 +51,47 @@ const EvaluationModal = ({ evaluation, onClose }) => {
           <div>
             <p className="text-[10px] text-slate-400 uppercase font-black tracking-widest mb-3">Overall Rating</p>
             <div className="flex items-center gap-3 bg-slate-50 dark:bg-slate-800/50 p-4 rounded-xl border border-slate-100 dark:border-slate-700/50">
-               {renderStars(evaluation.rating || evaluation.score || 5)}
-               <span className="font-bold text-slate-700 dark:text-slate-300">({evaluation.rating || evaluation.score || 5}.0 / 5.0)</span>
+               {renderStars(rating)}
+               <span className="font-bold text-slate-700 dark:text-slate-300">({rating}.0 / 5.0)</span>
             </div>
           </div>
 
           <div>
             <p className="text-[10px] text-slate-400 uppercase font-black tracking-widest mb-3">Comments & Feedback</p>
             <div className="bg-indigo-50/50 dark:bg-indigo-900/10 p-6 rounded-2xl border border-indigo-100 dark:border-indigo-900/30">
-              <p className="text-sm text-slate-700 dark:text-slate-300 leading-relaxed italic">"{evaluation.summary || evaluation.comments || evaluation.feedback_text || 'No detailed comments provided.'}"</p>
+              <p className="text-sm text-slate-700 dark:text-slate-300 leading-relaxed italic">"{evaluation.summary || evaluation.comments || evaluation.feedback_text || `Total mark: ${evaluation.total_mark || 'N/A'}`}"</p>
+            </div>
+          </div>
+
+          <div>
+            <p className="text-[10px] text-slate-400 uppercase font-black tracking-widest mb-3">Submitted Files</p>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <a
+                href={evaluation.assessment_pdf_url || '#'}
+                target="_blank"
+                rel="noopener noreferrer"
+                className={`p-4 rounded-2xl border flex items-center justify-between ${
+                  evaluation.assessment_pdf_url
+                    ? 'border-slate-200 dark:border-slate-700 hover:border-indigo-400'
+                    : 'border-slate-100 dark:border-slate-800 opacity-60 pointer-events-none'
+                }`}
+              >
+                <span className="text-sm font-semibold text-slate-700 dark:text-slate-300">Assessment File</span>
+                <FontAwesomeIcon icon={faPaperclip} className="text-indigo-500" />
+              </a>
+              <a
+                href={evaluation.attendance_pdf_url || '#'}
+                target="_blank"
+                rel="noopener noreferrer"
+                className={`p-4 rounded-2xl border flex items-center justify-between ${
+                  evaluation.attendance_pdf_url
+                    ? 'border-slate-200 dark:border-slate-700 hover:border-indigo-400'
+                    : 'border-slate-100 dark:border-slate-800 opacity-60 pointer-events-none'
+                }`}
+              >
+                <span className="text-sm font-semibold text-slate-700 dark:text-slate-300">Attendance File</span>
+                <FontAwesomeIcon icon={faPaperclip} className="text-indigo-500" />
+              </a>
             </div>
           </div>
         </div>
@@ -77,6 +110,7 @@ const FacultyOrgEvaluations = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [evaluations, setEvaluations] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [detailLoading, setDetailLoading] = useState(false);
   const { user } = useAuth();
 
   useEffect(() => {
@@ -117,6 +151,27 @@ const FacultyOrgEvaluations = () => {
       ))}
     </div>
   );
+
+  const handleOpenEvaluation = async (evaluation) => {
+    if (!user?.token || !evaluation?.evaluation_id) {
+      setSelectedEvaluation(evaluation);
+      return;
+    }
+
+    try {
+      setDetailLoading(true);
+      const res = await axios.get(
+        `${import.meta.env.VITE_BACKEND_URL}/api/faculty/companyEvaluation/${encodeURIComponent(evaluation.evaluation_id)}`,
+        { headers: { Authorization: `Bearer ${user.token}` } }
+      );
+      setSelectedEvaluation({ ...evaluation, ...(res.data?.evaluation || {}) });
+    } catch (err) {
+      console.error(err);
+      setSelectedEvaluation(evaluation);
+    } finally {
+      setDetailLoading(false);
+    }
+  };
 
   return (
     <div className="animate-fade-in space-y-8 pb-12">
@@ -164,6 +219,7 @@ const FacultyOrgEvaluations = () => {
           {filteredEvaluations.map((e, idx) => {
              const type = e.university_mentor_id ? 'Mentor' : 'Organization';
              const isOrg = type === 'Organization';
+             const rating = e.rating || e.score || (e.total_mark ? Math.min(5, Math.round(e.total_mark / 20)) : 5);
              return (
                <div key={e.evaluation_id || e.id || idx} className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-100 dark:border-slate-800 shadow-sm p-8 flex flex-col transition-all duration-300 hover:shadow-xl hover:shadow-indigo-500/5 hover:-translate-y-1 group">
                  <div className="flex justify-between items-start mb-6">
@@ -178,17 +234,17 @@ const FacultyOrgEvaluations = () => {
                      {type}
                    </div>
                  </div>
-                 <p className="text-sm text-slate-600 dark:text-slate-400 italic line-clamp-3 mb-6 flex-grow">"{e.summary || e.comments || e.feedback_text}"</p>
+                 <p className="text-sm text-slate-600 dark:text-slate-400 italic line-clamp-3 mb-6 flex-grow">"{e.summary || e.comments || e.feedback_text || `Total mark: ${e.total_mark || 'N/A'}`}"</p>
                  <div className="flex justify-between items-center pt-6 border-t border-slate-100 dark:border-slate-800">
                    <div className="flex items-center gap-2 bg-slate-50 dark:bg-slate-800 px-3 py-1.5 rounded-lg border border-slate-100 dark:border-slate-700">
-                     {renderStars(e.rating || e.score || 5)}
-                     <span className="text-[10px] font-black text-slate-500">({e.rating || e.score || 5}.0)</span>
+                     {renderStars(rating)}
+                     <span className="text-[10px] font-black text-slate-500">({rating}.0)</span>
                    </div>
                    <button 
-                     onClick={() => setSelectedEvaluation(e)}
+                     onClick={() => handleOpenEvaluation(e)}
                      className="bg-slate-50 dark:bg-slate-800 hover:bg-indigo-600 text-slate-600 dark:text-slate-300 hover:text-white text-[10px] font-black uppercase tracking-widest py-2 px-4 rounded-lg transition-all active:scale-95"
                    >
-                     Details
+                     {detailLoading && selectedEvaluation?.evaluation_id === e.evaluation_id ? 'Loading...' : 'Details'}
                    </button>
                  </div>
                </div>

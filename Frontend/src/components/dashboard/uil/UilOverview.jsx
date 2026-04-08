@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
+import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../../../AuthContext';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faBuilding, faHourglassHalf, faBriefcase, faCheckCircle, faGraduationCap, faSpinner } from '@fortawesome/free-solid-svg-icons';
 
@@ -11,16 +13,18 @@ const UilOverview = () => {
      pendingInternships: 0
   });
   const [loading, setLoading] = useState(true);
+  const { user } = useAuth();
+  const navigate = useNavigate();
 
   useEffect(() => {
     const fetchDashboardStats = async () => {
       try {
         setLoading(true);
         const [activeOrgs, pendingOrgs, allInterns, pendingInterns] = await Promise.all([
-           axios.get(`${import.meta.env.VITE_BACKEND_URL}/api/UIL/companies/active`),
-           axios.get(`${import.meta.env.VITE_BACKEND_URL}/api/UIL/companyRequest`),
-           axios.get(`${import.meta.env.VITE_BACKEND_URL}/api/UIL/internships`),
-           axios.get(`${import.meta.env.VITE_BACKEND_URL}/api/UIL/internships/pending`)
+           axios.get(`${import.meta.env.VITE_BACKEND_URL}/api/UIL/companies/active`, { headers: { Authorization: `Bearer ${user?.token}` } }),
+           axios.get(`${import.meta.env.VITE_BACKEND_URL}/api/UIL/companyRequest`, { headers: { Authorization: `Bearer ${user?.token}` } }),
+           axios.get(`${import.meta.env.VITE_BACKEND_URL}/api/UIL/internships`, { headers: { Authorization: `Bearer ${user?.token}` } }),
+           axios.get(`${import.meta.env.VITE_BACKEND_URL}/api/UIL/internships/pending`, { headers: { Authorization: `Bearer ${user?.token}` } })
         ]);
 
         setStats({
@@ -37,15 +41,15 @@ const UilOverview = () => {
       }
     };
 
-    fetchDashboardStats();
-  }, []);
+    if (user?.token) fetchDashboardStats();
+  }, [user]);
 
   const displayStats = [
-    { label: 'Total Organizations', val: stats.totalOrganizations, icon: faBuilding, trend: 'Active', color: 'indigo' },
-    { label: 'Pending Orgs', val: stats.pendingOrganizations, icon: faHourglassHalf, trend: 'Requests', color: 'amber' },
-    { label: 'Total Internships', val: stats.totalInternships, icon: faBriefcase, trend: 'All Time', color: 'blue' },
-    { label: 'Pending Internships', val: stats.pendingInternships, icon: faCheckCircle, trend: 'Action Req', color: 'red' },
-    { label: 'Completed Placements', val: 'N/A', icon: faGraduationCap, trend: 'Semesterly', color: 'emerald' }
+    { label: 'Total Organizations', val: stats.totalOrganizations, icon: faBuilding, trend: 'Active', color: 'indigo', path: '/uil/approvals' },
+    { label: 'Pending Orgs', val: stats.pendingOrganizations, icon: faHourglassHalf, trend: 'Requests', color: 'amber', path: '/uil/approvals' },
+    { label: 'Total Internships', val: stats.totalInternships, icon: faBriefcase, trend: 'All Time', color: 'blue', path: '/uil/monitoring' },
+    { label: 'Pending Internships', val: stats.pendingInternships, icon: faCheckCircle, trend: 'Action Req', color: 'red', path: '/uil/internship-approvals' },
+    { label: 'Completed Placements', val: 'N/A', icon: faGraduationCap, trend: 'Semesterly', color: 'emerald', path: '/uil/reports' }
   ];
 
   return (
@@ -67,7 +71,12 @@ const UilOverview = () => {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4">
           {displayStats.map((stat, i) => (
-            <div key={i} className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all group">
+            <button
+              key={i}
+              type="button"
+              onClick={() => navigate(stat.path)}
+              className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all group text-left"
+            >
               <div className={`w-12 h-12 rounded-2xl bg-${stat.color}-50 text-${stat.color}-600 flex items-center justify-center mb-4 transition-transform group-hover:scale-110`}>
                 <FontAwesomeIcon icon={stat.icon} className="h-6 w-6" />
               </div>
@@ -76,7 +85,7 @@ const UilOverview = () => {
                 <span className="text-2xl font-black text-slate-800">{stat.val}</span>
                 <span className={`text-[10px] font-bold text-${stat.color}-600 px-2 py-0.5 bg-${stat.color}-50 rounded-lg`}>{stat.trend}</span>
               </div>
-            </div>
+            </button>
           ))}
         </div>
       )}

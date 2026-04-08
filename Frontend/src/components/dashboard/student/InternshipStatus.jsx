@@ -30,11 +30,7 @@ const InternshipStatus = () => {
            headers: { Authorization: `Bearer ${user?.token}` }
         });
         
-        let data = res.data.internship || res.data.data;
-        if (Array.isArray(res.data.applications)) {
-           data = res.data.applications.find(app => app.status === 'Accepted' || app.status === 'Active');
-        }
-
+        const data = res.data.internship || res.data.data || null;
         if (data) setInternshipData(data);
       } catch (err) {
          console.error(err);
@@ -53,7 +49,9 @@ const InternshipStatus = () => {
      );
   }
 
-  if (!internshipData || (internshipData.status !== 'Active' && internshipData.status !== 'Accepted')) {
+  const activeStatus = (internshipData?.status || '').toLowerCase();
+
+  if (!internshipData || (activeStatus !== 'in progress' && activeStatus !== 'accepted' && activeStatus !== 'active')) {
     return (
       <div className="flex flex-col justify-center items-center h-64 text-slate-500 animate-fade-in bg-white dark:bg-slate-900 rounded-3xl border border-slate-100 dark:border-slate-800 shadow-sm p-8">
          <FontAwesomeIcon icon={faBriefcase} size="3x" className="mb-4 opacity-50" />

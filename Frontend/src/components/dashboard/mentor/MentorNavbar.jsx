@@ -1,8 +1,40 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
+import axios from 'axios';
+import { useAuth } from '../../../AuthContext';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faChalkboardTeacher, faBell } from '@fortawesome/free-solid-svg-icons';
+import { faChalkboardTeacher, faBell, faSpinner } from '@fortawesome/free-solid-svg-icons';
 
 const MentorNavbar = () => {
+  const { user } = useAuth();
+  const [profile, setProfile] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchProfile = async () => {
+      try {
+        setLoading(true);
+        const res = await axios.get(`${import.meta.env.VITE_BACKEND_URL}/api/mentor/profile`, {
+          headers: { Authorization: `Bearer ${user?.token}` },
+        });
+        setProfile(res.data?.profile || null);
+      } catch (error) {
+        console.error('Failed to load mentor profile', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    if (user?.token) {
+      fetchProfile();
+    } else {
+      setLoading(false);
+    }
+  }, [user]);
+
+  const mentorName = profile?.full_name || user?.full_name || user?.name || 'Mentor';
+  const mentorSubtitle = profile?.email || 'Academic Mentor';
+  const avatarUrl = `https://ui-avatars.com/api/?name=${encodeURIComponent(mentorName)}&background=0D9488&color=fff`;
+
   return (
     <nav className="fixed top-0 left-0 right-0 h-20 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 z-50 px-8 flex items-center justify-between transition-colors">
       <div className="flex items-center gap-4">
@@ -18,26 +50,36 @@ const MentorNavbar = () => {
           </div>
         </div>
       </div>
-      
+
       <div className="flex items-center gap-4">
         <button className="relative p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors group">
           <FontAwesomeIcon icon={faBell} className="h-6 w-6" />
           <span className="absolute top-2 right-2.5 w-2 h-2 bg-red-500 rounded-full border-2 border-white dark:border-slate-800 group-hover:scale-125 transition-transform"></span>
         </button>
-        
+
         <div className="h-10 w-px bg-slate-200 dark:bg-slate-800 mx-2"></div>
-        
+
         <div className="flex items-center gap-3 pl-2">
           <div className="text-right hidden sm:block">
-            <p className="text-sm font-bold text-slate-800 dark:text-white leading-none">Dr. Samuel Ketema</p>
-            <p className="text-[10px] text-slate-500 font-bold uppercase mt-1 tracking-wider">Software Engineering</p>
+            <p className="text-sm font-bold text-slate-800 dark:text-white leading-none">
+              {loading ? 'Loading mentor...' : mentorName}
+            </p>
+            <p className="text-[10px] text-slate-500 font-bold uppercase mt-1 tracking-wider">
+              {loading ? 'Profile sync' : mentorSubtitle}
+            </p>
           </div>
           <div className="w-10 h-10 rounded-full bg-slate-200 dark:bg-slate-800 border-2 border-teal-500/20 overflow-hidden shadow-md group cursor-pointer hover:border-teal-500 transition-colors">
-            <img 
-              src="https://ui-avatars.com/api/?name=Samuel+Ketema&background=0D9488&color=fff" 
-              alt="Mentor Avatar" 
-              className="w-full h-full object-cover"
-            />
+            {loading ? (
+              <div className="w-full h-full flex items-center justify-center text-teal-600 dark:text-teal-400">
+                <FontAwesomeIcon icon={faSpinner} spin className="h-4 w-4" />
+              </div>
+            ) : (
+              <img
+                src={avatarUrl}
+                alt="Mentor Avatar"
+                className="w-full h-full object-cover"
+              />
+            )}
           </div>
         </div>
       </div>

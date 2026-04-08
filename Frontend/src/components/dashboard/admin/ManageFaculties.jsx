@@ -1,14 +1,70 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
+import axios from 'axios';
+import { useAuth } from '../../../AuthContext';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faPlus, faEdit, faTrash } from '@fortawesome/free-solid-svg-icons';
 
 const ManageFaculties = () => {
-  const [faculties, setFaculties] = useState([
-    { name: 'Faculty of Computing', code: 'BIT-CS', dean: 'Dr. Samuel K.', students: 1250, status: 'Active' },
-    { name: 'Faculty of Civil Engineering', code: 'BIT-CE', dean: 'Eng. Solomon T.', students: 980, status: 'Active' },
-    { name: 'Faculty of Electrical Eng.', code: 'BIT-EE', dean: 'Dr. Yilma B.', students: 1100, status: 'Active' },
-    { name: 'Faculty of Mechanical Eng.', code: 'BIT-ME', dean: 'Eng. Martha G.', students: 850, status: 'Inactive' },
-  ]);
+  const { user } = useAuth();
+  const [faculties, setFaculties] = useState([]);
+
+  useEffect(() => {
+    if (user?.token) {
+      fetchFaculties();
+    }
+  }, [user?.token]);
+
+  const fetchFaculties = async () => {
+    try {
+      const res = await axios.get(`${import.meta.env.VITE_BACKEND_URL}/api/admin/faculties`, {
+        headers: { Authorization: `Bearer ${user?.token}` },
+      });
+      setFaculties(Array.isArray(res.data?.faculties) ? res.data.faculties : []);
+    } catch (error) {
+      console.error('Failed to load faculties.', error);
+    }
+  };
+
+  const handleEdit = async (faculty) => {
+    const nextName = window.prompt('Update faculty name', faculty.faculty_name);
+    if (nextName === null) return;
+
+    const nextEmail = window.prompt('Update faculty email', faculty.email || '');
+    if (nextEmail === null) return;
+
+    try {
+      await axios.put(
+        `${import.meta.env.VITE_BACKEND_URL}/api/admin/faculties/${encodeURIComponent(faculty.faculty_id)}`,
+        {
+          faculty_name: nextName.trim() || faculty.faculty_name,
+          email: nextEmail.trim() || faculty.email,
+        },
+        {
+          headers: { Authorization: `Bearer ${user?.token}` },
+        }
+      );
+      await fetchFaculties();
+    } catch (error) {
+      console.error('Failed to update faculty.', error);
+    }
+  };
+
+  const handleDelete = async (faculty) => {
+    const confirmed = window.confirm(`Delete faculty "${faculty.faculty_name}"?`);
+    if (!confirmed) return;
+
+    try {
+      await axios.delete(
+        `${import.meta.env.VITE_BACKEND_URL}/api/admin/faculties/${encodeURIComponent(faculty.faculty_id)}`,
+        {
+          headers: { Authorization: `Bearer ${user?.token}` },
+        }
+      );
+      await fetchFaculties();
+    } catch (error) {
+      console.error('Failed to delete faculty.', error);
+    }
+  };
 
   return (
     <div className="animate-fade-in space-y-6">
@@ -39,11 +95,11 @@ const ManageFaculties = () => {
               {faculties.map((f, i) => (
                 <tr key={i} className="hover:bg-slate-50/50 transition-colors group">
                   <td className="p-5">
-                    <div className="font-bold text-slate-800 group-hover:text-indigo-600 transition-colors">{f.name}</div>
-                    <div className="text-[10px] text-slate-400 font-black tracking-widest uppercase mt-0.5">{f.code}</div>
+                    <div className="font-bold text-slate-800 group-hover:text-indigo-600 transition-colors">{f.faculty_name}</div>
+                    <div className="text-[10px] text-slate-400 font-black tracking-widest uppercase mt-0.5">{f.faculty_id}</div>
                   </td>
-                  <td className="p-5 text-slate-600 font-medium">{f.dean}</td>
-                  <td className="p-5 text-center font-bold text-slate-700">{f.students.toLocaleString()}</td>
+                  <td className="p-5 text-slate-600 font-medium">{f.email || 'No faculty email'}</td>
+                  <td className="p-5 text-center font-bold text-slate-700">{Number(f.total_students || 0).toLocaleString()}</td>
                   <td className="p-5 text-center">
                     <span className={`px-3 py-1 rounded-xl text-[10px] font-black uppercase tracking-widest ${
                       f.status === 'Active' ? 'bg-indigo-100 text-indigo-700' : 'bg-slate-100 text-slate-400'
@@ -53,10 +109,10 @@ const ManageFaculties = () => {
                   </td>
                   <td className="p-5 text-right">
                     <div className="flex justify-end gap-2">
-                       <button className="p-2.5 bg-slate-50 text-slate-400 hover:bg-indigo-50 hover:text-indigo-600 rounded-xl transition-all">
+                       <button onClick={() => handleEdit(f)} className="p-2.5 bg-slate-50 text-slate-400 hover:bg-indigo-50 hover:text-indigo-600 rounded-xl transition-all">
                           <FontAwesomeIcon icon={faEdit} className="h-4 w-4" />
                        </button>
-                       <button className="p-2.5 bg-slate-50 text-slate-400 hover:bg-red-50 hover:text-red-600 rounded-xl transition-all">
+                       <button onClick={() => handleDelete(f)} className="p-2.5 bg-slate-50 text-slate-400 hover:bg-red-50 hover:text-red-600 rounded-xl transition-all">
                           <FontAwesomeIcon icon={faTrash} className="h-4 w-4" />
                        </button>
                     </div>

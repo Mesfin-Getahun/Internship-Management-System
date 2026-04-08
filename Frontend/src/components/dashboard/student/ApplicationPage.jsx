@@ -42,7 +42,7 @@ const ApplicationPage = () => {
       
       if (response.data.success) {
          alert('Application submitted successfully!');
-         navigate('/student/dashboard'); // default landing page if my-applications isn't wired yet
+         navigate('/student/my-applications');
       } else {
          alert('Failed to submit application: ' + response.data.message);
       }
