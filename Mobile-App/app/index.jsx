@@ -1,84 +1,115 @@
-import React, { useState } from 'react';
-import { View, Text, KeyboardAvoidingView, Platform, ScrollView, TouchableOpacity } from 'react-native';
-import { useRouter } from 'expo-router';
-import { FontAwesome } from '@expo/vector-icons';
-import InputField from '../components/ui/InputField';
-import Button from '../components/ui/Button';
+import React, { useState } from "react";
+import { View, Text, KeyboardAvoidingView, Platform, ScrollView, TouchableOpacity, Alert } from "react-native";
+import { useRouter } from "expo-router";
+import { FontAwesome } from "@expo/vector-icons";
+import InputField from "../components/ui/InputField";
+import Button from "../components/ui/Button";
+import { getCurrentPasswordHint, validateLogin } from "../assets/mockData";
 
 export default function LoginScreen() {
   const router = useRouter();
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
+  const [identifier, setIdentifier] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
 
   const handleLogin = () => {
-    setIsLoading(true);
-    // Simulate API call
+    setLoading(true);
+    setError("");
+
     setTimeout(() => {
-      setIsLoading(false);
-      router.replace('/StudentDashboardScreen');
-    }, 1000);
+      const result = validateLogin(identifier, password);
+      setLoading(false);
+
+      if (!result.success) {
+        setError(result.error);
+        return;
+      }
+
+      router.replace(result.firstLoginRequired ? "/change-password" : "/home");
+    }, 700);
   };
 
   return (
-    <KeyboardAvoidingView 
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      className="flex-1 bg-[#F4F7FB]"
-    >
-      <ScrollView contentContainerStyle={{ flexGrow: 1 }} keyboardShouldPersistTaps="handled">
-        {/* Gradient-like Top Section */}
-        <View className="h-1/3 bg-blue-600 rounded-b-[40px] items-center justify-end pb-8">
-          <View className="w-20 h-20 bg-white rounded-full items-center justify-center mb-4 shadow-lg shadow-blue-900 border-4 border-blue-400">
-            <FontAwesome name="graduation-cap" size={36} color="#2563EB" />
+    <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} className="flex-1 bg-[#F4F7FB]">
+      <ScrollView
+        contentContainerStyle={{ flexGrow: 1 }}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
+        <View className="flex-1 justify-center overflow-hidden px-5 py-10">
+          <View className="absolute inset-0 bg-[#F4F7FB]" />
+          <View className="absolute -left-20 top-8 h-52 w-52 rounded-full bg-sky-200/45" />
+          <View className="absolute -right-16 top-24 h-64 w-64 rounded-full bg-blue-300/25" />
+          <View className="absolute bottom-0 left-0 right-0 h-[40%] rounded-t-[56px] bg-[#0B5AD9]" />
+
+          <View className="mb-8 items-center px-4">
+            <View className="mb-5 h-20 w-20 items-center justify-center rounded-[28px] border border-white/70 bg-white shadow-md">
+              <FontAwesome name="graduation-cap" size={34} color="#2563EB" />
+            </View>
+            <Text className="text-center text-3xl font-extrabold text-slate-900">Student Internship Portal</Text>
+            <Text className="mt-3 max-w-[300px] text-center text-sm leading-6 text-slate-500">
+              Continue with your student credentials to manage internship progress and university documents.
+            </Text>
           </View>
-          <Text className="text-white text-3xl font-bold tracking-tight">Welcome</Text>
-          <Text className="text-blue-100 mt-1 font-medium text-base">Student Internship Portal</Text>
-        </View>
 
-        {/* Login Card */}
-        <View className="flex-1 px-5 -mt-8">
-          <View className="bg-white rounded-[32px] p-6 shadow-xl shadow-gray-200 border border-gray-100">
-            <Text className="text-2xl font-bold text-gray-800 mb-6 text-center">Sign In</Text>
-
-            <View className="mb-2">
-              <Text className="text-gray-600 font-medium mb-2 ml-1 text-sm">Username / Email</Text>
-              <InputField
-                iconName="user"
-                placeholder="Enter your email"
-                value={email}
-                onChangeText={setEmail}
-              />
+          <View className="rounded-[34px] border border-white/70 bg-white px-6 py-7 shadow-md">
+            <View className="mb-6">
+              <Text className="text-2xl font-bold text-slate-900">Sign In</Text>
+              <Text className="mt-2 text-sm leading-6 text-slate-500">
+                Welcome back. Access your dashboard, applications, and notifications here.
+              </Text>
             </View>
 
-            <View className="mb-4">
-              <Text className="text-gray-600 font-medium mb-2 ml-1 text-sm">Password</Text>
-              <InputField
-                iconName="lock"
-                placeholder="Enter your password"
-                value={password}
-                onChangeText={setPassword}
-                secureTextEntry
-              />
-            </View>
+            <InputField
+              label="Username / Student ID / Email"
+              iconName="user"
+              placeholder="Enter your identifier"
+              value={identifier}
+              onChangeText={setIdentifier}
+              className="mb-4"
+            />
 
-            <View className="flex-row justify-end mb-8">
-              <TouchableOpacity>
-                <Text className="text-blue-600 font-semibold text-sm">Forgot Password?</Text>
-              </TouchableOpacity>
-            </View>
+            <InputField
+              label="Password"
+              iconName="lock"
+              placeholder="Enter your password"
+              value={password}
+              onChangeText={setPassword}
+              secureTextEntry
+              helperText={`Default password: ${getCurrentPasswordHint()}`}
+              className="mb-2"
+            />
+
+            {error ? (
+              <View className="mb-4 mt-2 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3">
+                <Text className="text-sm font-medium text-rose-600">{error}</Text>
+              </View>
+            ) : null}
+
+            <TouchableOpacity
+              activeOpacity={0.8}
+              className="mb-6 mt-2 self-end"
+              onPress={() =>
+                Alert.alert("Forgot Password", "Password reset can be connected to your backend recovery flow.")
+              }
+            >
+              <Text className="text-sm font-semibold text-blue-600">Forgot Password?</Text>
+            </TouchableOpacity>
 
             <Button
               title="Sign In"
               onPress={handleLogin}
-              loading={isLoading}
+              loading={loading}
+              disabled={!identifier.trim() || !password.trim()}
+              className="rounded-[20px] bg-[#0B5AD9] shadow-md"
             />
-          </View>
 
-          <View className="mt-8 flex-row justify-center pb-8">
-            <Text className="text-gray-500 text-sm font-medium">Need help logging in? </Text>
-            <TouchableOpacity>
-              <Text className="text-blue-600 text-sm font-bold">Contact Support</Text>
-            </TouchableOpacity>
+            <View className="mt-6 rounded-2xl bg-slate-50 px-4 py-4">
+              <Text className="text-xs font-semibold uppercase tracking-[1.4px] text-slate-400">Demo Access</Text>
+              <Text className="mt-2 text-sm font-semibold text-slate-700">Identifier: Mesfin or ETS-1234</Text>
+              <Text className="mt-1 text-sm text-slate-500">{`Password: ${getCurrentPasswordHint()}`}</Text>
+            </View>
           </View>
         </View>
       </ScrollView>

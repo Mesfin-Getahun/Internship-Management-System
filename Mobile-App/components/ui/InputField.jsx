@@ -1,53 +1,63 @@
-import React, { useState } from 'react';
-import { View, TextInput, TouchableOpacity } from 'react-native';
-import { FontAwesome } from '@expo/vector-icons';
+import React, { useState } from "react";
+import { View, Text, TextInput, TouchableOpacity } from "react-native";
+import { FontAwesome } from "@expo/vector-icons";
 
-const InputField = ({ 
-  iconName, 
-  placeholder, 
-  value, 
-  onChangeText, 
+export default function InputField({
+  label,
+  iconName,
+  placeholder,
+  value,
+  onChangeText,
   secureTextEntry = false,
-  className = ''
-}) => {
+  keyboardType = "default",
+  autoCapitalize = "none",
+  helperText,
+  error,
+  className = "",
+}) {
   const [isFocused, setIsFocused] = useState(false);
   const [isPasswordVisible, setIsPasswordVisible] = useState(!secureTextEntry);
 
   return (
-    <View 
-      className={`flex-row items-center bg-white rounded-2xl px-4 py-3 mb-4 shadow-sm border ${
-        isFocused ? 'border-blue-600 shadow-blue-200' : 'border-gray-200'
-      } ${className}`}
-    >
-      {iconName && (
-        <FontAwesome 
-          name={iconName} 
-          size={20} 
-          color={isFocused ? '#2563EB' : '#9CA3AF'} 
-          style={{ marginRight: 12 }}
-        />
-      )}
-      <TextInput
-        className="flex-1 text-gray-800 text-base py-1"
-        placeholder={placeholder}
-        placeholderTextColor="#9CA3AF"
-        value={value}
-        onChangeText={onChangeText}
-        secureTextEntry={!isPasswordVisible}
-        onFocus={() => setIsFocused(true)}
-        onBlur={() => setIsFocused(false)}
-      />
-      {secureTextEntry && (
-        <TouchableOpacity onPress={() => setIsPasswordVisible(!isPasswordVisible)} style={{ marginLeft: 8 }}>
-          <FontAwesome 
-            name={isPasswordVisible ? 'eye-slash' : 'eye'} 
-            size={20} 
-            color="#9CA3AF" 
+    <View className={className}>
+      {label ? <Text className="mb-2 ml-1 text-sm font-semibold text-slate-600">{label}</Text> : null}
+      <View
+        className={`flex-row items-center rounded-2xl border bg-white px-4 py-4 ${
+          error
+            ? "border-rose-400"
+            : isFocused
+              ? "border-blue-500"
+              : "border-slate-200"
+        }`}
+      >
+        {iconName ? (
+          <FontAwesome
+            name={iconName}
+            size={18}
+            color={error ? "#F43F5E" : isFocused ? "#2563EB" : "#94A3B8"}
+            style={{ marginRight: 12 }}
           />
-        </TouchableOpacity>
-      )}
+        ) : null}
+        <TextInput
+          className="flex-1 text-base text-slate-800"
+          placeholder={placeholder}
+          placeholderTextColor="#94A3B8"
+          value={value}
+          onChangeText={onChangeText}
+          secureTextEntry={!isPasswordVisible}
+          autoCapitalize={autoCapitalize}
+          keyboardType={keyboardType}
+          onFocus={() => setIsFocused(true)}
+          onBlur={() => setIsFocused(false)}
+        />
+        {secureTextEntry ? (
+          <TouchableOpacity activeOpacity={0.8} onPress={() => setIsPasswordVisible((current) => !current)}>
+            <FontAwesome name={isPasswordVisible ? "eye-slash" : "eye"} size={18} color="#94A3B8" />
+          </TouchableOpacity>
+        ) : null}
+      </View>
+      {error ? <Text className="mt-2 ml-1 text-xs font-medium text-rose-500">{error}</Text> : null}
+      {!error && helperText ? <Text className="mt-2 ml-1 text-xs text-slate-400">{helperText}</Text> : null}
     </View>
   );
-};
-
-export default InputField;
+}
