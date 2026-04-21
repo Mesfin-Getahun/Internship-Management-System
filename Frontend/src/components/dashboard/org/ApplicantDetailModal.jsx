@@ -2,12 +2,28 @@ import React from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faTimes, faFilePdf, faFileAlt } from '@fortawesome/free-solid-svg-icons';
 
+const parseSkills = (skills) => {
+  if (Array.isArray(skills)) {
+    return skills.filter(Boolean).map((skill) => String(skill).trim()).filter(Boolean);
+  }
+
+  if (typeof skills !== 'string') {
+    return [];
+  }
+
+  return skills
+    .split(',')
+    .map((skill) => skill.trim())
+    .filter(Boolean);
+};
+
 const ApplicantDetailModal = ({ applicant, isOpen, onClose, onAction }) => {
   if (!isOpen || !applicant) return null;
 
   const studentName = applicant.student_name || applicant.name || 'Unknown Student';
   const faculty = applicant.faculty || applicant.department || 'Not specified';
   const applicationDate = applicant.applied_date || applicant.submitted_at;
+  const studentSkills = parseSkills(applicant.skills);
 
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 sm:p-6">
@@ -62,6 +78,26 @@ const ApplicantDetailModal = ({ applicant, isOpen, onClose, onAction }) => {
                 <p className="text-[10px] text-slate-400 font-bold uppercase mb-1">ID Number</p>
                 <p className="text-sm font-bold text-slate-700 dark:text-slate-300">{applicant.student_id || 'Not provided'}</p>
               </div>
+            </div>
+          </section>
+
+          <section>
+            <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-4">Student Skills</h4>
+            <div className="bg-slate-50 dark:bg-slate-800/30 p-5 rounded-2xl border border-slate-100 dark:border-slate-800">
+              {studentSkills.length > 0 ? (
+                <div className="flex flex-wrap gap-2">
+                  {studentSkills.map((skill) => (
+                    <span
+                      key={skill}
+                      className="px-3 py-1.5 rounded-xl bg-blue-100 text-blue-700 dark:bg-blue-900/20 dark:text-blue-300 text-xs font-bold"
+                    >
+                      {skill}
+                    </span>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm text-slate-500 dark:text-slate-400">No skills were added to this student profile.</p>
+              )}
             </div>
           </section>
 

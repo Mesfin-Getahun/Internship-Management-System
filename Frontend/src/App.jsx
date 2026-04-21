@@ -3,6 +3,7 @@ import { HashRouter, Routes, Route, Navigate } from "react-router-dom";
 import { useAuth } from "./AuthContext";
 
 import OrganizationSignUp from "./pages/auth/OrganizationSignUp.jsx";
+import InvitedCompanySignUp from "./pages/auth/InvitedCompanySignUp.jsx";
 import LoginPage from "./pages/auth/LoginPage.jsx";
 import ChangePassword from "./components/setup/ChangePassword.jsx";
 import AdminDashboard from "./pages/dashboard/AdminDashboard.jsx";
@@ -30,7 +31,11 @@ const getHomeRoute = (user) => {
   }
 };
 
-const ProtectedRoute = ({ children, forChangePassword = false }) => {
+const ProtectedRoute = ({
+  children,
+  forChangePassword = false,
+  allowedRoles = null,
+}) => {
   const { user } = useAuth();
 
   if (!user) {
@@ -42,6 +47,14 @@ const ProtectedRoute = ({ children, forChangePassword = false }) => {
   }
 
   if (!user.isFirstLogin && forChangePassword) {
+    return <Navigate to={getHomeRoute(user)} replace />;
+  }
+
+  if (
+    Array.isArray(allowedRoles) &&
+    allowedRoles.length > 0 &&
+    !allowedRoles.includes(user.role)
+  ) {
     return <Navigate to={getHomeRoute(user)} replace />;
   }
 
@@ -79,15 +92,16 @@ const App = () => {
         <Routes>
           <Route path="/login" element={<LoginPage />} />
           <Route path="/register/organization" element={<OrganizationSignUp />} />
+          <Route path="/company/invite" element={<InvitedCompanySignUp />} />
           <Route path="/change-password" element={<ProtectedRoute forChangePassword={true}><ChangePassword /></ProtectedRoute>} />
 
-          <Route path="/admin/*" element={<ProtectedRoute><AdminDashboard /></ProtectedRoute>} />
-          <Route path="/faculty/*" element={<ProtectedRoute><FacultyDashboard /></ProtectedRoute>} />
-          <Route path="/mentor/*" element={<ProtectedRoute><MentorDashboard /></ProtectedRoute>} />
-          <Route path="/student/*" element={<ProtectedRoute><StudentDashboard /></ProtectedRoute>} />
-          <Route path="/organization/*" element={<ProtectedRoute><OrganizationDashboard /></ProtectedRoute>} />
-          <Route path="/uil/*" element={<ProtectedRoute><UilDashboard /></ProtectedRoute>} />
-          <Route path="/org-supervisor/*" element={<ProtectedRoute><OrganizationSupervisorDashboard /></ProtectedRoute>} />
+          <Route path="/admin/*" element={<ProtectedRoute allowedRoles={["admin"]}><AdminDashboard /></ProtectedRoute>} />
+          <Route path="/faculty/*" element={<ProtectedRoute allowedRoles={["faculty"]}><FacultyDashboard /></ProtectedRoute>} />
+          <Route path="/mentor/*" element={<ProtectedRoute allowedRoles={["mentor"]}><MentorDashboard /></ProtectedRoute>} />
+          <Route path="/student/*" element={<ProtectedRoute allowedRoles={["student"]}><StudentDashboard /></ProtectedRoute>} />
+          <Route path="/organization/*" element={<ProtectedRoute allowedRoles={["organization"]}><OrganizationDashboard /></ProtectedRoute>} />
+          <Route path="/uil/*" element={<ProtectedRoute allowedRoles={["uil"]}><UilDashboard /></ProtectedRoute>} />
+          <Route path="/org-supervisor/*" element={<ProtectedRoute allowedRoles={["org_supervisor"]}><OrganizationSupervisorDashboard /></ProtectedRoute>} />
 
           <Route path="*" element={<Navigate to={getHomeRoute(user)} replace />} />
         </Routes>

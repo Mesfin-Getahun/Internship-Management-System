@@ -67,6 +67,11 @@ const StudentSidebar = ({ activeTab }) => {
     >
       <FontAwesomeIcon icon={item.icon} className="h-5 w-5 shrink-0" />
       <span className="truncate">{item.label}</span>
+      {item.id === "recommendation" && isRecommendationAvailable && (
+        <span className="ml-auto rounded-full bg-emerald-500 px-2 py-0.5 text-[10px] font-black uppercase tracking-wider text-white">
+          New
+        </span>
+      )}
     </Link>
   );
 

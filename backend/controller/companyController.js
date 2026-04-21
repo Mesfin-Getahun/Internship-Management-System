@@ -32,8 +32,8 @@ const postInternship = async (req, res) => {
     // Insert into database
     const query = `
       INSERT INTO internship 
-      (title, description, image, start_date, end_date, skills, location, company_id)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      (title, description, image, start_date, end_date, skills, location, company_id, status)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
     `;
 
     const [result] = await db.query(query, [
@@ -45,6 +45,7 @@ const postInternship = async (req, res) => {
       requirements || skills || skill || null,
       location || null,
       company_id,
+      "pending",
     ]);
 
     res.status(201).json({
@@ -347,6 +348,7 @@ const getApplications = async (req, res) => {
         s.email AS student_email,
         s.department,
         s.faculty,
+        s.skills,
 
         i.internship_id,
         i.title AS internship_title,
@@ -403,6 +405,7 @@ const viewApplication = async (req, res) => {
         s.phone_number,
         s.department,
         s.faculty,
+        s.skills,
 
         i.internship_id,
         i.title AS internship_title,

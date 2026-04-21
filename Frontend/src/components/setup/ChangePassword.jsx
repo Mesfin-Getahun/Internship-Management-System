@@ -125,6 +125,7 @@ const ChangePassword = () => {
       await axios.post(`${import.meta.env.VITE_BACKEND_URL}/api/change-password`, {
         id,
         role,
+        currentPassword: passwords.current,
         newPassword: passwords.new,
       });
 

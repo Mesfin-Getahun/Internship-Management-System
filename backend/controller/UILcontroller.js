@@ -1,12 +1,196 @@
 import db from "../config/mysql.js";
+import bcrypt from "bcryptjs";
+import jwt from "jsonwebtoken";
 import { sendEmail } from "../utils/sendEmail.js";
+import { uploadToCloudinary } from "../utils/cloudinaryUpload.js";
 import createLog from "../utils/createLog.js";
+
+const RECOMMENDATION_SETTING_KEYS = [
+  "recommendation_letter_url",
+  "recommendation_letter_name",
+  "recommendation_letter_available",
+  "recommendation_letter_updated_at",
+];
 
 const getEmailFailurePayload = () => ({
   emailSent: false,
   emailWarning:
     "Status was updated, but the notification email could not be sent.",
 });
+
+const createInviteToken = (payload) =>
+  jwt.sign({ ...payload, purpose: "company_invite" }, process.env.JWT_SECRET, {
+    expiresIn: "7d",
+  });
+
+const verifyInviteToken = (token) => jwt.verify(token, process.env.JWT_SECRET);
+
+const normalizeBaseUrl = (value) => {
+  if (!value || typeof value !== "string") return null;
+
+  try {
+    const parsed = new URL(value);
+    return parsed.origin.replace(/\/+$/, "");
+  } catch {
+    return null;
+  }
+};
+
+const getFrontendBaseUrl = (req, explicitUrl) => {
+  const requestOrigin = req.get("origin");
+  const requestReferer = req.get("referer");
+
+  return (
+    normalizeBaseUrl(explicitUrl) ||
+    normalizeBaseUrl(process.env.FRONTEND_URL) ||
+    normalizeBaseUrl(process.env.APP_URL) ||
+    normalizeBaseUrl(requestOrigin) ||
+    normalizeBaseUrl(requestReferer) ||
+    "http://localhost:5173"
+  );
+};
+
+const getFrontendInviteUrl = (req, token, explicitUrl) => {
+  const baseUrl = getFrontendBaseUrl(req, explicitUrl);
+  return `${baseUrl}/#/company/invite?token=${encodeURIComponent(token)}`;
+};
+
+const getRecommendationLetterSettings = async () => {
+  const [rows] = await db.query(
+    `
+    SELECT setting_key, setting_value
+    FROM system_settings
+    WHERE setting_key IN (?, ?, ?, ?)
+    `,
+    RECOMMENDATION_SETTING_KEYS,
+  );
+
+  const settings = Object.fromEntries(
+    rows.map((row) => [row.setting_key, row.setting_value]),
+  );
+
+  const available = settings.recommendation_letter_available === "true";
+  const file_url = settings.recommendation_letter_url || null;
+  const file_name = settings.recommendation_letter_name || null;
+  const updated_at = settings.recommendation_letter_updated_at || null;
+
+  return {
+    available: available && Boolean(file_url),
+    file_url,
+    file_name,
+    updated_at,
+  };
+};
+
+const upsertSystemSetting = async (settingKey, settingValue) => {
+  await db.query(
+    `
+    INSERT INTO system_settings (setting_key, setting_value)
+    VALUES (?, ?)
+    ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value)
+    `,
+    [settingKey, settingValue],
+  );
+};
+
+const getRecommendationLetter = async (req, res) => {
+  try {
+    const recommendation = await getRecommendationLetterSettings();
+
+    res.status(200).json({
+      success: true,
+      recommendation,
+    });
+  } catch (error) {
+    console.error("Get recommendation letter error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to fetch recommendation letter",
+    });
+  }
+};
+
+const uploadRecommendationLetter = async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({
+        success: false,
+        message: "Recommendation letter PDF is required",
+      });
+    }
+
+    const uploadedUrl = await uploadToCloudinary(
+      req.file.buffer,
+      "uil/recommendation_letters",
+      req.file.originalname,
+    );
+
+    const now = new Date().toISOString();
+
+    await upsertSystemSetting("recommendation_letter_url", uploadedUrl);
+    await upsertSystemSetting("recommendation_letter_name", req.file.originalname);
+    await upsertSystemSetting("recommendation_letter_available", "true");
+    await upsertSystemSetting("recommendation_letter_updated_at", now);
+
+    if (req.user?.UIL_id) {
+      await createLog(
+        req.user.UIL_id,
+        "RECOMMENDATION_LETTER_UPLOADED",
+        `UIL uploaded recommendation letter ${req.file.originalname}`,
+      );
+    }
+
+    const recommendation = await getRecommendationLetterSettings();
+
+    res.status(200).json({
+      success: true,
+      message: "Recommendation letter uploaded successfully",
+      recommendation,
+    });
+  } catch (error) {
+    console.error("Upload recommendation letter error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to upload recommendation letter",
+    });
+  }
+};
+
+const removeRecommendationLetter = async (req, res) => {
+  try {
+    const now = new Date().toISOString();
+
+    await upsertSystemSetting("recommendation_letter_url", "");
+    await upsertSystemSetting("recommendation_letter_name", "");
+    await upsertSystemSetting("recommendation_letter_available", "false");
+    await upsertSystemSetting("recommendation_letter_updated_at", now);
+
+    if (req.user?.UIL_id) {
+      await createLog(
+        req.user.UIL_id,
+        "RECOMMENDATION_LETTER_REMOVED",
+        "UIL removed the active recommendation letter",
+      );
+    }
+
+    res.status(200).json({
+      success: true,
+      message: "Recommendation letter removed successfully",
+      recommendation: {
+        available: false,
+        file_url: null,
+        file_name: null,
+        updated_at: now,
+      },
+    });
+  } catch (error) {
+    console.error("Remove recommendation letter error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to remove recommendation letter",
+    });
+  }
+};
 
 const allInternships = async (req, res) => {
   try {
@@ -50,13 +234,16 @@ const pendingInternships = async (req, res) => {
       SELECT 
         i.internship_id,
         i.title,
+        i.description,
         i.start_date,
         i.end_date,
+        i.skills,
+        COALESCE(i.status, 'pending') AS status,
         c.company_name,
         c.location
       FROM internship i
       JOIN company c ON i.company_id = c.company_id
-      WHERE i.status = 'pending'
+      WHERE i.status = 'pending' OR i.status IS NULL
       ORDER BY i.start_date DESC
     `);
 
@@ -229,6 +416,257 @@ const getActiveCompanies = async (req, res) => {
     res.status(500).json({
       success: false,
       message: "Failed to fetch active companies",
+    });
+  }
+};
+
+const inviteCompany = async (req, res) => {
+  try {
+    const { company_name, email, frontend_url } = req.body;
+
+    if (!company_name || !email) {
+      return res.status(400).json({
+        success: false,
+        message: "Company name and email are required",
+      });
+    }
+
+    const [existingCompany] = await db.query(
+      "SELECT company_id, status FROM company WHERE email = ? LIMIT 1",
+      [email],
+    );
+
+    if (existingCompany.length > 0) {
+      return res.status(400).json({
+        success: false,
+        message: "A company with this email already exists",
+      });
+    }
+
+    const [result] = await db.query(
+      `
+      INSERT INTO company (company_name, email, status)
+      VALUES (?, ?, 'invited')
+      `,
+      [company_name, email],
+    );
+
+    const company_id = result.insertId;
+    const inviteToken = createInviteToken({ company_id, email });
+    const inviteUrl = getFrontendInviteUrl(req, inviteToken, frontend_url);
+
+    await sendEmail(
+      email,
+      "Complete your UIL company registration",
+      `
+        <h2>Hello ${company_name}</h2>
+        <p>You have been invited by UIL to complete your company registration.</p>
+        <p>Click the link below to finish your registration and set your password:</p>
+        <p><a href="${inviteUrl}" target="_blank">Complete company registration</a></p>
+        <p>This invitation link will expire in 7 days.</p>
+        <br/>
+        <p>Best regards,<br/>Internship Management Team</p>
+      `,
+    );
+
+    if (req.user?.UIL_id) {
+      await createLog(
+        req.user.UIL_id,
+        "COMPANY_INVITE_SENT",
+        `UIL invited ${company_name} (${email}) to complete registration`,
+      );
+    }
+
+    res.status(201).json({
+      success: true,
+      message: "Company invitation sent successfully",
+      inviteUrl,
+    });
+  } catch (error) {
+    console.error("Invite company error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to invite company",
+    });
+  }
+};
+
+const verifyCompanyInvite = async (req, res) => {
+  try {
+    const { token } = req.params;
+    const payload = verifyInviteToken(token);
+
+    if (payload?.purpose !== "company_invite") {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid invite token",
+      });
+    }
+
+    const [company] = await db.query(
+      "SELECT company_id, company_name, email, status FROM company WHERE company_id = ? LIMIT 1",
+      [payload.company_id],
+    );
+
+    if (company.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: "Invited company not found",
+      });
+    }
+
+    if (company[0].status !== "invited") {
+      return res.status(400).json({
+        success: false,
+        message: "Invite has already been used or is invalid",
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      invite: {
+        company_id: company[0].company_id,
+        company_name: company[0].company_name,
+        email: company[0].email,
+      },
+    });
+  } catch (error) {
+    console.error("Verify company invite error:", error);
+    res.status(400).json({
+      success: false,
+      message: "Invalid or expired invite token",
+    });
+  }
+};
+
+const completeCompanyRegistration = async (req, res) => {
+  try {
+    const {
+      inviteToken,
+      password,
+      confirmPassword,
+      agreed,
+      company_name,
+      company_type,
+      industry,
+      website,
+      email,
+      phone_number,
+      location,
+      city,
+      region,
+    } = req.body;
+
+    if (!inviteToken) {
+      return res.status(400).json({
+        success: false,
+        message: "Invite token is required",
+      });
+    }
+
+    if (!password || !confirmPassword || password !== confirmPassword) {
+      return res.status(400).json({
+        success: false,
+        message: "Password and confirm password must match",
+      });
+    }
+
+    const payload = verifyInviteToken(inviteToken);
+    if (payload?.purpose !== "company_invite") {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid invite token",
+      });
+    }
+
+    const [companies] = await db.query(
+      "SELECT * FROM company WHERE company_id = ? LIMIT 1",
+      [payload.company_id],
+    );
+
+    if (companies.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: "Invited company not found",
+      });
+    }
+
+    const invitedCompany = companies[0];
+    if (invitedCompany.status !== "invited") {
+      return res.status(400).json({
+        success: false,
+        message: "This invitation has already been completed or cannot be used",
+      });
+    }
+
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    let profileURL = invitedCompany.profile_pic;
+    let licenseURL = invitedCompany.license_url;
+
+    if (req.files?.profileFile?.[0]) {
+      profileURL = await uploadToCloudinary(
+        req.files.profileFile[0].buffer,
+        "company/profile",
+        req.files.profileFile[0].originalname,
+      );
+    }
+
+    if (req.files?.licenseFile?.[0]) {
+      licenseURL = await uploadToCloudinary(
+        req.files.licenseFile[0].buffer,
+        "company/license",
+        req.files.licenseFile[0].originalname,
+      );
+    }
+
+    await db.query(
+      `
+      UPDATE company
+      SET company_name = ?,
+          company_type = ?,
+          industry = ?,
+          website = ?,
+          email = ?,
+          phone_number = ?,
+          location = ?,
+          city = ?,
+          region = ?,
+          password = ?,
+          profile_pic = ?,
+          license_url = ?,
+          agreed = ?,
+          status = 'pending'
+      WHERE company_id = ?
+      `,
+      [
+        company_name || invitedCompany.company_name,
+        company_type || invitedCompany.company_type,
+        industry || invitedCompany.industry,
+        website || invitedCompany.website,
+        email || invitedCompany.email,
+        phone_number || invitedCompany.phone_number,
+        location || invitedCompany.location,
+        city || invitedCompany.city,
+        region || invitedCompany.region,
+        hashedPassword,
+        profileURL,
+        licenseURL,
+        agreed === "true" || agreed === true ? 1 : 0,
+        invitedCompany.company_id,
+      ],
+    );
+
+    res.status(200).json({
+      success: true,
+      message:
+        "Company information submitted successfully. Awaiting UIL approval.",
+    });
+  } catch (error) {
+    console.error("Complete company registration error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to complete company registration",
     });
   }
 };
@@ -460,4 +898,10 @@ export {
   pendingInternships,
   companyRequest,
   getActiveCompanies,
+  inviteCompany,
+  verifyCompanyInvite,
+  completeCompanyRegistration,
+  getRecommendationLetter,
+  uploadRecommendationLetter,
+  removeRecommendationLetter,
 };

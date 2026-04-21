@@ -1,4 +1,5 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import axios from 'axios';
 
 const AuthContext = createContext(null);
 
@@ -38,14 +39,50 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  const [isRecommendationAvailable, setRecommendationAvailable] = useState(false);
+  const [recommendationLetter, setRecommendationLetter] = useState(null);
+  const isRecommendationAvailable = Boolean(recommendationLetter?.available && recommendationLetter?.file_url);
 
-  const makeRecommendationAvailable = () => setRecommendationAvailable(true);
-  const makeRecommendationUnavailable = () => setRecommendationAvailable(false);
+  const refreshRecommendationLetter = useCallback(async (targetRole) => {
+    const activeUser = user;
+    const role = targetRole || activeUser?.role;
+    const token = activeUser?.token;
+
+    if (!role || !token || !['student', 'uil'].includes(role.toLowerCase())) {
+      setRecommendationLetter(null);
+      return null;
+    }
+
+    const endpoint =
+      role.toLowerCase() === 'uil'
+        ? '/api/UIL/recommendation-letter'
+        : '/api/student/recommendation-letter';
+
+    try {
+      const response = await axios.get(
+        `${import.meta.env.VITE_BACKEND_URL}${endpoint}`,
+        { headers: { Authorization: `Bearer ${token}` } },
+      );
+
+      const recommendation = response.data?.recommendation || null;
+      setRecommendationLetter(recommendation);
+      return recommendation;
+    } catch (error) {
+      setRecommendationLetter(null);
+      return null;
+    }
+  }, [user]);
+
+  useEffect(() => {
+    if (user?.token && ['student', 'uil'].includes((user.role || '').toLowerCase())) {
+      refreshRecommendationLetter(user.role);
+    } else {
+      setRecommendationLetter(null);
+    }
+  }, [user, refreshRecommendationLetter]);
 
 
   return (
-    <AuthContext.Provider value={{ user, login, logout, completeSetup, isRecommendationAvailable, makeRecommendationAvailable, makeRecommendationUnavailable }}>
+    <AuthContext.Provider value={{ user, login, logout, completeSetup, isRecommendationAvailable, recommendationLetter, refreshRecommendationLetter }}>
       {children}
     </AuthContext.Provider>
   );

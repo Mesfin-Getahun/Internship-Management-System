@@ -11,7 +11,7 @@ const IndustrySectors = [
   'Construction'
 ];
 
-const OrgInfoStep = ({ formData, updateFormData, errors }) => {
+const OrgInfoStep = ({ formData, updateFormData, errors, isInvite = false }) => {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [strength, setStrength] = useState({ score: 0, label: 'None', color: 'bg-slate-200' });
@@ -37,6 +37,13 @@ const OrgInfoStep = ({ formData, updateFormData, errors }) => {
 
   return (
     <div className="space-y-6 animate-fade-in">
+      {isInvite && (
+        <div className="rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800">
+          This registration was started by UIL. Your company name and email are
+          prefilled from the invitation link.
+        </div>
+      )}
+
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div>
           <label className="block text-sm font-medium text-slate-700 mb-1">Organization Name</label>
@@ -44,6 +51,7 @@ const OrgInfoStep = ({ formData, updateFormData, errors }) => {
             type="text"
             value={formData.orgName}
             onChange={e => updateFormData({ orgName: e.target.value })}
+            disabled={isInvite}
             className={`block w-full px-4 py-2.5 border rounded-lg focus:ring-2 focus:ring-blue-900 outline-none transition-all ${errors.orgName ? 'border-red-500 bg-red-50' : 'border-slate-300'}`}
             placeholder="e.g. Acme Corp"
           />
@@ -84,6 +92,7 @@ const OrgInfoStep = ({ formData, updateFormData, errors }) => {
             type="email"
             value={formData.orgEmail}
             onChange={e => updateFormData({ orgEmail: e.target.value })}
+            disabled={isInvite}
             className={`block w-full px-4 py-2.5 border rounded-lg focus:ring-2 focus:ring-blue-900 outline-none transition-all ${errors.orgEmail ? 'border-red-500 bg-red-50' : 'border-slate-300'}`}
             placeholder="contact@org.com"
           />

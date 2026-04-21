@@ -60,6 +60,7 @@ const LoginPage = () => {
       if (response.data.success) {
         const { user, role, token, firstLogin } = response.data;
         const normalizedRole = normalizeRole(role);
+        console.debug("Login role returned by backend:", role, "->", normalizedRole);
         
         const authenticatedUser = {
           ...user,
@@ -73,6 +74,11 @@ const LoginPage = () => {
         if (authenticatedUser.isFirstLogin) {
           navigate('/change-password');
         } else {
+          if (normalizedRole !== "uil") {
+            setError(
+              `Login succeeded as ${normalizedRole}, not UIL. Please use a UIL account for UIL dashboard actions.`,
+            );
+          }
           navigate(getHomeRoute(normalizedRole));
         }
       }

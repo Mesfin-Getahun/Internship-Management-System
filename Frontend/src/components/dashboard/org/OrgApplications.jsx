@@ -6,11 +6,29 @@ import ApplicantDetailModal from './ApplicantDetailModal.jsx';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faSpinner, faInbox } from '@fortawesome/free-solid-svg-icons';
 
+const parseSkills = (skills) => {
+  if (Array.isArray(skills)) {
+    return skills.filter(Boolean).map((skill) => String(skill).trim()).filter(Boolean);
+  }
+
+  if (typeof skills !== 'string') {
+    return [];
+  }
+
+  return skills
+    .split(',')
+    .map((skill) => skill.trim())
+    .filter(Boolean);
+};
+
 const OrgApplications = () => {
   const [selectedApplicant, setSelectedApplicant] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [applications, setApplications] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [selectedInternship, setSelectedInternship] = useState('all');
+  const [selectedStatus, setSelectedStatus] = useState('all');
+  const [selectedSkill, setSelectedSkill] = useState('all');
   const { user } = useAuth();
   
   const fetchApplications = async () => {
@@ -35,6 +53,35 @@ const OrgApplications = () => {
   useEffect(() => {
     if (user?.token) fetchApplications();
   }, [user]);
+
+  const internshipOptions = Array.from(
+    new Set(
+      applications
+        .map((app) => app.internship_title || app.title)
+        .filter(Boolean)
+    )
+  );
+
+  const skillOptions = Array.from(
+    new Set(
+      applications.flatMap((app) => parseSkills(app.skills))
+    )
+  ).sort((a, b) => a.localeCompare(b));
+
+  const filteredApplications = applications.filter((app) => {
+    const internshipTitle = app.internship_title || app.title || '';
+    const normalizedStatus = (app.status || 'pending').toLowerCase();
+    const applicantSkills = parseSkills(app.skills).map((skill) => skill.toLowerCase());
+
+    const matchesInternship =
+      selectedInternship === 'all' || internshipTitle === selectedInternship;
+    const matchesStatus =
+      selectedStatus === 'all' || normalizedStatus === selectedStatus;
+    const matchesSkill =
+      selectedSkill === 'all' || applicantSkills.includes(selectedSkill.toLowerCase());
+
+    return matchesInternship && matchesStatus && matchesSkill;
+  });
 
   const handleViewDetails = (app) => {
     const fetchDetail = async () => {
@@ -87,14 +134,36 @@ const OrgApplications = () => {
           <p className="text-slate-500 text-sm mt-1">Review student applications and supporting academic documents.</p>
         </div>
         <div className="flex gap-3 w-full sm:w-auto">
-          <select className="flex-1 sm:flex-none px-4 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-bold focus:outline-none focus:ring-2 focus:ring-blue-500">
-            <option>All Internships</option>
+          <select
+            value={selectedInternship}
+            onChange={(e) => setSelectedInternship(e.target.value)}
+            className="flex-1 sm:flex-none px-4 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-bold focus:outline-none focus:ring-2 focus:ring-blue-500"
+          >
+            <option value="all">All Internships</option>
+            {internshipOptions.map((title) => (
+              <option key={title} value={title}>{title}</option>
+            ))}
           </select>
-          <select className="flex-1 sm:flex-none px-4 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-bold focus:outline-none focus:ring-2 focus:ring-blue-500">
-            <option>All Status</option>
-            <option>Pending</option>
-            <option>Approved</option>
-            <option>Rejected</option>
+          <select
+            value={selectedStatus}
+            onChange={(e) => setSelectedStatus(e.target.value)}
+            className="flex-1 sm:flex-none px-4 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-bold focus:outline-none focus:ring-2 focus:ring-blue-500"
+          >
+            <option value="all">All Status</option>
+            <option value="pending">Pending</option>
+            <option value="approved">Approved</option>
+            <option value="accepted">Accepted</option>
+            <option value="rejected">Rejected</option>
+          </select>
+          <select
+            value={selectedSkill}
+            onChange={(e) => setSelectedSkill(e.target.value)}
+            className="flex-1 sm:flex-none px-4 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-bold focus:outline-none focus:ring-2 focus:ring-blue-500"
+          >
+            <option value="all">All Skills</option>
+            {skillOptions.map((skill) => (
+              <option key={skill} value={skill}>{skill}</option>
+            ))}
           </select>
         </div>
       </header>
@@ -110,6 +179,12 @@ const OrgApplications = () => {
                <p className="font-bold text-lg text-slate-700 dark:text-white">No applications received yet.</p>
                <p className="text-sm mt-1">Wait for students to apply to your active vacancies.</p>
             </div>
+         ) : filteredApplications.length === 0 ? (
+            <div className="flex flex-col justify-center items-center h-64 text-slate-400">
+               <FontAwesomeIcon icon={faInbox} size="3x" className="mb-4 opacity-50 text-slate-300" />
+               <p className="font-bold text-lg text-slate-700 dark:text-white">No applicants match this skill filter.</p>
+               <p className="text-sm mt-1">Try a different skill, internship, or application status.</p>
+            </div>
          ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-left border-collapse">
@@ -124,7 +199,7 @@ const OrgApplications = () => {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                  {applications.map((app) => (
+                  {filteredApplications.map((app) => (
                     <tr key={app.application_id || app.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors group">
                       <td className="p-5">
                         <div className="font-bold text-slate-800 dark:text-white group-hover:text-blue-600 transition-colors">
@@ -133,6 +208,18 @@ const OrgApplications = () => {
                         <div className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mt-1">
                            ID: {app.student_id ? String(app.student_id).slice(0,8) : 'N/A'}
                         </div>
+                        {parseSkills(app.skills).length > 0 && (
+                          <div className="mt-2 flex flex-wrap gap-1.5">
+                            {parseSkills(app.skills).slice(0, 3).map((skill) => (
+                              <span
+                                key={`${app.application_id || app.id}-${skill}`}
+                                className="px-2 py-1 rounded-lg bg-blue-50 text-blue-700 dark:bg-blue-900/20 dark:text-blue-300 text-[10px] font-bold"
+                              >
+                                {skill}
+                              </span>
+                            ))}
+                          </div>
+                        )}
                       </td>
                       <td className="p-5 text-sm text-slate-600 dark:text-slate-400 font-medium">{app.faculty || app.department || 'Not Specified'}</td>
                       <td className="p-5 text-sm text-slate-600 dark:text-slate-400 font-medium">{app.title || app.internship_title}</td>

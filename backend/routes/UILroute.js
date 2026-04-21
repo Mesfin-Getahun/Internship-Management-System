@@ -1,4 +1,5 @@
 import express from "express";
+import multer from "multer";
 import {
   acceptCompany,
   rejectCompany,
@@ -8,7 +9,15 @@ import {
   pendingInternships,
   companyRequest,
   getActiveCompanies,
+  inviteCompany,
+  verifyCompanyInvite,
+  completeCompanyRegistration,
+  getRecommendationLetter,
+  uploadRecommendationLetter,
+  removeRecommendationLetter,
 } from "../controller/UILcontroller.js";
+import { authUIL } from "../middleware/auth.js";
+import { uploadPDF } from "../middleware/uploadPDF.js";
 
 /**
  * @swagger
@@ -18,6 +27,7 @@ import {
  */
 
 const UILroute = express.Router();
+const upload = multer({ storage: multer.memoryStorage() });
 
 /**
  * @swagger
@@ -31,7 +41,7 @@ const UILroute = express.Router();
  *       500:
  *         description: Failed to fetch internships
  */
-UILroute.get("/internships", allInternships);
+UILroute.get("/internships", authUIL, allInternships);
 
 /**
  * @swagger
@@ -45,7 +55,7 @@ UILroute.get("/internships", allInternships);
  *       500:
  *         description: Failed to fetch pending internships
  */
-UILroute.get("/internships/pending", pendingInternships);
+UILroute.get("/internships/pending", authUIL, pendingInternships);
 
 /**
  * @swagger
@@ -59,7 +69,7 @@ UILroute.get("/internships/pending", pendingInternships);
  *       500:
  *         description: Failed to fetch pending company requests
  */
-UILroute.get("/companyRequest", companyRequest);
+UILroute.get("/companyRequest", authUIL, companyRequest);
 
 /**
  * @swagger
@@ -91,7 +101,7 @@ UILroute.get("/companyRequest", companyRequest);
  *       500:
  *         description: Failed to reject internship
  */
-UILroute.put("/rejectInternship/:internship_id", rejectInternship);
+UILroute.put("/rejectInternship/:internship_id", authUIL, rejectInternship);
 
 /**
  * @swagger
@@ -116,7 +126,7 @@ UILroute.put("/rejectInternship/:internship_id", rejectInternship);
  *       500:
  *         description: Failed to approve internship
  */
-UILroute.put("/approveInternship/:internship_id", approveInternship);
+UILroute.put("/approveInternship/:internship_id", authUIL, approveInternship);
 
 /**
  * @swagger
@@ -141,7 +151,7 @@ UILroute.put("/approveInternship/:internship_id", approveInternship);
  *       500:
  *         description: Failed to approve company
  */
-UILroute.put("/acceptCompany/:company_id", acceptCompany);
+UILroute.put("/acceptCompany/:company_id", authUIL, acceptCompany);
 
 /**
  * @swagger
@@ -164,7 +174,7 @@ UILroute.put("/acceptCompany/:company_id", acceptCompany);
  *       500:
  *         description: Failed to reject company
  */
-UILroute.put("/rejectCompany/:company_id", rejectCompany);
+UILroute.put("/rejectCompany/:company_id", authUIL, rejectCompany);
 
 /**
  * @swagger
@@ -178,6 +188,130 @@ UILroute.put("/rejectCompany/:company_id", rejectCompany);
  *       500:
  *         description: Failed to fetch active companies
  */
-UILroute.get("/companies/active", getActiveCompanies);
+UILroute.get("/companies/active", authUIL, getActiveCompanies);
+UILroute.get("/recommendation-letter", authUIL, getRecommendationLetter);
+UILroute.post(
+  "/recommendation-letter",
+  authUIL,
+  uploadPDF.single("recommendationLetter"),
+  uploadRecommendationLetter,
+);
+UILroute.delete(
+  "/recommendation-letter",
+  authUIL,
+  removeRecommendationLetter,
+);
+
+/**
+ * @swagger
+ * /api/UIL/inviteCompany:
+ *   post:
+ *     summary: Invite a company by name and email
+ *     tags: [UIL]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               company_name:
+ *                 type: string
+ *               email:
+ *                 type: string
+ *     responses:
+ *       201:
+ *         description: Invitation email sent successfully
+ *       400:
+ *         description: Invalid payload or company already exists
+ *       500:
+ *         description: Failed to send invitation
+ */
+UILroute.post("/inviteCompany", authUIL, inviteCompany);
+
+/**
+ * @swagger
+ * /api/UIL/verifyCompanyInvite/{token}:
+ *   get:
+ *     summary: Verify company invitation token
+ *     tags: [UIL]
+ *     parameters:
+ *       - in: path
+ *         name: token
+ *         schema:
+ *           type: string
+ *         required: true
+ *         description: Invitation token
+ *     responses:
+ *       200:
+ *         description: Invite is valid
+ *       400:
+ *         description: Invalid or expired invite token
+ */
+UILroute.get("/verifyCompanyInvite/:token", verifyCompanyInvite);
+
+/**
+ * @swagger
+ * /api/UIL/completeCompanyRegistration:
+ *   post:
+ *     summary: Complete invited company registration
+ *     tags: [UIL]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               inviteToken:
+ *                 type: string
+ *               company_name:
+ *                 type: string
+ *               company_type:
+ *                 type: string
+ *               industry:
+ *                 type: string
+ *               website:
+ *                 type: string
+ *               email:
+ *                 type: string
+ *               phone_number:
+ *                 type: string
+ *               location:
+ *                 type: string
+ *               city:
+ *                 type: string
+ *               region:
+ *                 type: string
+ *               password:
+ *                 type: string
+ *               confirmPassword:
+ *                 type: string
+ *               agreed:
+ *                 type: boolean
+ *               profileFile:
+ *                 type: string
+ *                 format: binary
+ *               licenseFile:
+ *                 type: string
+ *                 format: binary
+ *     responses:
+ *       200:
+ *         description: Registration completed successfully
+ *       400:
+ *         description: Invalid payload or invite
+ *       500:
+ *         description: Failed to complete registration
+ */
+UILroute.post(
+  "/completeCompanyRegistration",
+  upload.fields([
+    { name: "profileFile", maxCount: 1 },
+    { name: "licenseFile", maxCount: 1 },
+  ]),
+  completeCompanyRegistration,
+);
 
 export default UILroute;

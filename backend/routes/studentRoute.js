@@ -10,6 +10,7 @@ import {
   updateProfile,
   cancelApplication,
   submitSignedReportToFaculty,
+  getRecommendationLetter,
 } from "../controller/studentController.js";
 import { uploadApplicationFiles } from "../middleware/uploadApplicationFiles.js";
 import { uploadPDF } from "../middleware/uploadPDF.js";
@@ -147,6 +148,11 @@ studentRoute.get("/paymentApplication", authStudent, getPaymentApplication);
  *         description: Server error
  */
 studentRoute.get("/viewFeedbacks", authStudent, feedbacks);
+studentRoute.get(
+  "/recommendation-letter",
+  authStudent,
+  getRecommendationLetter,
+);
 
 /**
  * @swagger

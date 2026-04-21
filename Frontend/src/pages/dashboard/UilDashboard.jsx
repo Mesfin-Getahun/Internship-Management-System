@@ -10,6 +10,7 @@ import InternshipMonitoring from '../../components/dashboard/uil/InternshipMonit
 import InternshipApprovals from '../../components/dashboard/uil/InternshipApprovals.jsx';
 import FulfillmentReports from '../../components/dashboard/uil/FulfillmentReports.jsx';
 import UilRecommendationLetter from '../../components/dashboard/uil/UilRecommendationLetter.jsx';
+import CompanyInvitation from '../../components/dashboard/uil/CompanyInvitation.jsx';
 
 const PlaceholderScreen = ({ title, description }) => (
   <div className="p-20 text-center animate-fade-in bg-white rounded-3xl border border-slate-100 shadow-sm">
@@ -30,6 +31,7 @@ const UilDashboard = () => {
 
   const tabTitles = {
     'dashboard': 'Dashboard Overview',
+    'company-invitation': 'Invite New Company',
     'approvals': 'Organization Approvals',
     'internship-approvals': 'Internship Approvals',
     'monitoring': 'Internship Monitoring',
@@ -51,6 +53,7 @@ const UilDashboard = () => {
             <Routes>
               <Route path="/" element={<Navigate to="dashboard" replace />} />
               <Route path="dashboard" element={<UilOverview />} />
+              <Route path="company-invitation" element={<CompanyInvitation />} />
               <Route path="approvals" element={<OrgApprovals />} />
               <Route path="internship-approvals" element={<InternshipApprovals />} />
               <Route path="monitoring" element={<InternshipMonitoring />} />

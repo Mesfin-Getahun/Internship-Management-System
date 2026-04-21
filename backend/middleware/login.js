@@ -2,8 +2,21 @@ import express from "express";
 import db from "../config/mysql.js";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
+import ACCOUNT_ROLE_CONFIG from "../utils/accountRoleConfig.js";
 
 const router = express.Router();
+
+const getUserField = (record, fieldName) => {
+  if (!record || !fieldName) return undefined;
+  if (record[fieldName] !== undefined) return record[fieldName];
+
+  const lowerFieldName = fieldName.toLowerCase();
+  const matchedKey = Object.keys(record).find(
+    (key) => key.toLowerCase() === lowerFieldName,
+  );
+
+  return matchedKey ? record[matchedKey] : undefined;
+};
 
 router.post("/", async (req, res) => {
   const { id, email, password } = req.body;
@@ -20,8 +33,15 @@ router.post("/", async (req, res) => {
       return safeUser;
     };
 
-    const tryLoginByIdOrEmail = async (table, idColumn, role) => {
+    const tryLoginByRole = async (roleKey) => {
       if (!identifier) return null;
+      const config = ACCOUNT_ROLE_CONFIG[roleKey];
+
+      if (!config) {
+        return null;
+      }
+
+      const { table, idColumn, normalizedRole: role } = config;
 
       const [rows] = await db.query(
         `SELECT * FROM ${table} WHERE ${idColumn} = ? OR email = ? LIMIT 1`,
@@ -52,8 +72,18 @@ router.post("/", async (req, res) => {
         };
       }
 
+      const resolvedUserId = getUserField(user, idColumn);
+
+      if (resolvedUserId === undefined || resolvedUserId === null) {
+        console.error(
+          `Login token creation error: missing ${idColumn} for role ${role}`,
+          user,
+        );
+        return null;
+      }
+
       const token = jwt.sign(
-        { id: user[idColumn], role },
+        { id: resolvedUserId, role },
         process.env.JWT_SECRET,
         { expiresIn: "1d" }
       );
@@ -122,33 +152,22 @@ router.post("/", async (req, res) => {
 
     let result = null;
 
-    // Try company first (email)
-    result = await tryCompanyLogin();
+    if (!result && identifier)
+      result = await tryLoginByRole("student");
+    if (!result && identifier)
+      result = await tryLoginByRole("admin");
+    if (!result && identifier)
+      result = await tryLoginByRole("mentor");
+    if (!result && identifier)
+      result = await tryLoginByRole("faculty");
+    if (!result && identifier)
+      result = await tryLoginByRole("uil");
+    if (!result && identifier)
+      result = await tryLoginByRole("company_mentor");
 
-    if (result?.blocked) {
-      return res.status(result.status).json({
-        success: false,
-        message: result.message,
-      });
+    if (!result) {
+      result = await tryCompanyLogin();
     }
-
-    // Others use ID
-    if (!result && identifier)
-      result = await tryLoginByIdOrEmail("student", "student_id", "student");
-    if (!result && identifier)
-      result = await tryLoginByIdOrEmail("admin", "admin_id", "admin");
-    if (!result && identifier)
-      result = await tryLoginByIdOrEmail("mentor", "mentor_id", "mentor");
-    if (!result && identifier)
-      result = await tryLoginByIdOrEmail("faculty", "faculty_id", "faculty");
-    if (!result && identifier)
-      result = await tryLoginByIdOrEmail("UIL", "UIL_id", "UIL");
-    if (!result && identifier)
-      result = await tryLoginByIdOrEmail(
-        "company_mentor",
-        "company_mentor_id",
-        "company_mentor"
-      );
 
     if (!result) {
       return res.status(401).json({

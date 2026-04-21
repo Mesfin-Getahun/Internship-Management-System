@@ -540,6 +540,48 @@ const feedbacks = async (req, res) => {
   }
 };
 
+const getRecommendationLetter = async (req, res) => {
+  try {
+    const [rows] = await db.query(
+      `
+      SELECT setting_key, setting_value
+      FROM system_settings
+      WHERE setting_key IN (?, ?, ?, ?)
+      `,
+      [
+        "recommendation_letter_url",
+        "recommendation_letter_name",
+        "recommendation_letter_available",
+        "recommendation_letter_updated_at",
+      ],
+    );
+
+    const settings = Object.fromEntries(
+      rows.map((row) => [row.setting_key, row.setting_value]),
+    );
+
+    const recommendation = {
+      available:
+        settings.recommendation_letter_available === "true" &&
+        Boolean(settings.recommendation_letter_url),
+      file_url: settings.recommendation_letter_url || null,
+      file_name: settings.recommendation_letter_name || null,
+      updated_at: settings.recommendation_letter_updated_at || null,
+    };
+
+    res.status(200).json({
+      success: true,
+      recommendation,
+    });
+  } catch (error) {
+    console.error("Fetch student recommendation letter error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to fetch recommendation letter",
+    });
+  }
+};
+
 export {
   fetchInternships,
   applyInternships,
@@ -552,4 +594,5 @@ export {
   cancelApplication,
   suggestedInternships,
   submitSignedReportToFaculty,
+  getRecommendationLetter,
 };

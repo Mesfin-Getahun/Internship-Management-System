@@ -17,7 +17,7 @@ const authStudent = async (req, res, next) => {
 
     const [rows] = await db.query(
       "SELECT * FROM student WHERE student_id = ?",
-      [decoded.id]
+      [decoded.id],
     );
 
     // Exclude password before returning
@@ -96,7 +96,7 @@ const authCompany = async (req, res, next) => {
 
     const [rows] = await db.query(
       "SELECT * FROM company WHERE company_id = ?",
-      [decoded.company_id]
+      [decoded.company_id],
     );
 
     // Exclude password before returning
@@ -205,12 +205,37 @@ const authUIL = async (req, res, next) => {
         .json({ success: false, message: "No token, authorization denied" });
     }
 
-    const token = authHeader.split(" ")[1];
+    const token = authHeader.slice(7).trim();
 
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    if (!token) {
+      return res.status(401).json({
+        success: false,
+        message: "No token, authorization denied",
+      });
+    }
+
+    let decoded;
+    try {
+      decoded = jwt.verify(token, process.env.JWT_SECRET);
+    } catch (verifyError) {
+      console.error("UIL auth token error:", verifyError.message);
+      return res.status(401).json({
+        success: false,
+        message: "Invalid token or session expired",
+      });
+    }
+
+    const uilId = decoded?.id || decoded?.UIL_id || decoded?.uil_id;
+
+    if (!uilId) {
+      return res.status(403).json({
+        success: false,
+        message: "UIL access requires a valid UIL login session",
+      });
+    }
 
     const [rows] = await db.query("SELECT * FROM UIL WHERE UIL_id = ?", [
-      decoded.id,
+      uilId,
     ]);
 
     // Exclude password before returning
@@ -222,7 +247,7 @@ const authUIL = async (req, res, next) => {
     if (!user) {
       return res
         .status(404)
-        .json({ success: false, message: "User not found" });
+        .json({ success: false, message: "UIL user not found" });
     }
     req.user = user; // Attach the user
     next();
@@ -250,7 +275,7 @@ const authFaculty = async (req, res, next) => {
 
     const [rows] = await db.query(
       "SELECT * FROM faculty WHERE faculty_id = ?",
-      [decoded.id]
+      [decoded.id],
     );
 
     // Exclude password before returning
@@ -290,7 +315,7 @@ const authCompanyMentor = async (req, res, next) => {
 
     const [rows] = await db.query(
       "SELECT * FROM company_mentor WHERE company_mentor_id = ?",
-      [decoded.id]
+      [decoded.id],
     );
 
     // Exclude password before returning

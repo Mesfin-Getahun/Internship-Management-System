@@ -12,6 +12,7 @@ import {
   faSignOutAlt,
   faFileUpload,
   faBriefcase,
+  faPlus,
 } from "@fortawesome/free-solid-svg-icons";
 
 const UilSidebar = ({ activeTab }) => {
@@ -25,6 +26,7 @@ const UilSidebar = ({ activeTab }) => {
 
   const menuItems = [
     { id: "dashboard", label: "Dashboard", icon: faTableCellsLarge },
+    { id: "company-invitation", label: "Invite Company", icon: faPlus },
     { id: "approvals", label: "Org Approvals", icon: faCheckSquare },
     {
       id: "internship-approvals",
