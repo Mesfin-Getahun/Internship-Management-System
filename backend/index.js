@@ -23,6 +23,10 @@ import { checkMaintenanceMode } from "./middleware/Maintenance.js";
 import router from "./middleware/login.js";
 import changeRouter from "./middleware/changePassword.js";
 
+if (!process.env.JWT_SECRET) {
+  throw new Error("JWT_SECRET is missing in Backend/.env");
+}
+
 const app = express();
 setupSwagger(app);
 

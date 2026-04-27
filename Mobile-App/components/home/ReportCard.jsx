@@ -4,6 +4,11 @@ import { FontAwesome } from "@expo/vector-icons";
 import Card from "../ui/Card";
 
 export default function ReportCard({ report }) {
+  const supervisorName = report?.supervisorName || "Mentor";
+  const supervisorInitial = supervisorName.charAt(0).toUpperCase() || "M";
+  const reportMessage = report?.message || "No feedback message available.";
+  const reportDate = report?.date || "Recently";
+
   return (
     <Card className="mb-5">
       <View className="mb-3 flex-row items-center justify-between">
@@ -12,18 +17,18 @@ export default function ReportCard({ report }) {
       </View>
 
       <View className="rounded-[24px] bg-slate-50 p-4">
-        <Text className="text-sm leading-6 text-slate-700">{`"${report.message}"`}</Text>
+        <Text className="text-sm leading-6 text-slate-700">{`"${reportMessage}"`}</Text>
         <View className="mt-4 flex-row items-center justify-between border-t border-slate-200 pt-3">
           <View className="flex-row items-center">
             <View className="mr-2 h-8 w-8 items-center justify-center rounded-full bg-blue-100">
-              <Text className="text-xs font-bold text-blue-700">{report.supervisorName.charAt(0)}</Text>
+              <Text className="text-xs font-bold text-blue-700">{supervisorInitial}</Text>
             </View>
             <View>
-              <Text className="text-sm font-semibold text-slate-700">{report.supervisorName}</Text>
+              <Text className="text-sm font-semibold text-slate-700">{supervisorName}</Text>
               <Text className="text-xs text-slate-400">Company Supervisor</Text>
             </View>
           </View>
-          <Text className="text-xs text-slate-400">{report.date}</Text>
+          <Text className="text-xs text-slate-400">{reportDate}</Text>
         </View>
       </View>
     </Card>

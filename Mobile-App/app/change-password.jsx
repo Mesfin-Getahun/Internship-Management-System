@@ -4,7 +4,7 @@ import { useRouter } from "expo-router";
 import { FontAwesome } from "@expo/vector-icons";
 import InputField from "../components/ui/InputField";
 import Button from "../components/ui/Button";
-import { updatePassword } from "../assets/mockData";
+import { completeFirstLogin } from "../services/authService";
 
 function getStrength(password) {
   let score = 0;
@@ -42,19 +42,18 @@ export default function ChangePasswordScreen() {
     setLoading(true);
     setError("");
 
-    setTimeout(() => {
-      const result = updatePassword(currentPassword, newPassword);
-      setLoading(false);
+    completeFirstLogin(newPassword)
+      .then(() => {
+        setLoading(false);
 
-      if (!result.success) {
-        setError(result.error);
-        return;
-      }
-
-      Alert.alert("Password Updated", "Your password has been changed successfully.", [
-        { text: "Continue", onPress: () => router.replace("/home") },
-      ]);
-    }, 700);
+        Alert.alert("Password Updated", "Your password has been changed successfully.", [
+          { text: "Continue", onPress: () => router.replace("/home") },
+        ]);
+      })
+      .catch((requestError) => {
+        setLoading(false);
+        setError(requestError.message || "Unable to update password");
+      });
   };
 
   return (

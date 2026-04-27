@@ -4,12 +4,21 @@ import { View, Text } from "react-native";
 function getBadgeStyle(statusVal) {
   switch (statusVal?.toLowerCase()) {
     case "waiting":
+    case "pending":
+    case "pending approval":
       return { bg: "bg-orange-100", text: "text-orange-600" };
     case "approved":
     case "available":
+    case "faculty submitted":
       return { bg: "bg-blue-100", text: "text-blue-600" };
     case "active":
+    case "in progress":
+    case "signed":
+    case "submitted":
       return { bg: "bg-green-100", text: "text-green-600" };
+    case "rejected":
+    case "cancelled":
+      return { bg: "bg-rose-100", text: "text-rose-600" };
     case "completed":
       return { bg: "bg-slate-200", text: "text-slate-600" };
     case "not available":

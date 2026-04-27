@@ -1,20 +1,113 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Alert, ScrollView, Text, TouchableOpacity, View } from "react-native";
 import { FontAwesome } from "@expo/vector-icons";
 import Screen from "../components/common/Screen";
+import Loader from "../components/common/Loader";
+import EmptyState from "../components/common/EmptyState";
 import Card from "../components/ui/Card";
 import Button from "../components/ui/Button";
-import { getStudentDashboardData } from "../assets/mockData";
+import InputField from "../components/ui/InputField";
+import { applyForInternship, getStudentInternships } from "../services/studentService";
+import { appendAssetToFormData, pickPdfDocument } from "../utils/documentUpload";
+
+function formatDuration(item) {
+  if (item.start_date && item.end_date) {
+    return `${item.start_date} to ${item.end_date}`;
+  }
+
+  return item.duration || "Duration not specified";
+}
 
 export default function InternshipsScreen() {
   const [savedIds, setSavedIds] = useState([]);
-  const opportunities = getStudentDashboardData().opportunities;
+  const [opportunities, setOpportunities] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [activeApplyId, setActiveApplyId] = useState(null);
+  const [statement, setStatement] = useState("");
+  const [cvFile, setCvFile] = useState(null);
+  const [academicDocFile, setAcademicDocFile] = useState(null);
+  const [submittingId, setSubmittingId] = useState(null);
+
+  const loadInternships = () => {
+    setLoading(true);
+    setError("");
+
+    getStudentInternships()
+      .then((response) => {
+        setOpportunities(response.internships || []);
+        setLoading(false);
+      })
+      .catch((requestError) => {
+        setError(requestError.message || "Failed to load internships");
+        setLoading(false);
+      });
+  };
+
+  useEffect(() => {
+    loadInternships();
+  }, []);
 
   const toggleSave = (id) => {
     setSavedIds((current) =>
       current.includes(id) ? current.filter((value) => value !== id) : [...current, id]
     );
   };
+
+  const resetApplicationForm = () => {
+    setActiveApplyId(null);
+    setStatement("");
+    setCvFile(null);
+    setAcademicDocFile(null);
+    setSubmittingId(null);
+  };
+
+  const handlePickFile = async (fieldName) => {
+    const file = await pickPdfDocument();
+
+    if (!file) {
+      return;
+    }
+
+    if (fieldName === "cv") {
+      setCvFile(file);
+      return;
+    }
+
+    setAcademicDocFile(file);
+  };
+
+  const handleSubmitApplication = async (internshipId) => {
+    if (!cvFile || !academicDocFile) {
+      Alert.alert("Missing Files", "Please choose both your CV and academic document before applying.");
+      return;
+    }
+
+    setSubmittingId(internshipId);
+
+    const formData = new FormData();
+    formData.append("statement", statement);
+    appendAssetToFormData(formData, "cv", cvFile);
+    appendAssetToFormData(formData, "academic_doc", academicDocFile);
+
+    try {
+      const response = await applyForInternship(internshipId, formData);
+      Alert.alert("Application Sent", response.message || "Application submitted successfully.");
+      resetApplicationForm();
+      loadInternships();
+    } catch (requestError) {
+      setSubmittingId(null);
+      Alert.alert("Application Failed", requestError.message || "Unable to submit internship application.");
+    }
+  };
+
+  if (loading) {
+    return (
+      <Screen withTabs>
+        <Loader label="Loading available internships..." />
+      </Screen>
+    );
+  }
 
   return (
     <Screen withTabs>
@@ -27,16 +120,32 @@ export default function InternshipsScreen() {
           </Text>
         </View>
 
-        {opportunities.map((item) => {
-          const isSaved = savedIds.includes(item.id);
+        {error ? (
+          <Card className="mb-4 border border-rose-200 bg-rose-50">
+            <Text className="text-sm font-medium text-rose-600">{error}</Text>
+            <View className="mt-3">
+              <Button title="Try Again" variant="outline" onPress={loadInternships} />
+            </View>
+          </Card>
+        ) : null}
+
+        {opportunities.length === 0 ? (
+          <EmptyState
+            iconName="briefcase"
+            title="No internships available"
+            description="Approved internship opportunities will appear here once they are published."
+          />
+        ) : opportunities.map((item) => {
+          const internshipId = item.internship_id || item.id;
+          const isSaved = savedIds.includes(internshipId);
           return (
-            <Card key={item.id} className="mb-4">
+            <Card key={internshipId} className="mb-4">
               <View className="flex-row items-start justify-between">
                 <View className="flex-1 pr-3">
-                  <Text className="text-lg font-bold text-slate-800">{item.company}</Text>
-                  <Text className="mt-1 text-base font-medium text-slate-600">{item.role}</Text>
+                  <Text className="text-lg font-bold text-slate-800">{item.company_name}</Text>
+                  <Text className="mt-1 text-base font-medium text-slate-600">{item.title}</Text>
                 </View>
-                <TouchableOpacity activeOpacity={0.85} onPress={() => toggleSave(item.id)}>
+                <TouchableOpacity activeOpacity={0.85} onPress={() => toggleSave(internshipId)}>
                   <FontAwesome name={isSaved ? "bookmark" : "bookmark-o"} size={20} color="#2563EB" />
                 </TouchableOpacity>
               </View>
@@ -46,7 +155,7 @@ export default function InternshipsScreen() {
                   <Text className="text-xs font-semibold text-slate-600">{item.location}</Text>
                 </View>
                 <View className="mb-2 rounded-full bg-slate-100 px-3 py-2">
-                  <Text className="text-xs font-semibold text-slate-600">{item.duration}</Text>
+                  <Text className="text-xs font-semibold text-slate-600">{formatDuration(item)}</Text>
                 </View>
               </View>
 
@@ -57,14 +166,70 @@ export default function InternshipsScreen() {
                   title="View Details"
                   variant="outline"
                   className="mr-3 flex-1"
-                  onPress={() => Alert.alert(item.role, item.description)}
+                  onPress={() =>
+                    Alert.alert(
+                      item.title,
+                      `Company: ${item.company_name}\nLocation: ${item.location || "Not specified"}\n\n${item.description || "No description provided."}`
+                    )
+                  }
                 />
                 <Button
-                  title="Apply"
+                  title={activeApplyId === internshipId ? "Close Form" : "Apply"}
                   className="flex-1"
-                  onPress={() => Alert.alert("Application Submitted", `Application started for ${item.role}.`)}
+                  onPress={() => {
+                    if (activeApplyId === internshipId) {
+                      resetApplicationForm();
+                      return;
+                    }
+
+                    setActiveApplyId(internshipId);
+                    setStatement("");
+                    setCvFile(null);
+                    setAcademicDocFile(null);
+                  }}
                 />
               </View>
+
+              {activeApplyId === internshipId ? (
+                <View className="mt-4 rounded-[22px] bg-slate-50 p-4">
+                  <Text className="mb-3 text-base font-bold text-slate-800">Apply for this internship</Text>
+                  <InputField
+                    label="Statement"
+                    iconName="file-text"
+                    placeholder="Write a short statement for your application"
+                    value={statement}
+                    onChangeText={setStatement}
+                    className="mb-4"
+                  />
+
+                  <TouchableOpacity
+                    className="mb-3 rounded-2xl border border-dashed border-slate-300 bg-white px-4 py-4"
+                    activeOpacity={0.85}
+                    onPress={() => handlePickFile("cv")}
+                  >
+                    <Text className="text-sm font-semibold text-slate-700">
+                      {cvFile ? `CV: ${cvFile.name}` : "Choose CV PDF"}
+                    </Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    className="mb-4 rounded-2xl border border-dashed border-slate-300 bg-white px-4 py-4"
+                    activeOpacity={0.85}
+                    onPress={() => handlePickFile("academic_doc")}
+                  >
+                    <Text className="text-sm font-semibold text-slate-700">
+                      {academicDocFile ? `Academic Document: ${academicDocFile.name}` : "Choose Academic Document PDF"}
+                    </Text>
+                  </TouchableOpacity>
+
+                  <Button
+                    title="Submit Application"
+                    onPress={() => handleSubmitApplication(internshipId)}
+                    loading={submittingId === internshipId}
+                    disabled={submittingId === internshipId}
+                  />
+                </View>
+              ) : null}
             </Card>
           );
         })}

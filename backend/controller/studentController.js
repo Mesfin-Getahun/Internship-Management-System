@@ -3,6 +3,13 @@ import bcrypt from "bcryptjs";
 import { uploadToCloudinary } from "../utils/cloudinaryUpload.js";
 import createLog from "../utils/createLog.js";
 
+function isMissingTableError(error, tableName) {
+  return (
+    error?.code === "ER_NO_SUCH_TABLE" &&
+    (!tableName || error?.sqlMessage?.includes(`'${tableName}'`))
+  );
+}
+
 const fetchInternships = async (req, res) => {
   try {
     const query = `
@@ -379,6 +386,15 @@ const getPaymentApplication = async (req, res) => {
       payment: rows[0] || null,
     });
   } catch (error) {
+    if (isMissingTableError(error, "internshipdb.payment")) {
+      return res.status(200).json({
+        success: true,
+        payment: null,
+        paymentFeatureAvailable: false,
+        message: "Payment feature is not available because the payment table is missing.",
+      });
+    }
+
     console.error("Fetch payment application error:", error);
     res.status(500).json({
       success: false,
@@ -460,6 +476,14 @@ const submitPaymentApplication = async (req, res) => {
       payment: savedRows[0] || null,
     });
   } catch (error) {
+    if (isMissingTableError(error, "internshipdb.payment")) {
+      return res.status(503).json({
+        success: false,
+        paymentFeatureAvailable: false,
+        message: "Payment feature is unavailable because the payment table is missing.",
+      });
+    }
+
     console.error("Submit payment application error:", error);
     res.status(500).json({
       success: false,
@@ -493,17 +517,17 @@ const feedbacks = async (req, res) => {
     // fetch all feedback for this student
     const [rows] = await db.query(
       `SELECT 
-         feedback_id,
-         internship_id,
-         company_mentor_id,
-         feedback_type,
-         rating,
-         strengths,
-         weaknesses,
-         suggestions,
-         overall_comment,
-         created_at,
-         updated_at,
+         mf.feedback_id,
+         mf.internship_id,
+         mf.company_mentor_id,
+         mf.feedback_type,
+         mf.rating,
+         mf.strengths,
+         mf.weaknesses,
+         mf.suggestions,
+         mf.overall_comment,
+         mf.created_at,
+         mf.updated_at,
          CASE
            WHEN mf.company_mentor_id IS NULL THEN 'faculty_mentor'
            ELSE 'company_mentor'
@@ -523,7 +547,7 @@ const feedbacks = async (req, res) => {
        LEFT JOIN mentor m
          ON s.assigned_mentor = m.mentor_id
        WHERE mf.student_id = ?
-       ORDER BY created_at DESC`,
+       ORDER BY mf.created_at DESC`,
       [student_id]
     );
 

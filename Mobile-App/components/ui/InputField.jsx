@@ -13,6 +13,7 @@ export default function InputField({
   autoCapitalize = "none",
   helperText,
   error,
+  editable = true,
   className = "",
 }) {
   const [isFocused, setIsFocused] = useState(false);
@@ -47,6 +48,7 @@ export default function InputField({
           secureTextEntry={!isPasswordVisible}
           autoCapitalize={autoCapitalize}
           keyboardType={keyboardType}
+          editable={editable}
           onFocus={() => setIsFocused(true)}
           onBlur={() => setIsFocused(false)}
         />

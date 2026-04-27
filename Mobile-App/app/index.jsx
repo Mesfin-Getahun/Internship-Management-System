@@ -4,7 +4,7 @@ import { useRouter } from "expo-router";
 import { FontAwesome } from "@expo/vector-icons";
 import InputField from "../components/ui/InputField";
 import Button from "../components/ui/Button";
-import { getCurrentPasswordHint, validateLogin } from "../assets/mockData";
+import { login } from "../services/authService";
 
 export default function LoginScreen() {
   const router = useRouter();
@@ -17,17 +17,21 @@ export default function LoginScreen() {
     setLoading(true);
     setError("");
 
-    setTimeout(() => {
-      const result = validateLogin(identifier, password);
-      setLoading(false);
+    login({ identifier, password })
+      .then((result) => {
+        setLoading(false);
 
-      if (!result.success) {
-        setError(result.error);
-        return;
-      }
+        if (result.firstLogin) {
+          router.replace("/change-password");
+          return;
+        }
 
-      router.replace(result.firstLoginRequired ? "/change-password" : "/home");
-    }, 700);
+        router.replace("/home");
+      })
+      .catch((requestError) => {
+        setLoading(false);
+        setError(requestError.message || "Unable to sign in");
+      });
   };
 
   return (
@@ -77,7 +81,7 @@ export default function LoginScreen() {
               value={password}
               onChangeText={setPassword}
               secureTextEntry
-              helperText={`Default password: ${getCurrentPasswordHint()}`}
+              helperText="Use your real student account password."
               className="mb-2"
             />
 
@@ -106,9 +110,12 @@ export default function LoginScreen() {
             />
 
             <View className="mt-6 rounded-2xl bg-slate-50 px-4 py-4">
-              <Text className="text-xs font-semibold uppercase tracking-[1.4px] text-slate-400">Demo Access</Text>
-              <Text className="mt-2 text-sm font-semibold text-slate-700">Identifier: Mesfin or ETS-1234</Text>
-              <Text className="mt-1 text-sm text-slate-500">{`Password: ${getCurrentPasswordHint()}`}</Text>
+              <Text className="text-xs font-semibold uppercase tracking-[1.4px] text-slate-400">Backend Login</Text>
+              <Text className="mt-2 text-sm font-semibold text-slate-700">Use your student ID or email</Text>
+              <Text className="mt-1 text-sm text-slate-500">
+                If this is your first login, the app will send you to change your password before opening the
+                dashboard.
+              </Text>
             </View>
           </View>
         </View>

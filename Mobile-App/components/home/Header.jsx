@@ -3,7 +3,7 @@ import { View, Text, TouchableOpacity } from "react-native";
 import { FontAwesome } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 
-export default function Header({ studentName }) {
+export default function Header({ studentName, currentTrack = "No active internship", statusLabel = "Waiting" }) {
   const router = useRouter();
 
   return (
@@ -38,11 +38,11 @@ export default function Header({ studentName }) {
       <View className="flex-row">
         <View className="mr-3 flex-1 rounded-[22px] bg-white/12 px-4 py-3">
           <Text className="text-xs font-semibold uppercase tracking-[1.2px] text-blue-100">Current Track</Text>
-          <Text className="mt-2 text-base font-bold text-white">Frontend Internship</Text>
+          <Text className="mt-2 text-base font-bold text-white">{currentTrack}</Text>
         </View>
         <View className="flex-1 rounded-[22px] bg-white px-4 py-3">
           <Text className="text-xs font-semibold uppercase tracking-[1.2px] text-slate-400">Status</Text>
-          <Text className="mt-2 text-base font-bold text-slate-800">Waiting Approval</Text>
+          <Text className="mt-2 text-base font-bold text-slate-800">{statusLabel}</Text>
         </View>
       </View>
     </View>
