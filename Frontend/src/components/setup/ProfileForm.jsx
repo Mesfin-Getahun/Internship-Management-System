@@ -33,6 +33,34 @@ const InputField = ({ name, label, required = false, type = 'text', readOnly = f
 );
 
 // --- Main Form Component ---
+const parseList = (value) => {
+  if (Array.isArray(value)) return value;
+  if (!value) return [];
+  if (typeof value === 'string') {
+    try {
+      const parsed = JSON.parse(value);
+      return Array.isArray(parsed) ? parsed : value.split(',').map((item) => item.trim()).filter(Boolean);
+    } catch {
+      return value.split(',').map((item) => item.trim()).filter(Boolean);
+    }
+  }
+  return [];
+};
+
+const normalizeStudentData = (studentData = {}) => ({
+  ...studentData,
+  fullName: studentData.fullName || studentData.full_name || '',
+  studentId: studentData.studentId || studentData.student_id || '',
+  universityEmail: studentData.universityEmail || studentData.email || '',
+  phoneNumber: studentData.phoneNumber || studentData.phone_number || '',
+  technicalSkills: parseList(studentData.technicalSkills || studentData.technical_skills || studentData.skills),
+  softSkills: parseList(studentData.softSkills || studentData.soft_skills),
+  languages: parseList(studentData.languages),
+  linkedin: studentData.linkedin || '',
+  github: studentData.github || '',
+  portfolio: studentData.portfolio || '',
+});
+
 const ProfileForm = ({ studentData, onSave, isSetupMode = false }) => {
   const [formData, setFormData] = useState({
     fullName: '',
@@ -53,8 +81,15 @@ const ProfileForm = ({ studentData, onSave, isSetupMode = false }) => {
     linkedin: '',
     github: '',
     portfolio: '',
-    ...studentData, // Pre-fill with existing data
+    ...normalizeStudentData(studentData), // Pre-fill with existing data
   });
+
+  useEffect(() => {
+    setFormData((prev) => ({
+      ...prev,
+      ...normalizeStudentData(studentData),
+    }));
+  }, [studentData]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;

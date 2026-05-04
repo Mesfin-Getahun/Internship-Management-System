@@ -3,6 +3,7 @@ import {
   applyInternships,
   fetchInternships,
   myInternship,
+  getStudentReports,
   uploadInternshipReport,
   getPaymentApplication,
   submitPaymentApplication,
@@ -11,6 +12,7 @@ import {
   cancelApplication,
   submitSignedReportToFaculty,
   getRecommendationLetter,
+  suggestedInternships,
 } from "../controller/studentController.js";
 import { uploadApplicationFiles } from "../middleware/uploadApplicationFiles.js";
 import { uploadPDF } from "../middleware/uploadPDF.js";
@@ -111,6 +113,7 @@ studentRoute.post(
  *         description: Server error
  */
 studentRoute.get("/internships", authStudent, fetchInternships);
+studentRoute.get("/internships/suggested", authStudent, suggestedInternships);
 
 /**
  * @swagger
@@ -129,6 +132,7 @@ studentRoute.get("/internships", authStudent, fetchInternships);
  *         description: Server error
  */
 studentRoute.get("/myInternship", authStudent, myInternship);
+studentRoute.get("/reports", authStudent, getStudentReports);
 studentRoute.get("/paymentApplication", authStudent, getPaymentApplication);
 
 /**

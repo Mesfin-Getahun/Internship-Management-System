@@ -196,10 +196,39 @@ const cancelApplication = async (req, res) => {
   }
 };
 
+const serializeList = (value) => {
+  if (Array.isArray(value)) return JSON.stringify(value);
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+    if (!trimmed) return null;
+    try {
+      const parsed = JSON.parse(trimmed);
+      return Array.isArray(parsed) ? JSON.stringify(parsed) : trimmed;
+    } catch {
+      return trimmed;
+    }
+  }
+  if (typeof value === "object") return JSON.stringify(value);
+  return value ?? null;
+};
+
 const updateProfile = async (req, res) => {
   try {
     const student_id = req.user.student_id; // from auth middleware
-    const { full_name, email, phone_number, password, profile_pic } = req.body;
+    const {
+      full_name,
+      email,
+      phone_number,
+      password,
+      skills,
+      preferred_location,
+      technical_skills,
+      soft_skills,
+      languages,
+      linkedin,
+      github,
+      portfolio,
+    } = req.body;
 
     if (!student_id) {
       return res.status(401).json({ success: false, message: "Unauthorized" });
@@ -224,10 +253,21 @@ const updateProfile = async (req, res) => {
       hashedPassword = await bcrypt.hash(password, 10);
     }
 
-    // Update student profile
     const query = `
       UPDATE student
-      SET full_name = ?, email = ?, phone_number = ?, profile_pic = ?, password = ?
+      SET
+        full_name = ?,
+        email = ?,
+        phone_number = ?,
+        skills = ?,
+        preferred_location = ?,
+        technical_skills = ?,
+        soft_skills = ?,
+        languages = ?,
+        linkedin = ?,
+        github = ?,
+        portfolio = ?,
+        password = ?
       WHERE student_id = ?
     `;
 
@@ -235,7 +275,14 @@ const updateProfile = async (req, res) => {
       full_name || existing[0].full_name,
       email || existing[0].email,
       phone_number || existing[0].phone_number,
-      profile_pic || existing[0].profile_pic,
+      skills ?? existing[0].skills,
+      preferred_location ?? existing[0].preferred_location,
+      serializeList(technical_skills ?? existing[0].technical_skills),
+      serializeList(soft_skills ?? existing[0].soft_skills),
+      serializeList(languages ?? existing[0].languages),
+      linkedin ?? existing[0].linkedin,
+      github ?? existing[0].github,
+      portfolio ?? existing[0].portfolio,
       hashedPassword,
       student_id,
     ]);
@@ -246,14 +293,80 @@ const updateProfile = async (req, res) => {
       `Student profile updated for ${full_name || existing[0].full_name} (${email || existing[0].email})`
     );
 
-    res
-      .status(200)
-      .json({ success: true, message: "Profile updated successfully" });
+    const [[updatedStudent]] = await db.query(
+      `SELECT
+        student_id,
+        full_name,
+        email,
+        phone_number,
+        profile_status,
+        skills,
+        preferred_location,
+        department,
+        assigned_mentor,
+        faculty,
+        must_change_password,
+        technical_skills,
+        soft_skills,
+        languages,
+        linkedin,
+        github,
+        portfolio
+       FROM student
+       WHERE student_id = ?`,
+      [student_id],
+    );
+
+    res.status(200).json({
+      success: true,
+      message: "Profile updated successfully",
+      student: updatedStudent,
+    });
   } catch (error) {
     console.error("Update profile error:", error);
     res
       .status(500)
       .json({ success: false, message: "Failed to update profile" });
+  }
+};
+
+const getStudentReports = async (req, res) => {
+  try {
+    const student_id = req.user.student_id;
+
+    const [reports] = await db.query(
+      `
+      SELECT
+        r.report_id,
+        r.internship_id,
+        r.report_url AS file_url,
+        r.mentor_signed_url,
+        r.status,
+        r.created_at,
+        r.submitted_at,
+        r.faculty_submitted_at,
+        r.mentor_id,
+        i.title AS internship_title,
+        c.company_name
+      FROM internship_report r
+      LEFT JOIN internship i ON r.internship_id = i.internship_id
+      LEFT JOIN company c ON i.company_id = c.company_id
+      WHERE r.student_id = ?
+      ORDER BY COALESCE(r.created_at, r.submitted_at, r.faculty_submitted_at) DESC, r.report_id DESC
+      `,
+      [student_id],
+    );
+
+    res.status(200).json({
+      success: true,
+      reports,
+    });
+  } catch (error) {
+    console.error("Fetch student reports error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to fetch reports",
+    });
   }
 };
 
@@ -610,6 +723,7 @@ export {
   fetchInternships,
   applyInternships,
   myInternship,
+  getStudentReports,
   uploadInternshipReport,
   getPaymentApplication,
   submitPaymentApplication,

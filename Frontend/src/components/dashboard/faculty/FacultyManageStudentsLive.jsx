@@ -1,8 +1,8 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState, useRef } from 'react';
 import axios from 'axios';
 import { useAuth } from '../../../AuthContext';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faEye, faBriefcase, faSpinner, faUserMinus, faUserPen } from '@fortawesome/free-solid-svg-icons';
+import { faEye, faBriefcase, faSpinner, faUserMinus, faUserPen, faUpload } from '@fortawesome/free-solid-svg-icons';
 
 const FacultyManageStudentsLive = () => {
   const [students, setStudents] = useState([]);
@@ -13,6 +13,8 @@ const FacultyManageStudentsLive = () => {
   const [editingStudentId, setEditingStudentId] = useState(null);
   const [newMentorId, setNewMentorId] = useState('');
   const [actionLoading, setActionLoading] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef(null);
   const { user } = useAuth();
 
   const authConfig = user?.token
@@ -109,6 +111,38 @@ const FacultyManageStudentsLive = () => {
     }
   };
 
+  const handleFileUpload = async (event) => {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    const formData = new FormData();
+    formData.append('file', file);
+
+    try {
+      setUploading(true);
+      const res = await axios.post(
+        `${import.meta.env.VITE_BACKEND_URL}/api/faculty/uploadStudents`,
+        formData,
+        {
+          headers: {
+            ...authConfig.headers,
+            'Content-Type': 'multipart/form-data'
+          }
+        }
+      );
+      alert(res.data.message || 'Students uploaded successfully');
+      await fetchData();
+    } catch (err) {
+      console.error(err);
+      alert(err.response?.data?.message || 'Failed to upload students');
+    } finally {
+      setUploading(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
+  };
+
   return (
     <div className="animate-fade-in space-y-6">
       <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
@@ -116,7 +150,7 @@ const FacultyManageStudentsLive = () => {
           <h2 className="text-2xl font-bold text-slate-800 dark:text-white">Manage Students</h2>
           <p className="text-slate-500 text-sm mt-1">Students listed here are fetched from the logged-in faculty&apos;s department only.</p>
         </div>
-        <div className="flex gap-3">
+        <div className="flex gap-3 items-center">
           <input
             type="text"
             value={searchTerm}
@@ -124,6 +158,21 @@ const FacultyManageStudentsLive = () => {
             placeholder="Search by name, ID, dept, or company..."
             className="px-4 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all w-72"
           />
+          <input 
+            type="file" 
+            accept=".csv, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/vnd.ms-excel" 
+            ref={fileInputRef} 
+            className="hidden" 
+            onChange={handleFileUpload} 
+          />
+          <button
+            onClick={() => fileInputRef.current?.click()}
+            disabled={uploading}
+            className="px-4 py-2 bg-indigo-600 text-white rounded-xl text-sm font-bold hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-500/20 flex items-center gap-2 disabled:opacity-70"
+          >
+            {uploading ? <FontAwesomeIcon icon={faSpinner} spin /> : <FontAwesomeIcon icon={faUpload} />}
+            Upload CSV/Excel
+          </button>
         </div>
       </header>
 

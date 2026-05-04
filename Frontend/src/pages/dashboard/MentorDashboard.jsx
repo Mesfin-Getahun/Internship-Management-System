@@ -43,12 +43,13 @@ const MentorDashboard = () => {
               <Route path="progress-tracker" element={<ProgressTracker />} />
               <Route path="student-submissions" element={<StudentSubmissions />} />
               <Route path="organization-updates" element={<OrganizationUpdates />} />
-              <Route path="evaluation" element={<MentorEvaluation />} />
+              <Route path="feedback" element={<MentorEvaluation />} />
+              <Route path="evaluation" element={<Navigate to="../feedback" replace />} />
               <Route 
                 path="weekly-reports" 
-                element={<PlaceholderScreen title="Weekly Reports Review" description="Verify student task logs and provide feedback on their weekly technical submissions." />} 
+                element={<StudentSubmissions />} 
               />
-              <Route path="submit-evaluation" element={<MentorEvaluation />} />
+              <Route path="submit-evaluation" element={<Navigate to="../feedback" replace />} />
               <Route 
                 path="communication" 
                 element={<PlaceholderScreen title="Messaging Hub" description="Communicate directly with your assigned students and the Faculty of Computing administration." />} 

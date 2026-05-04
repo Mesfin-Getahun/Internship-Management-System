@@ -14,7 +14,10 @@ const ManageUsers = () => {
         const res = await axios.get(`${import.meta.env.VITE_BACKEND_URL}/api/admin/users`, {
           headers: { Authorization: `Bearer ${user?.token}` },
         });
-        setUsers(Array.isArray(res.data?.users) ? res.data.users : []);
+        const allUsers = Array.isArray(res.data?.users) ? res.data.users : [];
+        const managedRoles = ['mentor', 'faculty mentor', 'faculty', 'uil'];
+        const filteredUsers = allUsers.filter(u => managedRoles.includes(String(u.role || '').toLowerCase()));
+        setUsers(filteredUsers);
       } catch (error) {
         console.error('Failed to load admin users.', error);
       }
@@ -27,7 +30,7 @@ const ManageUsers = () => {
 
   const roleOptions = useMemo(() => {
     const discoveredRoles = [...new Set(users.map((item) => String(item.role || '').toLowerCase()).filter(Boolean))];
-    const orderedRoles = ['student', 'mentor', 'faculty', 'uil', 'company', 'company_mentor', 'admin'];
+    const orderedRoles = ['mentor', 'faculty mentor', 'faculty', 'uil'];
 
     return ['all', ...orderedRoles.filter((role) => discoveredRoles.includes(role)), ...discoveredRoles.filter((role) => !orderedRoles.includes(role))];
   }, [users]);

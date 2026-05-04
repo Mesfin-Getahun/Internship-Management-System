@@ -1,5 +1,6 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
+import axios from "axios";
 
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
@@ -18,12 +19,27 @@ import { useAuth } from "../../../AuthContext";
 
 const StudentSidebar = ({ activeTab }) => {
   const { user, logout, isRecommendationAvailable } = useAuth();
-  // This mock state determines if the "Internship Status" link is active.
-  // 'ACCEPTED' means the student has an offer but hasn't started.
-  // 'ACTIVATED' would mean the internship has begun.
-  const userState = {
-    internshipStatus: "ACCEPTED", // Mock states: 'NONE', 'ACCEPTED', 'ACTIVATED'
-  };
+  const [hasActiveInternship, setHasActiveInternship] = useState(false);
+
+  useEffect(() => {
+    const loadPlacementStatus = async () => {
+      if (!user?.token) {
+        setHasActiveInternship(false);
+        return;
+      }
+
+      try {
+        const res = await axios.get(`${import.meta.env.VITE_BACKEND_URL}/api/student/myInternship`, {
+          headers: { Authorization: `Bearer ${user.token}` },
+        });
+        setHasActiveInternship(Boolean(res.data?.internship));
+      } catch {
+        setHasActiveInternship(false);
+      }
+    };
+
+    loadPlacementStatus();
+  }, [user?.token]);
 
   const menuItems = [
     { id: "overview", label: "Dashboard", icon: faTableCellsLarge },
@@ -36,12 +52,12 @@ const StudentSidebar = ({ activeTab }) => {
       id: "status",
       label: "Internship Status",
       icon: faBriefcase,
-      disabled: userState.internshipStatus !== "ACTIVATED",
+      disabled: !hasActiveInternship,
     },
   ];
 
   const generalMenuItems = [
-    // { id: 'reports', label: 'Weekly Reports', icon: faFileAlt },
+    { id: "reports", label: "Weekly Reports", icon: faFileAlt, disabled: !hasActiveInternship },
     { id: "feedback", label: "Feedback", icon: faStar },
     { id: "stipend", label: "Stipend Application", icon: faDollarSign },
     {

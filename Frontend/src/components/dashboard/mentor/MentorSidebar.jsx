@@ -10,7 +10,7 @@ const MentorSidebar = ({ activeTab }) => {
     { id: 'progress-tracker', label: 'Monitor Progress', icon: faClipboardList },
     { id: 'student-submissions', label: 'Student Submissions', icon: faFileSignature },
     { id: 'organization-updates', label: 'Organization Updates', icon: faBuilding },
-    { id: 'evaluation', label: 'Evaluation', icon: faComment },
+    { id: 'feedback', label: 'Feedback Comments', icon: faComment },
   ];
 
   return (

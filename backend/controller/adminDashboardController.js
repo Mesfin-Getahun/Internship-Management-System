@@ -578,7 +578,10 @@ export const backupDatabase = async (req, res) => {
 
     const fileName = `backup_${Date.now()}.sql`;
     const filePath = path.join(backupDir, fileName);
-    const command = `mysqldump -h localhost -u root -p${process.env.DB_PASSWORD} InternshipDB > "${filePath}"`;
+    const dbHost = process.env.DB_HOST || "localhost";
+    const dbUser = process.env.DB_USER || "root";
+    const dbName = process.env.DB_NAME || "internshipdb";
+    const command = `mysqldump -h ${dbHost} -u ${dbUser} -p${process.env.DB_PASSWORD || ""} ${dbName} > "${filePath}"`;
 
     exec(command, async (error) => {
       if (error) {

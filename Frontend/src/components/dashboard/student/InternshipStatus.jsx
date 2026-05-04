@@ -2,13 +2,13 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useAuth } from '../../../AuthContext';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faBriefcase, faBuilding, faUser, faFileAlt, faSpinner } from '@fortawesome/free-solid-svg-icons';
+import { faBriefcase, faBuilding, faUser, faSpinner } from '@fortawesome/free-solid-svg-icons';
 
-const InfoCard = ({ icon: Icon, label, value, subValue }) => (
+const InfoCard = ({ icon, label, value, subValue }) => (
   <div>
     <p className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-1">{label}</p>
     <div className="flex items-center">
-      <Icon className="w-5 h-5 text-slate-500 dark:text-slate-400 mr-3" />
+      <FontAwesomeIcon icon={icon} className="w-5 h-5 text-slate-500 dark:text-slate-400 mr-3" />
       <div>
         <p className="text-sm font-bold text-slate-700 dark:text-white leading-tight">{value || 'N/A'}</p>
         {subValue && <p className="text-xs text-slate-500 dark:text-slate-400">{subValue}</p>}

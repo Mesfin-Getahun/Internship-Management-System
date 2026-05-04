@@ -3,7 +3,7 @@ import axios from 'axios';
 import { useAuth } from '../../../AuthContext';
 import ApplicationStatusModal from './ApplicationStatusModal.jsx';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faSpinner, faFolderOpen } from '@fortawesome/free-solid-svg-icons';
+import { faSpinner, faFolderOpen, faTrash } from '@fortawesome/free-solid-svg-icons';
 
 const MyApplications = () => {
   const [selectedApplication, setSelectedApplication] = useState(null);
@@ -11,8 +11,7 @@ const MyApplications = () => {
   const [loading, setLoading] = useState(true);
   const { user } = useAuth();
 
-  useEffect(() => {
-    const fetchMyApplications = async () => {
+  const fetchMyApplications = async () => {
       try {
         setLoading(true);
         const res = await axios.get(`${import.meta.env.VITE_BACKEND_URL}/api/student/myInternship`, {
@@ -34,6 +33,8 @@ const MyApplications = () => {
       }
     };
 
+  useEffect(() => {
+
     if (user?.token) fetchMyApplications();
   }, [user]);
 
@@ -43,6 +44,25 @@ const MyApplications = () => {
 
   const handleCloseModal = () => {
     setSelectedApplication(null);
+  };
+
+  const handleCancelApplication = async (app) => {
+    const applicationId = app.application_id || app.id;
+    if (!applicationId) return;
+
+    const confirmed = window.confirm('Cancel this application? This cannot be undone.');
+    if (!confirmed) return;
+
+    try {
+      await axios.delete(
+        `${import.meta.env.VITE_BACKEND_URL}/api/student/cancelApplication/${encodeURIComponent(applicationId)}`,
+        { headers: { Authorization: `Bearer ${user?.token}` } },
+      );
+      await fetchMyApplications();
+    } catch (err) {
+      console.error("Failed to cancel application:", err);
+      alert(err.response?.data?.message || 'Failed to cancel application.');
+    }
   };
 
   return (
@@ -96,12 +116,23 @@ const MyApplications = () => {
                         </span>
                       </td>
                       <td className="p-5 text-right">
-                        <button 
-                          onClick={() => handleViewStatus(app)}
-                          className="px-5 py-2 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 rounded-xl text-xs font-bold hover:bg-blue-600 hover:text-white transition-all active:scale-95"
-                        >
-                          View Details
-                        </button>
+                        <div className="flex justify-end gap-2">
+                          <button 
+                            onClick={() => handleViewStatus(app)}
+                            className="px-4 py-2 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 rounded-xl text-xs font-bold hover:bg-blue-600 hover:text-white transition-all active:scale-95"
+                          >
+                            View Details
+                          </button>
+                          {(app.status || '').toLowerCase() === 'pending' && (
+                            <button
+                              onClick={() => handleCancelApplication(app)}
+                              className="px-3 py-2 bg-red-50 text-red-600 rounded-xl text-xs font-bold hover:bg-red-600 hover:text-white transition-all active:scale-95"
+                              title="Cancel application"
+                            >
+                              <FontAwesomeIcon icon={faTrash} />
+                            </button>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   ))}

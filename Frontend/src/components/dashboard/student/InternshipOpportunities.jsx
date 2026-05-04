@@ -8,6 +8,7 @@ import { faSearch, faFilter, faMapMarkerAlt, faClock, faTimes, faSpinner, faBuil
 const InternshipOpportunities = () => {
   const [selectedInternship, setSelectedInternship] = useState(null);
   const [opportunities, setOpportunities] = useState([]);
+  const [suggestions, setSuggestions] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
@@ -17,9 +18,14 @@ const InternshipOpportunities = () => {
     const fetchInternships = async () => {
       try {
         setLoading(true);
-        const res = await axios.get(`${import.meta.env.VITE_BACKEND_URL}/api/student/internships`, {
-           headers: { Authorization: `Bearer ${user?.token}` }
-        });
+        const authConfig = {
+          headers: { Authorization: `Bearer ${user?.token}` },
+        };
+
+        const [res, suggestedRes] = await Promise.all([
+          axios.get(`${import.meta.env.VITE_BACKEND_URL}/api/student/internships`, authConfig),
+          axios.get(`${import.meta.env.VITE_BACKEND_URL}/api/student/internships/suggested`, authConfig).catch(() => ({ data: { suggestions: [] } })),
+        ]);
 
         // Some mapping might vary depending on backend exact response structure.
         // I will assume properties like title, company_name, location, end_date, description, skills, status.
@@ -29,6 +35,7 @@ const InternshipOpportunities = () => {
            // fallback just in case 'success' isn't explicitly sent
            setOpportunities(res.data.internships);
         }
+        setSuggestions(Array.isArray(suggestedRes.data?.suggestions) ? suggestedRes.data.suggestions : []);
       } catch (err) {
         console.error("Failed to fetch opportunities:", err);
       } finally {
@@ -52,6 +59,10 @@ const InternshipOpportunities = () => {
       .filter(Boolean)
       .some((value) => String(value).toLowerCase().includes(query));
   });
+
+  const suggestionMap = new Map(
+    suggestions.map((suggestion) => [String(suggestion.internship_id), suggestion]),
+  );
 
   return (
     <div className="animate-fade-in space-y-8">
@@ -86,7 +97,7 @@ const InternshipOpportunities = () => {
                   {opp.company_name?.charAt(0) || 'C'}
                 </div>
                 <span className={`px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest bg-blue-100 text-blue-700`}>
-                  {opp.status || 'Active'}
+                  {suggestionMap.has(String(opp.internship_id)) ? `Match ${suggestionMap.get(String(opp.internship_id)).match_score}` : (opp.status || 'Active')}
                 </span>
               </div>
               

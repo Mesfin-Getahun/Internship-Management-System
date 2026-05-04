@@ -69,7 +69,7 @@ const MyStudents = () => {
                    <tr key={student.student_id || student.id || i} className="hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors group">
                      <td className="p-5">
                        <div className="font-bold text-sm text-slate-800 dark:text-white group-hover:text-teal-600 dark:group-hover:text-teal-400 transition-colors">{student.student_name || student.full_name || student.name || 'Student'}</div>
-                       <div className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1">ID: {student.student_id ? String(student.student_id).slice(0, 8) : 'N/A'} • {student.department || student.faculty || 'Engineering'}</div>
+                       <div className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1">ID: {student.student_id ? String(student.student_id).slice(0, 8) : 'N/A'} - {student.department || student.faculty || 'Engineering'}</div>
                      </td>
                      <td className="p-5 text-sm text-slate-600 dark:text-slate-400 font-semibold">{student.company_name || student.org || 'Unassigned'}</td>
                      <td className="p-5">
@@ -143,13 +143,6 @@ const MyStudents = () => {
                   <p className="text-sm font-bold text-teal-600">{selectedStudent.status || 'Active'}</p>
                 </div>
               </div>
-            </div>
-
-            <div className="p-8 pt-0 flex gap-3 border-t border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/30">
-               {/* Non-functional mock buttons for UI completeness */}
-              <button className="flex-1 py-4 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 rounded-2xl font-bold bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors text-sm shadow-sm">
-                View Academic Transcripts
-              </button>
             </div>
           </div>
         </div>

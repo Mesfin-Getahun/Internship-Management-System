@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faTableCellsLarge, faUsers, faCheckCircle, faFileAlt, faSignOutAlt, faCommentDots, faSpinner } from '@fortawesome/free-solid-svg-icons';
+import { faTableCellsLarge, faUsers, faFileAlt, faSignOutAlt, faCommentDots, faSpinner } from '@fortawesome/free-solid-svg-icons';
 import { useAuth } from "../../../AuthContext";
 import axios from "axios";
 
@@ -39,7 +39,6 @@ const OrgSupervisorSidebar = ({ activeTab }) => {
   const menuItems = [
     { id: "overview", label: "Dashboard", icon: faTableCellsLarge },
     { id: "students", label: "Students", icon: faUsers, badge: studentCount },
-    { id: "attendance", label: "Attendance", icon: faCheckCircle },
     { id: "evaluation", label: "Evaluation", icon: faFileAlt },
     { id: "feedback", label: "Feedback", icon: faCommentDots },
   ];

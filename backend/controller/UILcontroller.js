@@ -46,7 +46,7 @@ const getFrontendBaseUrl = (req, explicitUrl) => {
     normalizeBaseUrl(process.env.APP_URL) ||
     normalizeBaseUrl(requestOrigin) ||
     normalizeBaseUrl(requestReferer) ||
-    "http://localhost:5173"
+    "http://localhost:3000"
   );
 };
 
@@ -416,6 +416,58 @@ const getActiveCompanies = async (req, res) => {
     res.status(500).json({
       success: false,
       message: "Failed to fetch active companies",
+    });
+  }
+};
+
+const fulfillmentReports = async (req, res) => {
+  try {
+    const [reports] = await db.query(
+      `
+      SELECT
+        s.faculty,
+        s.student_id,
+        s.full_name AS student_name,
+        c.company_name,
+        i.title AS internship_title,
+        si.status AS placement_status,
+        ie.evaluation_id,
+        ie.total_mark,
+        ie.assessment_pdf_url,
+        ie.attendance_pdf_url,
+        ie.submitted_at AS evaluation_submitted_at,
+        r.report_id,
+        r.status AS report_status,
+        r.mentor_signed_url,
+        r.faculty_submitted_at
+      FROM student s
+      LEFT JOIN student_internship si
+        ON s.student_id = si.student_id
+      LEFT JOIN internship i
+        ON si.internship_id = i.internship_id
+      LEFT JOIN company c
+        ON i.company_id = c.company_id
+      LEFT JOIN internship_evaluation ie
+        ON s.student_id = ie.student_id
+       AND si.internship_id = ie.internship_id
+      LEFT JOIN internship_report r
+        ON s.student_id = r.student_id
+       AND si.internship_id = r.internship_id
+      WHERE si.id IS NOT NULL
+      ORDER BY s.faculty, s.full_name
+      `,
+    );
+
+    res.status(200).json({
+      success: true,
+      count: reports.length,
+      reports,
+    });
+  } catch (error) {
+    console.error("Fetch fulfillment reports error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to fetch fulfillment reports",
     });
   }
 };
@@ -898,6 +950,7 @@ export {
   pendingInternships,
   companyRequest,
   getActiveCompanies,
+  fulfillmentReports,
   inviteCompany,
   verifyCompanyInvite,
   completeCompanyRegistration,

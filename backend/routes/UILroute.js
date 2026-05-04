@@ -9,6 +9,7 @@ import {
   pendingInternships,
   companyRequest,
   getActiveCompanies,
+  fulfillmentReports,
   inviteCompany,
   verifyCompanyInvite,
   completeCompanyRegistration,
@@ -189,6 +190,7 @@ UILroute.put("/rejectCompany/:company_id", authUIL, rejectCompany);
  *         description: Failed to fetch active companies
  */
 UILroute.get("/companies/active", authUIL, getActiveCompanies);
+UILroute.get("/fulfillmentReports", authUIL, fulfillmentReports);
 UILroute.get("/recommendation-letter", authUIL, getRecommendationLetter);
 UILroute.post(
   "/recommendation-letter",
@@ -196,11 +198,7 @@ UILroute.post(
   uploadPDF.single("recommendationLetter"),
   uploadRecommendationLetter,
 );
-UILroute.delete(
-  "/recommendation-letter",
-  authUIL,
-  removeRecommendationLetter,
-);
+UILroute.delete("/recommendation-letter", authUIL, removeRecommendationLetter);
 
 /**
  * @swagger

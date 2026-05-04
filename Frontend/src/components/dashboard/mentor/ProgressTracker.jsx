@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+﻿import React, { useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
 import { useAuth } from '../../../AuthContext';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
@@ -97,7 +97,7 @@ const ProgressTracker = () => {
             <div className="flex justify-between items-start mb-6">
               <div>
                 <h4 className="text-lg font-bold text-slate-800 dark:text-white group-hover:text-teal-600 transition-colors">{intern.name}</h4>
-                <p className="text-xs text-slate-400 font-bold uppercase tracking-widest">{intern.org} � {intern.role}</p>
+                <p className="text-xs text-slate-400 font-bold uppercase tracking-widest">{intern.org} • {intern.role}</p>
               </div>
               <span className={`px-3 py-1 rounded-xl text-[10px] font-black uppercase tracking-widest ${
                 intern.status === 'On Track' || intern.status === 'Reviewed'
@@ -143,7 +143,7 @@ const ProgressTracker = () => {
                   ? 'bg-amber-500 text-white shadow-amber-500/20'
                   : 'bg-teal-600 text-white shadow-teal-600/20'
               }`}>
-                {intern.status === 'Reviewed' ? 'Evaluation Ready' : 'Current Status'}
+                {intern.status === 'Reviewed' ? 'Feedback Ready' : 'Current Status'}
               </div>
             </div>
           </div>

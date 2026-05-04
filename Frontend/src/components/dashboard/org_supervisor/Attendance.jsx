@@ -1,9 +1,8 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
 import axios from 'axios';
 import { useAuth } from '../../../AuthContext';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faCalendarCheck, faChevronRight, faSpinner, faTriangleExclamation, faUsersSlash } from '@fortawesome/free-solid-svg-icons';
+import { faCalendarCheck, faSpinner, faUsersSlash } from '@fortawesome/free-solid-svg-icons';
 
 const Attendance = () => {
   const { user } = useAuth();
@@ -37,14 +36,14 @@ const Attendance = () => {
       total: students.length,
       active: students.filter((student) => (student.status || '').toLowerCase() === 'in progress').length,
     }),
-    [students]
+    [students],
   );
 
   return (
     <div className="animate-fade-in space-y-8">
       <header>
         <h2 className="text-3xl font-bold text-slate-800 dark:text-white">Attendance Tracker</h2>
-        <p className="text-slate-500 text-sm mt-1">Attendance is included in the supervisor evaluation workflow for every assigned student.</p>
+        <p className="text-slate-500 text-sm mt-1">Review the attendance roster and active placement count for your assigned students.</p>
       </header>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -71,10 +70,9 @@ const Attendance = () => {
         ) : (
           <div className="space-y-4">
             {students.map((student) => (
-              <Link
+              <div
                 key={`${student.internship_id}_${student.student_id}`}
-                to={`/org-supervisor/evaluate/${student.internship_id}_${student.student_id}`}
-                className="flex items-center justify-between p-5 rounded-2xl border border-slate-200 dark:border-slate-700 hover:border-emerald-400 hover:bg-slate-50 dark:hover:bg-slate-700/40 transition-all"
+                className="flex items-center justify-between p-5 rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50/40 dark:bg-slate-900/30"
               >
                 <div className="flex items-center gap-4">
                   <div className="w-12 h-12 rounded-2xl bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 flex items-center justify-center">
@@ -82,15 +80,19 @@ const Attendance = () => {
                   </div>
                   <div>
                     <p className="font-bold text-slate-800 dark:text-white">{student.student_name}</p>
-                    <p className="text-sm text-slate-500 dark:text-slate-400">{student.internship_title || 'Internship'} • {student.department || 'Department'}</p>
+                    <p className="text-sm text-slate-500 dark:text-slate-400">
+                      {student.internship_title || 'Internship'} - {student.department || 'Department'}
+                    </p>
                   </div>
                 </div>
-                <div className="flex items-center gap-3 text-sm font-semibold text-slate-500">
-                  <FontAwesomeIcon icon={faTriangleExclamation} className="text-amber-500" />
-                  Record attendance
-                  <FontAwesomeIcon icon={faChevronRight} />
-                </div>
-              </Link>
+                <span className={`px-3 py-1 rounded-full text-xs font-bold ${
+                  (student.status || '').toLowerCase() === 'in progress'
+                    ? 'bg-emerald-100 text-emerald-700'
+                    : 'bg-slate-100 text-slate-600'
+                }`}>
+                  {student.status || 'Assigned'}
+                </span>
+              </div>
             ))}
           </div>
         )}

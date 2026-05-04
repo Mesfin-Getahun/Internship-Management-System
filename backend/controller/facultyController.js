@@ -1,4 +1,6 @@
 import db from "../config/mysql.js";
+import bcrypt from "bcryptjs";
+import * as xlsx from "xlsx";
 
 const assignMentor = async (req, res) => {
   try {
@@ -221,8 +223,8 @@ const facultyViewReports = async (req, res) => {
         r.report_url AS file_url,
         r.mentor_signed_url,
         r.status,
-        r.created_at,
-        r.submitted_at,
+        r.submission_date AS created_at,
+        r.faculty_submitted_at AS submitted_at,
         s.student_id,
         s.full_name AS student_name,
         s.department,
@@ -234,7 +236,7 @@ const facultyViewReports = async (req, res) => {
       LEFT JOIN internship i ON r.internship_id = i.internship_id
       LEFT JOIN company c ON i.company_id = c.company_id
       WHERE s.faculty = ?
-      ORDER BY COALESCE(r.submitted_at, r.created_at) DESC
+      ORDER BY r.submission_date DESC
       `,
       [faculty],
     );
@@ -358,7 +360,7 @@ const getPaymentData = async (req, res) => {
         s.full_name AS student_name,
         s.department,
         c.company_name
-      FROM payment p
+      FROM payments p
       JOIN student s ON p.student_id = s.student_id
       LEFT JOIN student_internship si ON s.student_id = si.student_id
       LEFT JOIN internship i ON si.internship_id = i.internship_id
@@ -518,6 +520,72 @@ const evaluation = async (req, res) => {
   }
 };
 
+const uploadStudents = async (req, res) => {
+  try {
+    const faculty_name = req.user.faculty_name;
+    const file = req.file;
+
+    if (!file) {
+      return res.status(400).json({ success: false, message: "No file uploaded" });
+    }
+
+    const workbook = xlsx.read(file.buffer, { type: "buffer" });
+    const sheetName = workbook.SheetNames[0];
+    const sheet = workbook.Sheets[sheetName];
+    const rows = xlsx.utils.sheet_to_json(sheet);
+
+    if (rows.length === 0) {
+      return res.status(400).json({ success: false, message: "File is empty" });
+    }
+
+    let insertedCount = 0;
+    let skippedCount = 0;
+
+    for (const row of rows) {
+      const student_id = row.student_id || row.ID || row.id;
+      const first_name = row.first_name || row.FirstName || row.First_Name || "";
+      const last_name = row.last_name || row.LastName || row.Last_Name || "";
+      const full_name = (first_name + " " + last_name).trim() || row.full_name || row.Name || row.name;
+      const email = row.email || row.Email || null;
+      const department = row.department || row.Department || faculty_name; // Default to faculty if not provided
+      
+      if (!student_id || !first_name) {
+        skippedCount++;
+        continue;
+      }
+
+      // Check if student already exists
+      const [existing] = await db.query("SELECT student_id FROM student WHERE student_id = ?", [student_id]);
+      if (existing.length > 0) {
+        skippedCount++;
+        continue;
+      }
+
+      const rawPassword = String(student_id) + String(first_name);
+      const hashedPassword = await bcrypt.hash(rawPassword, 10);
+
+      await db.query(
+        `INSERT INTO student 
+         (student_id, full_name, email, password, department, faculty, must_change_password) 
+         VALUES (?, ?, ?, ?, ?, ?, 1)`,
+        [student_id, full_name, email, hashedPassword, department, faculty_name]
+      );
+      insertedCount++;
+    }
+
+    res.status(200).json({
+      success: true,
+      message: `Successfully registered ${insertedCount} students. Skipped ${skippedCount} duplicate/invalid records.`,
+      insertedCount,
+      skippedCount
+    });
+
+  } catch (error) {
+    console.error("Upload students error:", error);
+    res.status(500).json({ success: false, message: "Failed to upload students" });
+  }
+};
+
 export {
   assignMentor,
   companyEvaluation,
@@ -529,4 +597,5 @@ export {
   getPaymentData,
   getFacultyProfile,
   evaluation,
+  uploadStudents,
 };

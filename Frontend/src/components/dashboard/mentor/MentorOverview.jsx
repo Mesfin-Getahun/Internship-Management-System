@@ -72,7 +72,7 @@ const MentorOverview = () => {
     const pendingReports = reports.filter(
       (report) => !['signed', 'approved'].includes((report.status || '').toLowerCase())
     ).length;
-    const awaitingEvaluation = students.filter((student) => {
+    const awaitingFeedback = students.filter((student) => {
       const studentId = String(student.student_id || '');
       return studentId && !feedbacks.some((feedback) => String(feedback.student_id || '') === studentId);
     }).length;
@@ -120,9 +120,9 @@ const MentorOverview = () => {
           subClass: 'text-blue-600 dark:text-blue-400',
         },
         {
-          label: 'Awaiting Evaluation',
-          val: awaitingEvaluation,
-          sub: 'Needs review',
+          label: 'Awaiting Feedback',
+          val: awaitingFeedback,
+          sub: 'Needs comment',
           icon: faClipboardCheck,
           cardClass: 'bg-amber-50 text-amber-600 dark:bg-amber-900/20 dark:text-amber-400',
           subClass: 'text-amber-600 dark:text-amber-400',

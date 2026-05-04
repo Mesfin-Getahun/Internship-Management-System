@@ -214,7 +214,7 @@ const OrganizationUpdates = () => {
                 className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl py-3.5 pl-11 pr-4 text-slate-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 font-semibold text-sm appearance-none cursor-pointer shadow-sm disabled:opacity-50"
                 disabled={loading}
             >
-                <option value="">-- View Evaluation Profile --</option>
+                <option value="">-- View Company Feedback --</option>
                 {students.map(student => (
                    <option key={student.id} value={student.id}>{student.name}</option>
                 ))}
@@ -246,7 +246,7 @@ const OrganizationUpdates = () => {
                     <p className="font-bold text-slate-800 dark:text-white">{evaluation.company_mentor_name || 'Mentor'}</p>
                   </div>
                   <div>
-                    <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">Evaluation Date</p>
+                    <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">Feedback Date</p>
                     <p className="font-bold text-slate-800 dark:text-white">
                       {evaluation.created_at ? new Date(evaluation.created_at).toLocaleDateString() : 'Recent'}
                     </p>
@@ -316,7 +316,7 @@ const OrganizationUpdates = () => {
         <div className="flex flex-col items-center justify-center p-12 bg-white dark:bg-slate-900 rounded-3xl border border-slate-100 dark:border-slate-800 shadow-sm min-h-[250px] text-center">
             <FontAwesomeIcon icon={faBuilding} size="3x" className="text-slate-300 mb-4" />
             <p className="text-xl font-bold text-slate-700 dark:text-white">Awaiting Selection</p>
-            <p className="text-sm text-slate-500 mt-2">Open the dropdown picker to view an assigned student's organization evaluation trace.</p>
+            <p className="text-sm text-slate-500 mt-2">Open the dropdown picker to view company mentor feedback for an assigned student.</p>
         </div>
       )}
       <EvaluationModal evaluation={selectedEvaluation} onClose={() => setSelectedEvaluation(null)} />
