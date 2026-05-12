@@ -5,7 +5,7 @@ import BottomTabs from "./BottomTabs";
 
 export default function Screen({ children, withTabs = false, className = "" }) {
   return (
-    <SafeAreaView className={`flex-1 bg-[#F4F7FB] ${className}`} edges={["top", "left", "right", "bottom"]}>
+    <SafeAreaView className={`flex-1 bg-[#F4F7FB] dark:bg-slate-950 ${className}`} edges={["top", "left", "right", "bottom"]}>
       <View className="flex-1">{children}</View>
       {withTabs ? <BottomTabs /> : null}
     </SafeAreaView>

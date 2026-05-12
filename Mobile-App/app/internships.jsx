@@ -7,7 +7,11 @@ import EmptyState from "../components/common/EmptyState";
 import Card from "../components/ui/Card";
 import Button from "../components/ui/Button";
 import InputField from "../components/ui/InputField";
-import { applyForInternship, getStudentInternships } from "../services/studentService";
+import {
+  applyForInternship,
+  getStudentInternships,
+  getSuggestedInternships,
+} from "../services/studentService";
 import { appendAssetToFormData, pickPdfDocument } from "../utils/documentUpload";
 
 function formatDuration(item) {
@@ -21,6 +25,7 @@ function formatDuration(item) {
 export default function InternshipsScreen() {
   const [savedIds, setSavedIds] = useState([]);
   const [opportunities, setOpportunities] = useState([]);
+  const [suggestions, setSuggestions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [activeApplyId, setActiveApplyId] = useState(null);
@@ -33,15 +38,23 @@ export default function InternshipsScreen() {
     setLoading(true);
     setError("");
 
-    getStudentInternships()
-      .then((response) => {
-        setOpportunities(response.internships || []);
+    Promise.allSettled([getStudentInternships(), getSuggestedInternships()]).then(
+      ([internshipsResult, suggestionsResult]) => {
+        if (internshipsResult.status === "fulfilled") {
+          setOpportunities(internshipsResult.value.internships || []);
+        } else {
+          setError(internshipsResult.reason?.message || "Failed to load internships");
+        }
+
+        if (suggestionsResult.status === "fulfilled") {
+          setSuggestions(suggestionsResult.value.suggestions || []);
+        } else {
+          setSuggestions([]);
+        }
+
         setLoading(false);
-      })
-      .catch((requestError) => {
-        setError(requestError.message || "Failed to load internships");
-        setLoading(false);
-      });
+      }
+    );
   };
 
   useEffect(() => {
@@ -119,6 +132,34 @@ export default function InternshipsScreen() {
             Browse openings, save the interesting ones, and apply from one place.
           </Text>
         </View>
+
+        {suggestions.length > 0 ? (
+          <Card className="mb-4 border border-blue-100 bg-blue-50/70">
+            <View className="mb-3 flex-row items-center justify-between">
+              <Text className="text-lg font-bold text-slate-800">Recommended for You</Text>
+              <FontAwesome name="sparkles" size={18} color="#2563EB" />
+            </View>
+            {suggestions.slice(0, 3).map((item) => (
+              <View key={item.internship_id} className="mb-3 rounded-[22px] bg-white p-4 last:mb-0">
+                <View className="flex-row items-start justify-between">
+                  <View className="flex-1 pr-3">
+                    <Text className="text-base font-bold text-slate-800">{item.company}</Text>
+                    <Text className="mt-1 text-sm font-medium text-slate-600">{item.title}</Text>
+                  </View>
+                  <View className="rounded-full bg-blue-100 px-3 py-1">
+                    <Text className="text-xs font-bold text-blue-700">{item.match_score || 0}</Text>
+                  </View>
+                </View>
+                <Text className="mt-2 text-xs text-slate-500">{item.location || "Location not specified"}</Text>
+                {item.matched_skills?.length ? (
+                  <Text className="mt-2 text-xs leading-5 text-slate-500">
+                    Matched skills: {item.matched_skills.join(", ")}
+                  </Text>
+                ) : null}
+              </View>
+            ))}
+          </Card>
+        ) : null}
 
         {error ? (
           <Card className="mb-4 border border-rose-200 bg-rose-50">

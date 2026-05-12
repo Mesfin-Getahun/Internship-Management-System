@@ -8,12 +8,12 @@ const variants = {
     loader: "#FFFFFF",
   },
   secondary: {
-    wrapper: "bg-slate-200",
-    text: "text-slate-700",
+    wrapper: "bg-slate-200 dark:bg-slate-800",
+    text: "text-slate-700 dark:text-slate-100",
     loader: "#334155",
   },
   outline: {
-    wrapper: "border border-blue-600 bg-transparent",
+    wrapper: "border border-blue-600 bg-transparent dark:border-blue-400",
     text: "text-blue-600",
     loader: "#2563EB",
   },

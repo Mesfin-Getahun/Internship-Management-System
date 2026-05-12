@@ -1,16 +1,19 @@
 import React, { useEffect, useState } from "react";
 import { Alert, ScrollView, Text, View } from "react-native";
+import { useRouter } from "expo-router";
 import Screen from "../components/common/Screen";
 import Loader from "../components/common/Loader";
 import EmptyState from "../components/common/EmptyState";
 import Card from "../components/ui/Card";
+import InputField from "../components/ui/InputField";
 import Header from "../components/home/Header";
 import StatusCard from "../components/home/StatusCard";
 import ReportCard from "../components/home/ReportCard";
 import Badge from "../components/ui/Badge";
 import { getCurrentSession } from "../services/authService";
 import Button from "../components/ui/Button";
-import { cancelStudentApplication, getMyInternship, getPaymentApplication, getStudentFeedbacks } from "../services/studentService";
+import { cancelStudentApplication, getMyInternship, getPaymentApplication, getStudentFeedbacks, submitPaymentForm } from "../services/studentService";
+import { appendAssetToFormData, pickPdfDocument } from "../utils/documentUpload";
 
 function formatStatusLabel(status) {
   if (!status) {
@@ -38,9 +41,17 @@ function formatDateRange(startDate, endDate) {
 }
 
 export default function HomeScreen() {
+  const router = useRouter();
   const [data, setData] = useState(null);
   const [error, setError] = useState("");
   const [cancelingId, setCancelingId] = useState(null);
+  const [paymentForm, setPaymentForm] = useState({
+    bankName: "",
+    accountHolder: "",
+    accountNumber: "",
+  });
+  const [acceptanceLetterFile, setAcceptanceLetterFile] = useState(null);
+  const [submittingPayment, setSubmittingPayment] = useState(false);
 
   const loadDashboard = async () => {
     setError("");
@@ -64,6 +75,11 @@ export default function HomeScreen() {
     };
 
     setData(nextData);
+    setPaymentForm({
+      bankName: nextData.payment?.bank_name || "",
+      accountHolder: nextData.payment?.account_holder || "",
+      accountNumber: nextData.payment?.account_number || "",
+    });
 
     const errors = [internshipResult, feedbackResult, paymentResult]
       .filter((result) => result.status === "rejected")
@@ -114,6 +130,52 @@ export default function HomeScreen() {
     );
   };
 
+  const handlePickAcceptanceLetter = async () => {
+    const file = await pickPdfDocument();
+    if (file) {
+      setAcceptanceLetterFile(file);
+    }
+  };
+
+  const handleSubmitPayment = async () => {
+    if (data?.paymentFeatureAvailable === false) {
+      Alert.alert(
+        "Payment Unavailable",
+        "The payment application feature is not available yet because the backend payment table is missing."
+      );
+      return;
+    }
+
+    if (!paymentForm.bankName || !paymentForm.accountHolder || !paymentForm.accountNumber) {
+      Alert.alert("Missing Details", "Please fill in your bank name, account holder, and account number.");
+      return;
+    }
+
+    if (!acceptanceLetterFile) {
+      Alert.alert("Missing File", "Please choose the signed acceptance letter PDF.");
+      return;
+    }
+
+    setSubmittingPayment(true);
+
+    const formData = new FormData();
+    formData.append("bankName", paymentForm.bankName);
+    formData.append("accountHolder", paymentForm.accountHolder);
+    formData.append("accountNumber", paymentForm.accountNumber);
+    appendAssetToFormData(formData, "acceptanceLetter", acceptanceLetterFile);
+
+    try {
+      const response = await submitPaymentForm(formData);
+      setAcceptanceLetterFile(null);
+      setSubmittingPayment(false);
+      Alert.alert("Payment Submitted", response.message || "Payment application submitted successfully.");
+      loadDashboard().catch(() => {});
+    } catch (requestError) {
+      setSubmittingPayment(false);
+      Alert.alert("Payment Failed", requestError.message || "Unable to submit payment application.");
+    }
+  };
+
   if (!data && !error) {
     return (
       <Screen withTabs>
@@ -155,6 +217,10 @@ export default function HomeScreen() {
           position={statusPosition}
           duration={statusDuration}
         />
+
+        <View className="mb-5">
+          <Button title="Open Internship Status" variant="outline" onPress={() => router.push("/status")} />
+        </View>
 
         {activeInternship ? (
           <Card className="mb-5">
@@ -258,6 +324,66 @@ export default function HomeScreen() {
             <Text className="text-sm leading-6 text-slate-500">
               No payment application has been submitted yet.
             </Text>
+          )}
+
+          {data?.paymentFeatureAvailable === false ? (
+            <View className="mt-4 rounded-[22px] border border-amber-200 bg-amber-50 p-4">
+              <Text className="text-sm font-medium text-amber-700">
+                Payment application is currently unavailable because the backend payment table is not set up yet.
+              </Text>
+            </View>
+          ) : (
+            <View className="mt-4">
+              <Text className="mb-3 text-sm leading-6 text-slate-500">
+                Fill this form and submit your signed acceptance letter so the faculty side can review your payment application.
+              </Text>
+
+              <InputField
+                label="Bank Name"
+                iconName="university"
+                placeholder="Enter your bank name"
+                value={paymentForm.bankName}
+                onChangeText={(value) => setPaymentForm((current) => ({ ...current, bankName: value }))}
+                className="mb-4"
+              />
+              <InputField
+                label="Account Holder"
+                iconName="user"
+                placeholder="Enter account holder name"
+                value={paymentForm.accountHolder}
+                onChangeText={(value) => setPaymentForm((current) => ({ ...current, accountHolder: value }))}
+                className="mb-4"
+              />
+              <InputField
+                label="Account Number"
+                iconName="credit-card"
+                placeholder="Enter account number"
+                value={paymentForm.accountNumber}
+                onChangeText={(value) => setPaymentForm((current) => ({ ...current, accountNumber: value }))}
+                keyboardType="number-pad"
+                className="mb-4"
+              />
+
+              <View className="mb-4 rounded-[22px] bg-slate-50 p-4">
+                <Text className="mb-3 text-sm font-semibold text-slate-700">
+                  {acceptanceLetterFile
+                    ? `Acceptance Letter: ${acceptanceLetterFile.name}`
+                    : "Signed acceptance letter PDF is required"}
+                </Text>
+                <Button
+                  title="Choose Acceptance Letter PDF"
+                  variant="outline"
+                  onPress={handlePickAcceptanceLetter}
+                />
+              </View>
+
+              <Button
+                title="Submit Payment Application"
+                onPress={handleSubmitPayment}
+                loading={submittingPayment}
+                disabled={submittingPayment}
+              />
+            </View>
           )}
         </Card>
       </ScrollView>

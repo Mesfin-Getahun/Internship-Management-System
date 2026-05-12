@@ -17,7 +17,7 @@ export default function BottomTabs() {
 
   return (
     <View className="bg-transparent px-4 pb-5 pt-2">
-      <View className="flex-row items-center justify-between rounded-[28px] border border-slate-200 bg-white px-2 py-2 shadow-md">
+      <View className="flex-row items-center justify-between rounded-[28px] border border-slate-200 bg-white px-2 py-2 shadow-md dark:border-slate-800 dark:bg-slate-900">
         {tabs.map((tab) => {
           const isActive = pathname === tab.path;
           return (
@@ -27,10 +27,10 @@ export default function BottomTabs() {
               activeOpacity={0.8}
               onPress={() => router.replace(tab.path)}
             >
-              <View className={`h-9 w-9 items-center justify-center rounded-full ${isActive ? "bg-white/20" : "bg-slate-100"}`}>
+              <View className={`h-9 w-9 items-center justify-center rounded-full ${isActive ? "bg-white/20" : "bg-slate-100 dark:bg-slate-800"}`}>
                 <FontAwesome name={tab.icon} size={16} color={isActive ? "#FFFFFF" : "#64748B"} />
               </View>
-              <Text className={`mt-1 text-[11px] font-bold ${isActive ? "text-white" : "text-slate-500"}`}>
+              <Text className={`mt-1 text-[11px] font-bold ${isActive ? "text-white" : "text-slate-500 dark:text-slate-400"}`}>
                 {tab.label}
               </Text>
             </TouchableOpacity>

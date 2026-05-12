@@ -1,14 +1,18 @@
 import React, { useState } from "react";
 import { Alert, ScrollView, Text, View } from "react-native";
+import { useRouter } from "expo-router";
 import { FontAwesome } from "@expo/vector-icons";
 import Screen from "../components/common/Screen";
 import Card from "../components/ui/Card";
 import InputField from "../components/ui/InputField";
 import Button from "../components/ui/Button";
-import { getCurrentSession, updateCurrentSessionUser } from "../services/authService";
+import { getCurrentSession, logout, updateCurrentSessionUser } from "../services/authService";
 import { updateStudentProfile } from "../services/studentService";
+import { useTheme } from "../providers/ThemeProvider";
 
 export default function ProfileScreen() {
+  const router = useRouter();
+  const { isDark, toggleTheme } = useTheme();
   const session = getCurrentSession();
   const student = session?.user || {};
   const [profile, setProfile] = useState({
@@ -47,6 +51,11 @@ export default function ProfileScreen() {
       });
   };
 
+  const handleLogout = () => {
+    logout();
+    router.replace("/");
+  };
+
   return (
     <Screen withTabs>
       <ScrollView className="flex-1 px-4 pt-4" contentContainerStyle={{ paddingBottom: 20 }} showsVerticalScrollIndicator={false}>
@@ -59,21 +68,49 @@ export default function ProfileScreen() {
         </View>
 
         <Card className="mb-4">
-          <Text className="mb-4 text-lg font-bold text-slate-800">Personal Info</Text>
+          <View className="mb-4 flex-row items-center justify-between">
+            <View className="flex-1 pr-4">
+              <Text className="text-lg font-bold text-slate-800 dark:text-slate-100">Appearance</Text>
+              <Text className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+                Switch between light and dark theme for the mobile app.
+              </Text>
+            </View>
+            <Button
+              title={isDark ? "Dark On" : "Light On"}
+              variant={isDark ? "primary" : "secondary"}
+              onPress={toggleTheme}
+            />
+          </View>
+        </Card>
+
+        <Card className="mb-4">
+          <View className="mb-4 flex-row items-center justify-between">
+            <View className="flex-1 pr-4">
+              <Text className="text-lg font-bold text-slate-800 dark:text-slate-100">Session</Text>
+              <Text className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+                Sign out when you are done using the student portal.
+              </Text>
+            </View>
+            <Button title="Log Out" variant="outline" onPress={handleLogout} />
+          </View>
+        </Card>
+
+        <Card className="mb-4">
+          <Text className="mb-4 text-lg font-bold text-slate-800 dark:text-slate-100">Personal Info</Text>
           <InputField label="Full Name" iconName="user" value={profile.full_name} onChangeText={(value) => updateField("full_name", value)} className="mb-4" />
           <InputField label="Email" iconName="envelope" value={profile.email} onChangeText={(value) => updateField("email", value)} keyboardType="email-address" className="mb-4" />
           <InputField label="Phone" iconName="phone" value={profile.phone_number} onChangeText={(value) => updateField("phone_number", value)} keyboardType="phone-pad" className="mb-1" />
         </Card>
 
         <Card className="mb-4">
-          <Text className="mb-4 text-lg font-bold text-slate-800">Academic Info</Text>
+          <Text className="mb-4 text-lg font-bold text-slate-800 dark:text-slate-100">Academic Info</Text>
           <InputField label="Student ID" iconName="id-card" value={profile.student_id} onChangeText={() => {}} editable={false} className="mb-4" />
           <InputField label="Faculty" iconName="university" value={profile.faculty} onChangeText={() => {}} editable={false} className="mb-4" />
           <InputField label="Department" iconName="book" value={profile.department} onChangeText={() => {}} editable={false} className="mb-1" />
         </Card>
 
         <Card className="mb-4">
-          <Text className="mb-4 text-lg font-bold text-slate-800">Skills</Text>
+          <Text className="mb-4 text-lg font-bold text-slate-800 dark:text-slate-100">Skills</Text>
           <InputField
             label="Skills"
             iconName="code"
@@ -86,8 +123,8 @@ export default function ProfileScreen() {
         </Card>
 
         <Card className="mb-5">
-          <Text className="mb-4 text-lg font-bold text-slate-800">Profile Notes</Text>
-          <Text className="text-sm leading-6 text-slate-500">
+          <Text className="mb-4 text-lg font-bold text-slate-800 dark:text-slate-100">Profile Notes</Text>
+          <Text className="text-sm leading-6 text-slate-500 dark:text-slate-400">
             The current backend lets students update full name, email, phone number, password, and profile picture.
             Additional academic and bio fields can be connected once those backend update fields are added.
           </Text>

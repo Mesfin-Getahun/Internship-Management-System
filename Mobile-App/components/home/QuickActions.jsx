@@ -6,6 +6,8 @@ import { useRouter } from "expo-router";
 const actions = [
   { label: "Browse Internships", icon: "search", path: "/internships", color: "#2563EB", bg: "bg-blue-50" },
   { label: "My Applications", icon: "briefcase", path: "/internships", color: "#0F766E", bg: "bg-teal-50" },
+  { label: "My Reports", icon: "file-pdf-o", path: "/reports", color: "#DC2626", bg: "bg-red-50" },
+  { label: "Evaluations", icon: "bar-chart", path: "/evaluations", color: "#7C3AED", bg: "bg-violet-50" },
   { label: "Documents", icon: "file-text", path: "/documents", color: "#B45309", bg: "bg-amber-50" },
   { label: "Profile", icon: "user", path: "/profile", color: "#7C3AED", bg: "bg-violet-50" },
 ];

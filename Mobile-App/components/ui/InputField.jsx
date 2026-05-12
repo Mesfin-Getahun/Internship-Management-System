@@ -21,14 +21,14 @@ export default function InputField({
 
   return (
     <View className={className}>
-      {label ? <Text className="mb-2 ml-1 text-sm font-semibold text-slate-600">{label}</Text> : null}
+      {label ? <Text className="mb-2 ml-1 text-sm font-semibold text-slate-600 dark:text-slate-300">{label}</Text> : null}
       <View
-        className={`flex-row items-center rounded-2xl border bg-white px-4 py-4 ${
+        className={`flex-row items-center rounded-2xl border bg-white px-4 py-4 dark:bg-slate-900 ${
           error
             ? "border-rose-400"
             : isFocused
               ? "border-blue-500"
-              : "border-slate-200"
+              : "border-slate-200 dark:border-slate-700"
         }`}
       >
         {iconName ? (
@@ -40,7 +40,7 @@ export default function InputField({
           />
         ) : null}
         <TextInput
-          className="flex-1 text-base text-slate-800"
+          className="flex-1 text-base text-slate-800 dark:text-slate-100"
           placeholder={placeholder}
           placeholderTextColor="#94A3B8"
           value={value}
@@ -59,7 +59,7 @@ export default function InputField({
         ) : null}
       </View>
       {error ? <Text className="mt-2 ml-1 text-xs font-medium text-rose-500">{error}</Text> : null}
-      {!error && helperText ? <Text className="mt-2 ml-1 text-xs text-slate-400">{helperText}</Text> : null}
+      {!error && helperText ? <Text className="mt-2 ml-1 text-xs text-slate-400 dark:text-slate-500">{helperText}</Text> : null}
     </View>
   );
 }

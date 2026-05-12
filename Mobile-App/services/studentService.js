@@ -6,8 +6,26 @@ export function getStudentInternships() {
   });
 }
 
+export function getSuggestedInternships() {
+  return apiRequest("/api/student/internships/suggested", {
+    requiresAuth: true,
+  });
+}
+
 export function getMyInternship() {
   return apiRequest("/api/student/myInternship", {
+    requiresAuth: true,
+  });
+}
+
+export function getStudentReports() {
+  return apiRequest("/api/student/reports", {
+    requiresAuth: true,
+  });
+}
+
+export function getStudentEvaluations() {
+  return apiRequest("/api/student/evaluations", {
     requiresAuth: true,
   });
 }
@@ -28,6 +46,12 @@ export function getPaymentApplication() {
 
 export function getStudentFeedbacks() {
   return apiRequest("/api/student/viewFeedbacks", {
+    requiresAuth: true,
+  });
+}
+
+export function getRecommendationLetter() {
+  return apiRequest("/api/student/recommendation-letter", {
     requiresAuth: true,
   });
 }
