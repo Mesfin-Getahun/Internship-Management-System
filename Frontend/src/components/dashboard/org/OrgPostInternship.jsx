@@ -19,6 +19,8 @@ const OrgPostInternship = () => {
     description: '',
     requirements: '',
     location: '',
+    start_date: '',
+    end_date: '',
   });
 
   useEffect(() => {
@@ -39,6 +41,8 @@ const OrgPostInternship = () => {
                   description: target.description || '',
                   requirements: target.requirements || '',
                   location: target.location || '',
+                  start_date: target.start_date ? String(target.start_date).slice(0, 10) : '',
+                  end_date: target.end_date ? String(target.end_date).slice(0, 10) : '',
                });
             } else {
                toast.warn("Vacancy not found for editing.");
@@ -62,8 +66,13 @@ const OrgPostInternship = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!formData.title || !formData.description) {
-      toast.warn('Please fill out the title and description.');
+    if (!formData.title || !formData.description || !formData.start_date || !formData.end_date) {
+      toast.warn('Please fill out the title, description, start date, and end date.');
+      return;
+    }
+
+    if (new Date(formData.end_date) < new Date(formData.start_date)) {
+      toast.warn('End date cannot be before start date.');
       return;
     }
 
@@ -133,6 +142,16 @@ const OrgPostInternship = () => {
             <div className="md:col-span-2 space-y-2">
               <label className="block text-slate-700 dark:text-slate-300 font-bold text-xs uppercase tracking-widest">Requirements</label>
               <textarea name="requirements" value={formData.requirements} onChange={handleInputChange} rows="3" placeholder="Expected skills, programming languages, previous coursework..." className="w-full px-5 py-4 rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none transition-all leading-relaxed"></textarea>
+            </div>
+
+            <div className="space-y-2">
+              <label className="block text-slate-700 dark:text-slate-300 font-bold text-xs uppercase tracking-widest">Start Date *</label>
+              <input name="start_date" value={formData.start_date} onChange={handleInputChange} type="date" required className="w-full px-5 py-4 rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all font-semibold" />
+            </div>
+
+            <div className="space-y-2">
+              <label className="block text-slate-700 dark:text-slate-300 font-bold text-xs uppercase tracking-widest">End Date *</label>
+              <input name="end_date" value={formData.end_date} onChange={handleInputChange} type="date" required className="w-full px-5 py-4 rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all font-semibold" />
             </div>
 
             <div className="md:col-span-2 space-y-2">

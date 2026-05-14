@@ -5,6 +5,12 @@ import { useAuth } from '../../../AuthContext';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faSearch, faFilter, faMapMarkerAlt, faClock, faTimes, faSpinner, faBuilding } from '@fortawesome/free-solid-svg-icons';
 
+const formatDuration = (months) => {
+  const parsed = Number.parseFloat(months);
+  if (!Number.isFinite(parsed)) return 'Not specified';
+  return `${parsed} month${parsed === 1 ? '' : 's'}`;
+};
+
 const InternshipOpportunities = () => {
   const [selectedInternship, setSelectedInternship] = useState(null);
   const [opportunities, setOpportunities] = useState([]);
@@ -117,6 +123,10 @@ const InternshipOpportunities = () => {
                 )}
               </div>
 
+              <p className={`mb-4 text-xs font-bold ${opp.meets_duration_requirement ? 'text-emerald-600' : 'text-rose-600'}`}>
+                Duration: {formatDuration(opp.duration_months || opp.duration)} | Required: {opp.required_minimum_months || 4} months
+              </p>
+
               <p className="text-slate-500 dark:text-slate-400 text-sm leading-relaxed line-clamp-2 mb-8 flex-grow">
                 {opp.description}
               </p>
@@ -166,7 +176,12 @@ const InternshipOpportunities = () => {
                 </div>
                 <div className="space-y-1">
                   <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest">Duration</p>
-                  <p className="text-sm font-bold text-slate-700 dark:text-slate-300">{selectedInternship.duration || 'Not specified'} Months</p>
+                  <p className="text-sm font-bold text-slate-700 dark:text-slate-300">
+                    {formatDuration(selectedInternship.duration_months || selectedInternship.duration)}
+                  </p>
+                  <p className={`text-xs font-bold ${selectedInternship.meets_duration_requirement ? 'text-emerald-600' : 'text-rose-600'}`}>
+                    Your department requires at least {selectedInternship.required_minimum_months || 4} months.
+                  </p>
                 </div>
                 <div className="space-y-1">
                   <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest">Location</p>
@@ -178,8 +193,9 @@ const InternshipOpportunities = () => {
             <div className="p-8 border-t border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/30">
                  <button 
                     onClick={() => navigate(`/student/apply/${selectedInternship.internship_id}`)}
-                    className="w-full py-5 bg-blue-600 text-white rounded-2xl font-bold hover:bg-blue-700 shadow-xl shadow-blue-500/20 transition-all active:scale-95">
-                   Apply for this Position
+                    disabled={!selectedInternship.meets_duration_requirement}
+                    className="w-full py-5 bg-blue-600 text-white rounded-2xl font-bold hover:bg-blue-700 shadow-xl shadow-blue-500/20 transition-all active:scale-95 disabled:bg-slate-400 disabled:shadow-none disabled:cursor-not-allowed">
+                   {selectedInternship.meets_duration_requirement ? 'Apply for this Position' : 'Duration Not Eligible'}
                  </button>
             </div>
           </div>

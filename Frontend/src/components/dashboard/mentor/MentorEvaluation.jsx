@@ -11,6 +11,7 @@ const MentorEvaluation = () => {
   const [students, setStudents] = useState([]);
   const [companyFeedbacks, setCompanyFeedbacks] = useState([]);
   const [selectedStudentId, setSelectedStudentId] = useState('');
+  const [selectedCompanyFeedbackId, setSelectedCompanyFeedbackId] = useState('');
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const { user } = useAuth();
@@ -55,6 +56,13 @@ const MentorEvaluation = () => {
   }, [companyFeedbacks, selectedStudentId]);
 
   const latestCompanyFeedback = selectedCompanyFeedbacks[0] || null;
+  const selectedCompanyFeedback = selectedCompanyFeedbacks.find(
+    (feedback) => String(feedback.feedback_id) === String(selectedCompanyFeedbackId),
+  ) || latestCompanyFeedback;
+
+  useEffect(() => {
+    setSelectedCompanyFeedbackId(latestCompanyFeedback?.feedback_id ? String(latestCompanyFeedback.feedback_id) : '');
+  }, [latestCompanyFeedback?.feedback_id]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -69,17 +77,23 @@ const MentorEvaluation = () => {
       return;
     }
 
+    if (!selectedCompanyFeedbackId) {
+      toast.warn('Please select company mentor feedback before submitting.');
+      return;
+    }
+
     try {
       setSubmitting(true);
       await axios.post(
         `${import.meta.env.VITE_BACKEND_URL}/api/mentor/provideFeedback/${selectedStudentId}`,
-        { comments: comments.trim() },
+        { comments: comments.trim(), company_feedback_id: selectedCompanyFeedbackId },
         { headers: { Authorization: `Bearer ${user?.token}` } },
       );
 
       toast.success('Feedback sent to the student successfully.');
       setComments('');
       setSelectedStudentId('');
+      setSelectedCompanyFeedbackId('');
     } catch (err) {
       console.error(err);
       toast.error(err.response?.data?.message || 'An error occurred while sending feedback.');
@@ -147,20 +161,33 @@ const MentorEvaluation = () => {
             </div>
           )}
 
-          {latestCompanyFeedback ? (
+          {selectedCompanyFeedback ? (
             <div className="p-6 bg-blue-50 dark:bg-blue-900/10 border border-blue-100 dark:border-blue-800/30 rounded-2xl">
               <p className="text-[10px] font-black text-blue-700 dark:text-blue-400 uppercase tracking-widest mb-2">
-                Latest Company Mentor Feedback
+                Company Mentor Feedback Reference
               </p>
+              {selectedCompanyFeedbacks.length > 1 && (
+                <select
+                  value={selectedCompanyFeedbackId}
+                  onChange={(e) => setSelectedCompanyFeedbackId(e.target.value)}
+                  className="mb-4 w-full px-4 py-3 rounded-xl border border-blue-100 dark:border-blue-800/40 bg-white dark:bg-slate-800 dark:text-white text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-teal-500"
+                >
+                  {selectedCompanyFeedbacks.map((feedback) => (
+                    <option key={feedback.feedback_id} value={feedback.feedback_id}>
+                      {feedback.created_at ? new Date(feedback.created_at).toLocaleDateString() : 'Recent'} - {feedback.feedback_type || 'Feedback'}
+                    </option>
+                  ))}
+                </select>
+              )}
               <p className="text-sm font-bold text-slate-800 dark:text-white">
-                {latestCompanyFeedback.company_mentor_name || 'Company Mentor'} - {latestCompanyFeedback.company_name || 'Company'}
+                {selectedCompanyFeedback.company_mentor_name || 'Company Mentor'} - {selectedCompanyFeedback.company_name || 'Company'}
               </p>
               <p className="text-sm text-slate-600 dark:text-slate-300 mt-3 leading-relaxed">
-                {latestCompanyFeedback.overall_comment || latestCompanyFeedback.feedback_text || 'No company mentor comment available.'}
+                {selectedCompanyFeedback.overall_comment || selectedCompanyFeedback.feedback_text || 'No company mentor comment available.'}
               </p>
               {selectedCompanyFeedbacks.length > 1 && (
                 <p className="text-[10px] font-bold text-blue-500 uppercase tracking-widest mt-4">
-                  {selectedCompanyFeedbacks.length - 1} earlier feedback item(s) also available in Organization Updates.
+                  Faculty feedback will be attached under the selected company feedback item.
                 </p>
               )}
             </div>
