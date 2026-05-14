@@ -63,6 +63,56 @@ const withDurationEligibility = (internship, department) => {
   };
 };
 
+const CURRENT_INTERNSHIP_STATUSES = ["in progress", "accepted", "active"];
+
+const getStudentCurrentInternshipLock = async (studentId) => {
+  const [rows] = await db.query(
+    `
+    SELECT
+      source,
+      internship_id,
+      internship_title,
+      company_name,
+      status
+    FROM (
+      SELECT
+        'placement' AS source,
+        si.internship_id,
+        i.title AS internship_title,
+        c.company_name,
+        si.status
+      FROM student_internship si
+      JOIN internship i
+        ON si.internship_id = i.internship_id
+      LEFT JOIN company c
+        ON si.company_id = c.company_id
+      WHERE si.student_id = ?
+        AND LOWER(si.status) IN (?, ?, ?)
+
+      UNION ALL
+
+      SELECT
+        'application' AS source,
+        a.internship_id,
+        i.title AS internship_title,
+        c.company_name,
+        a.status
+      FROM application a
+      JOIN internship i
+        ON a.internship_id = i.internship_id
+      LEFT JOIN company c
+        ON i.company_id = c.company_id
+      WHERE a.student_id = ?
+        AND LOWER(a.status) = 'accepted'
+    ) current_internship
+    LIMIT 1
+    `,
+    [studentId, ...CURRENT_INTERNSHIP_STATUSES, studentId],
+  );
+
+  return rows[0] || null;
+};
+
 const fetchInternships = async (req, res) => {
   try {
     const student_id = req.user.student_id;
@@ -80,13 +130,21 @@ const fetchInternships = async (req, res) => {
     `;
 
     const [internships] = await db.query(query);
+    const currentInternshipLock = await getStudentCurrentInternshipLock(student_id);
     const internshipsWithEligibility = internships.map((internship) =>
-      withDurationEligibility(internship, student?.department),
+      ({
+        ...withDurationEligibility(internship, student?.department),
+        application_locked: Boolean(currentInternshipLock),
+        current_internship_title: currentInternshipLock?.internship_title || null,
+        current_internship_company: currentInternshipLock?.company_name || null,
+      }),
     );
 
     res.status(200).json({
       success: true,
       internships: internshipsWithEligibility,
+      application_locked: Boolean(currentInternshipLock),
+      current_internship: currentInternshipLock,
     });
   } catch (error) {
     console.error("Fetch internships error:", error);
@@ -210,6 +268,35 @@ const applyInternships = async (req, res) => {
       return res.status(404).json({
         success: false,
         message: "Internship not found or not approved",
+      });
+    }
+
+    const currentInternshipLock = await getStudentCurrentInternshipLock(student_id);
+
+    if (currentInternshipLock) {
+      return res.status(409).json({
+        success: false,
+        message: `You already have a current internship${currentInternshipLock.internship_title ? `: ${currentInternshipLock.internship_title}` : ""}. You cannot apply for another internship until it is completed.`,
+        current_internship: currentInternshipLock,
+      });
+    }
+
+    const [existingApplications] = await db.query(
+      `
+      SELECT application_id, status
+      FROM application
+      WHERE student_id = ?
+        AND internship_id = ?
+        AND LOWER(status) IN ('pending', 'accepted')
+      LIMIT 1
+      `,
+      [student_id, internship_id],
+    );
+
+    if (existingApplications.length > 0) {
+      return res.status(409).json({
+        success: false,
+        message: "You already have an active application for this internship.",
       });
     }
 

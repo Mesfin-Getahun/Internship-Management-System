@@ -513,6 +513,57 @@ const accept = async (req, res) => {
       company_name,
     } = rows[0];
 
+    const [currentInternships] = await db.query(
+      `
+      SELECT
+        current_records.internship_id,
+        current_records.internship_title,
+        current_records.company_name,
+        current_records.status
+      FROM (
+        SELECT
+          si.internship_id,
+          i.title AS internship_title,
+          c.company_name,
+          si.status
+        FROM student_internship si
+        JOIN internship i
+          ON si.internship_id = i.internship_id
+        LEFT JOIN company c
+          ON si.company_id = c.company_id
+        WHERE si.student_id = ?
+          AND si.internship_id <> ?
+          AND LOWER(si.status) IN ('in progress', 'accepted', 'active')
+
+        UNION ALL
+
+        SELECT
+          a.internship_id,
+          i.title AS internship_title,
+          c.company_name,
+          a.status
+        FROM application a
+        JOIN internship i
+          ON a.internship_id = i.internship_id
+        LEFT JOIN company c
+          ON i.company_id = c.company_id
+        WHERE a.student_id = ?
+          AND a.internship_id <> ?
+          AND LOWER(a.status) = 'accepted'
+      ) current_records
+      LIMIT 1
+      `,
+      [student_id, internship_id, student_id, internship_id],
+    );
+
+    if (currentInternships.length > 0) {
+      return res.status(409).json({
+        success: false,
+        message: `This student already has a current internship${currentInternships[0].internship_title ? `: ${currentInternships[0].internship_title}` : ""}.`,
+        current_internship: currentInternships[0],
+      });
+    }
+
     await db.query(
       "UPDATE application SET status = 'accepted' WHERE application_id = ?",
       [application_id],
@@ -545,6 +596,17 @@ const accept = async (req, res) => {
         [existingPlacement[0].id]
       );
     }
+
+    await db.query(
+      `
+      UPDATE application
+      SET status = 'withdrawn'
+      WHERE student_id = ?
+        AND internship_id <> ?
+        AND LOWER(status) = 'pending'
+      `,
+      [student_id, internship_id],
+    );
 
     await createNotification({
       recipientRole: "student",

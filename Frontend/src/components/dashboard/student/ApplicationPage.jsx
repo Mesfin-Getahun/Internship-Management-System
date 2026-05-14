@@ -46,6 +46,11 @@ const ApplicationPage = () => {
       alert(`Your department requires a minimum ${internship.required_minimum_months || 4}-month internship.`);
       return;
     }
+
+    if (internship?.application_locked) {
+      alert(`You already have a current internship${internship.current_internship_title ? `: ${internship.current_internship_title}` : ''}. You cannot apply for another internship.`);
+      return;
+    }
     
     try {
       setIsSubmitting(true);
@@ -92,6 +97,12 @@ const ApplicationPage = () => {
           </div>
         )}
 
+        {internship?.application_locked && (
+          <div className="mb-6 rounded-2xl border border-amber-100 bg-amber-50 p-4 text-sm font-semibold text-amber-800">
+            You already have a current internship{internship.current_internship_title ? `: ${internship.current_internship_title}` : ''}. You cannot submit another application.
+          </div>
+        )}
+
         <form onSubmit={handleSubmit} className="space-y-6">
           <div>
             <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
@@ -132,10 +143,10 @@ const ApplicationPage = () => {
              </button>
              <button
                type="submit"
-               disabled={isSubmitting || (internship && !internship.meets_duration_requirement)}
+               disabled={isSubmitting || (internship && (!internship.meets_duration_requirement || internship.application_locked))}
                className="flex-[2] py-4 bg-blue-600 text-white rounded-2xl font-bold hover:bg-blue-700 shadow-xl shadow-blue-500/20 transition-all active:scale-95 disabled:bg-slate-400 disabled:shadow-none font-inter"
              >
-               {isSubmitting ? 'Uploading Documents...' : internship && !internship.meets_duration_requirement ? 'Duration Not Eligible' : 'Submit Application'}
+               {isSubmitting ? 'Uploading Documents...' : internship?.application_locked ? 'Already Placed' : internship && !internship.meets_duration_requirement ? 'Duration Not Eligible' : 'Submit Application'}
              </button>
           </div>
         </form>

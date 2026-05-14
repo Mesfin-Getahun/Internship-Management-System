@@ -145,7 +145,7 @@ const MyApplications = () => {
         <div className="p-8 bg-blue-50 dark:bg-blue-900/10 border border-blue-100 dark:border-blue-800 rounded-3xl">
           <h4 className="font-bold text-blue-800 dark:text-blue-400 mb-4">Application Policy</h4>
           <ul className="space-y-2">
-            {['Students can apply to multiple internships simultaneously.', 'Once submitted, applications cannot be edited.', 'If accepted by multiple orgs, you must coordinate with Faculty for placement.'].map((text, i) => (
+            {['You may apply while you have no current internship placement.', 'Once one company accepts you, new applications are disabled.', 'Other pending applications are withdrawn after acceptance.'].map((text, i) => (
               <li key={i} className="flex items-start gap-3 text-xs text-blue-600 dark:text-blue-500 leading-relaxed font-medium">
                 <span className="mt-1 flex-shrink-0 w-1.5 h-1.5 bg-blue-400 rounded-full"></span>
                 {text}
