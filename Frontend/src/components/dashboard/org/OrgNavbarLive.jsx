@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
 import { useAuth } from '../../../AuthContext';
+import NotificationBell from '../common/NotificationBell';
 
 const OrgNavbarLive = () => {
   const [profile, setProfile] = useState(null);
@@ -43,6 +44,7 @@ const OrgNavbarLive = () => {
       </div>
 
       <div className="flex items-center gap-6">
+        <NotificationBell accent="blue" />
         <div className="hidden sm:flex flex-col items-end mr-2">
           <p className="text-sm font-bold text-slate-800 dark:text-white">{companyName}</p>
           <div className="flex items-center gap-1.5">

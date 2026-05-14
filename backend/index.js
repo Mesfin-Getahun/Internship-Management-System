@@ -10,6 +10,7 @@ import facultyRoute from "./routes/facultyRoute.js";
 import UILroute from "./routes/UILroute.js";
 import companyRoute from "./routes/companyRoute.js";
 import companyMentorRoute from "./routes/companyMentorRoute.js";
+import notificationRoute from "./routes/notificationRoute.js";
 import {
   registerStudent,
   createCompanyMentor,
@@ -43,6 +44,7 @@ app.use("/api/company", companyRoute);
 app.use("/api/company_mentor", companyMentorRoute);
 app.use("/api/UIL", UILroute);
 app.use("/api/admin", adminDashboardRoute);
+app.use("/api/notifications", notificationRoute);
 
 app.use("/api/registerStudent", registerStudent);
 app.use("/api/registerMentor", createMentor);

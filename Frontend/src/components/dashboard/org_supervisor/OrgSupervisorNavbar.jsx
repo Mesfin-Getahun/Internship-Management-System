@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
 import { useAuth } from '../../../AuthContext';
+import NotificationBell from '../common/NotificationBell';
 
 const OrgSupervisorNavbar = () => {
   const { user } = useAuth();
@@ -35,6 +36,7 @@ const OrgSupervisorNavbar = () => {
         </div>
       </div>
       <div className="flex items-center gap-4">
+        <NotificationBell accent="blue" />
         <div className="text-right">
           <p className="text-sm font-bold text-slate-800 dark:text-slate-200">{supervisorName}</p>
           <p className="text-xs text-slate-500 dark:text-slate-400">{studentCount} assigned student{studentCount === 1 ? '' : 's'}</p>

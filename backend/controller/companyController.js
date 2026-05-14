@@ -5,6 +5,7 @@ import generateAttendancePDF from "../utils/generateAttendancePDF.js";
 import { uploadToCloudinary } from "../utils/cloudinaryUpload.js";
 import fs from "fs";
 import createLog from "../utils/createLog.js";
+import { createNotification, createNotifications } from "../utils/notificationService.js";
 
 const postInternship = async (req, res) => {
   const company_id = req.user.company_id;
@@ -54,6 +55,18 @@ const postInternship = async (req, res) => {
       company_id,
       "pending",
     ]);
+
+    const [uilUsers] = await db.query("SELECT UIL_id FROM UIL");
+    await createNotifications(
+      uilUsers.map((uil) => ({
+        recipientRole: "uil",
+        recipientId: uil.UIL_id,
+        title: "Internship awaiting approval",
+        message: `${req.user.company_name || "A company"} posted ${title}.`,
+        type: "approval",
+        link: "/uil/internship-approvals",
+      })),
+    );
 
     res.status(201).json({
       success: true,
@@ -471,10 +484,14 @@ const accept = async (req, res) => {
       SELECT 
         a.student_id,
         a.internship_id,
-        i.company_id
+        i.company_id,
+        i.title AS internship_title,
+        c.company_name
       FROM application a
       JOIN internship i 
         ON a.internship_id = i.internship_id
+      JOIN company c
+        ON i.company_id = c.company_id
       WHERE a.application_id = ?
         AND i.company_id = ?
       `,
@@ -488,7 +505,13 @@ const accept = async (req, res) => {
       });
     }
 
-    const { student_id, internship_id, company_id: applicationCompanyId } = rows[0];
+    const {
+      student_id,
+      internship_id,
+      company_id: applicationCompanyId,
+      internship_title,
+      company_name,
+    } = rows[0];
 
     await db.query(
       "UPDATE application SET status = 'accepted' WHERE application_id = ?",
@@ -523,6 +546,15 @@ const accept = async (req, res) => {
       );
     }
 
+    await createNotification({
+      recipientRole: "student",
+      recipientId: student_id,
+      title: "Application accepted",
+      message: `${company_name || "A company"} accepted your application for ${internship_title || "an internship"}.`,
+      type: "application",
+      link: "/student/my-applications",
+    });
+
     res.status(200).json({
       success: true,
       message: "Application accepted and internship assigned",
@@ -549,9 +581,16 @@ const reject = async (req, res) => {
     // Check if application exists
     const [existing] = await db.query(
       `
-      SELECT a.application_id
+      SELECT
+        a.application_id,
+        a.student_id,
+        i.title AS internship_title,
+        c.company_name
       FROM application a
-      JOIN internship i ON a.internship_id = i.internship_id
+      JOIN internship i
+        ON a.internship_id = i.internship_id
+      JOIN company c
+        ON i.company_id = c.company_id
       WHERE a.application_id = ? AND i.company_id = ?
       `,
       [application_id, company_id],
@@ -568,6 +607,15 @@ const reject = async (req, res) => {
       "UPDATE application SET status = 'rejected' WHERE application_id = ?",
       [application_id],
     );
+
+    await createNotification({
+      recipientRole: "student",
+      recipientId: existing[0].student_id,
+      title: "Application rejected",
+      message: `${existing[0].company_name || "A company"} rejected your application for ${existing[0].internship_title || "an internship"}.`,
+      type: "application",
+      link: "/student/my-applications",
+    });
 
     res
       .status(200)

@@ -126,19 +126,6 @@ const FeedbackAndEvaluation = () => {
       attachedFacultyIds.add(feedback.feedback_id);
     });
 
-    facultyMentor.forEach((feedback) => {
-      if (attachedFacultyIds.has(feedback.feedback_id)) return;
-      const fallbackParent = companyMentor.find(
-        (companyFeedback) => String(companyFeedback.internship_id || '') === String(feedback.internship_id || ''),
-      );
-
-      if (!fallbackParent) return;
-
-      const parentKey = String(fallbackParent.feedback_id);
-      repliesByParent.set(parentKey, [...(repliesByParent.get(parentKey) || []), feedback]);
-      attachedFacultyIds.add(feedback.feedback_id);
-    });
-
     return {
       companyMentor,
       repliesByParent,
@@ -202,7 +189,10 @@ const FeedbackAndEvaluation = () => {
             </div>
             {renderCompanyFeedbackList()}
             {threadedFeedbacks.orphanFaculty.length > 0 && (
-              <div className="space-y-3">
+              <div className="rounded-3xl border border-dashed border-indigo-200 dark:border-indigo-900 bg-white/70 dark:bg-slate-800/40 p-5">
+                <p className="text-xs font-black uppercase tracking-widest text-indigo-500 mb-3">
+                  Faculty feedback not linked to a company feedback item
+                </p>
                 {threadedFeedbacks.orphanFaculty.map((feedback) => (
                   <FacultyReply key={feedback.feedback_id} feedback={feedback} />
                 ))}

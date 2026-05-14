@@ -1,5 +1,6 @@
 import { uploadToCloudinary } from "../utils/cloudinaryUpload.js";
 import db from "../config/mysql.js";
+import { createNotification } from "../utils/notificationService.js";
 
 const fetchStudents = async (req, res) => {
   const mentorId = req.user.mentor_id;
@@ -151,8 +152,10 @@ const mentorSignReport = async (req, res) => {
 
     const [[report]] = await db.query(
       `
-      SELECT ir.report_id, ir.student_id
+      SELECT ir.report_id, ir.student_id, i.title AS internship_title
       FROM internship_report ir
+      LEFT JOIN internship i
+        ON ir.internship_id = i.internship_id
       JOIN student s
         ON ir.student_id = s.student_id
       WHERE ir.report_id = ?
@@ -180,6 +183,15 @@ const mentorSignReport = async (req, res) => {
        WHERE report_id = ?`,
       [signedUrl, mentor_id, report_id],
     );
+
+    await createNotification({
+      recipientRole: "student",
+      recipientId: report.student_id,
+      title: "Report signed",
+      message: `Your mentor signed your report${report.internship_title ? ` for ${report.internship_title}` : ""}.`,
+      type: "report",
+      link: "/student/reports",
+    });
 
     res.json({
       success: true,
@@ -395,6 +407,15 @@ const provideFeedback = async (req, res) => {
       `,
       [student_id, student.internship_id, companyFeedback.feedback_id, rating || null, commentText],
     );
+
+    await createNotification({
+      recipientRole: "student",
+      recipientId: student_id,
+      title: "Faculty mentor feedback",
+      message: "Your faculty mentor added feedback under your company mentor feedback.",
+      type: "feedback",
+      link: "/student/feedback",
+    });
 
     res.status(201).json({
       success: true,

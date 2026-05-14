@@ -3,6 +3,7 @@ import generateAssessmentPDF from "../utils/generateAssessmentPDF.js";
 import generateAttendancePDF from "../utils/generateAttendancePDF.js";
 import { uploadToCloudinary } from "../utils/cloudinaryUpload.js";
 import fs from "fs";
+import { createNotifications } from "../utils/notificationService.js";
 
 // const fetchStudents = async (req, res) => {
 //   const mentorId = req.user.company_mentor_id;
@@ -85,7 +86,9 @@ const postEvaluation = async (req, res) => {
         s.student_id,
         s.full_name AS name,
         s.department,
+        s.assigned_mentor,
         i.internship_id,
+        i.title AS internship_title,
         c.company_name,
         cm.full_name AS supervisor
       FROM student_internship si
@@ -179,6 +182,25 @@ const postEvaluation = async (req, res) => {
       [student.student_id, internship_id, assessmentURL, attendanceURL, totalMark]
     );
 
+    await createNotifications([
+      {
+        recipientRole: "student",
+        recipientId: student.student_id,
+        title: "Internship evaluation submitted",
+        message: `${student.supervisor || "Your company mentor"} submitted your evaluation for ${student.internship_title || "your internship"}.`,
+        type: "evaluation",
+        link: "/student/feedback",
+      },
+      student.assigned_mentor && {
+        recipientRole: "mentor",
+        recipientId: student.assigned_mentor,
+        title: "Company evaluation submitted",
+        message: `${student.supervisor || "A company mentor"} submitted an evaluation for ${student.name || student.student_id}.`,
+        type: "evaluation",
+        link: "/mentor/company-updates",
+      },
+    ].filter(Boolean));
+
     res.status(201).json({
       success: true,
       message: "Evaluation submitted successfully",
@@ -237,6 +259,36 @@ const giveFeedBack = async (req, res) => {
         overall_comment || feedback_text || null,
       ]
     );
+
+    const [[studentContext]] = await db.query(
+      `
+      SELECT s.assigned_mentor, s.full_name, i.title
+      FROM student s
+      LEFT JOIN internship i
+        ON i.internship_id = ?
+      WHERE s.student_id = ?
+      `,
+      [internship_id, student_id],
+    );
+
+    await createNotifications([
+      {
+        recipientRole: "student",
+        recipientId: student_id,
+        title: "Company mentor feedback",
+        message: `${req.user.full_name || "Your company mentor"} added feedback for ${studentContext?.title || "your internship"}.`,
+        type: "feedback",
+        link: "/student/feedback",
+      },
+      studentContext?.assigned_mentor && {
+        recipientRole: "mentor",
+        recipientId: studentContext.assigned_mentor,
+        title: "Company feedback available",
+        message: `${req.user.full_name || "A company mentor"} added feedback for ${studentContext.full_name || student_id}.`,
+        type: "feedback",
+        link: "/mentor/organization-updates",
+      },
+    ].filter(Boolean));
 
     res.status(201).json({
       success: true,

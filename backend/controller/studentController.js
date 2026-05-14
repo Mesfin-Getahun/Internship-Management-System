@@ -2,6 +2,7 @@ import db from "../config/mysql.js";
 import bcrypt from "bcryptjs";
 import { uploadToCloudinary } from "../utils/cloudinaryUpload.js";
 import createLog from "../utils/createLog.js";
+import { createNotification } from "../utils/notificationService.js";
 
 function isMissingTableError(error, tableName) {
   return (
@@ -191,6 +192,7 @@ const applyInternships = async (req, res) => {
       SELECT
         s.department,
         i.internship_id,
+        i.company_id,
         i.title,
         i.start_date,
         i.end_date,
@@ -245,6 +247,15 @@ const applyInternships = async (req, res) => {
        VALUES (?, ?, CURDATE(), 'pending', ?, ?, ?)`,
       [student_id, internship_id, statement, cvUrl, academicUrl]
     );
+
+    await createNotification({
+      recipientRole: "company",
+      recipientId: eligibility.company_id,
+      title: "New internship application",
+      message: `${req.user.full_name || student_id} applied for ${eligibility.title || "your internship"}.`,
+      type: "application",
+      link: "/organization/applications",
+    });
 
     res.status(201).json({
       success: true,
@@ -576,6 +587,28 @@ const uploadInternshipReport = async (req, res) => {
       [student_id, internship_id, reportUrl]
     );
 
+    const [[reportContext]] = await db.query(
+      `
+      SELECT s.assigned_mentor, i.title
+      FROM student s
+      LEFT JOIN internship i
+        ON i.internship_id = ?
+      WHERE s.student_id = ?
+      `,
+      [internship_id, student_id],
+    );
+
+    if (reportContext?.assigned_mentor) {
+      await createNotification({
+        recipientRole: "mentor",
+        recipientId: reportContext.assigned_mentor,
+        title: "New student report",
+        message: `${req.user.full_name || student_id} uploaded a report for ${reportContext.title || "their internship"}.`,
+        type: "report",
+        link: "/mentor/student-submissions",
+      });
+    }
+
     res.json({ success: true, reportUrl });
   } catch (error) {
     console.log(error);
@@ -714,12 +747,42 @@ const submitSignedReportToFaculty = async (req, res) => {
     const student_id = req.user.student_id;
     const { report_id } = req.params;
 
-    await db.query(
+    const [result] = await db.query(
       `UPDATE internship_report
        SET status = 'faculty_submitted', faculty_submitted_at = NOW()
        WHERE report_id = ? AND student_id = ? AND status = 'signed'`,
       [report_id, student_id]
     );
+
+    if (result.affectedRows > 0) {
+      const [facultyUsers] = await db.query(
+        `
+        SELECT f.faculty_id, i.title
+        FROM student s
+        JOIN faculty f
+          ON f.faculty_name = s.faculty
+        LEFT JOIN internship_report r
+          ON r.report_id = ?
+        LEFT JOIN internship i
+          ON r.internship_id = i.internship_id
+        WHERE s.student_id = ?
+        `,
+        [report_id, student_id],
+      );
+
+      await Promise.all(
+        facultyUsers.map((faculty) =>
+          createNotification({
+            recipientRole: "faculty",
+            recipientId: faculty.faculty_id,
+            title: "Signed report submitted",
+            message: `${req.user.full_name || student_id} submitted a signed report${faculty.title ? ` for ${faculty.title}` : ""}.`,
+            type: "report",
+            link: "/faculty/reports",
+          }),
+        ),
+      );
+    }
 
     res.json({ success: true });
   } catch (err) {
