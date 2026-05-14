@@ -210,6 +210,7 @@ const companyMentorFeedback = async (req, res) => {
       `
       SELECT 
         f.feedback_id,
+        f.parent_feedback_id,
         f.feedback_type,
         f.overall_comment,
         f.rating,
@@ -232,9 +233,10 @@ const companyMentorFeedback = async (req, res) => {
         ON f.internship_id = i.internship_id
       JOIN company c
         ON i.company_id = c.company_id
-      JOIN company_mentor cm 
+      LEFT JOIN company_mentor cm 
         ON f.company_mentor_id = cm.company_mentor_id
       WHERE s.assigned_mentor = ?
+        AND f.company_mentor_id IS NOT NULL
       ORDER BY f.created_at DESC
       `,
       [mentor_id],
@@ -270,6 +272,7 @@ const getSingleFeedback = async (req, res) => {
       `
       SELECT
         f.feedback_id,
+        f.parent_feedback_id,
         f.feedback_type,
         f.overall_comment,
         f.rating,
@@ -295,7 +298,7 @@ const getSingleFeedback = async (req, res) => {
         ON f.internship_id = i.internship_id
       JOIN company c
         ON i.company_id = c.company_id
-      JOIN company_mentor cm 
+      LEFT JOIN company_mentor cm 
         ON f.company_mentor_id = cm.company_mentor_id
       WHERE f.feedback_id = ?
         AND s.assigned_mentor = ?
@@ -327,9 +330,10 @@ const provideFeedback = async (req, res) => {
   try {
     const mentor_id = req.user.mentor_id;
     const { id: student_id } = req.params;
-    const { comments, rating } = req.body;
+    const { comments, rating, company_feedback_id } = req.body;
+    const commentText = typeof comments === "string" ? comments.trim() : "";
 
-    if (!student_id || !comments) {
+    if (!student_id || !commentText) {
       return res.status(400).json({
         success: false,
         message: "Student ID and comments are required",
@@ -354,13 +358,42 @@ const provideFeedback = async (req, res) => {
       });
     }
 
+    if (!student.internship_id) {
+      return res.status(400).json({
+        success: false,
+        message: "Student has no active internship for feedback",
+      });
+    }
+
+    const [[companyFeedback]] = await db.query(
+      `
+      SELECT f.feedback_id
+      FROM mentor_feedback f
+      JOIN student s
+        ON f.student_id = s.student_id
+      WHERE f.feedback_id = ?
+        AND f.student_id = ?
+        AND f.internship_id = ?
+        AND f.company_mentor_id IS NOT NULL
+        AND s.assigned_mentor = ?
+      `,
+      [company_feedback_id || null, student_id, student.internship_id, mentor_id],
+    );
+
+    if (!companyFeedback) {
+      return res.status(400).json({
+        success: false,
+        message: "Select a company mentor feedback item before sending faculty feedback",
+      });
+    }
+
     await db.query(
       `
       INSERT INTO mentor_feedback
-      (student_id, internship_id, company_mentor_id, feedback_type, rating, overall_comment)
-      VALUES (?, ?, NULL, 'faculty', ?, ?)
+      (student_id, internship_id, company_mentor_id, parent_feedback_id, feedback_type, rating, overall_comment)
+      VALUES (?, ?, NULL, ?, 'faculty', ?, ?)
       `,
-      [student_id, student.internship_id || null, rating || null, comments],
+      [student_id, student.internship_id, companyFeedback.feedback_id, rating || null, commentText],
     );
 
     res.status(201).json({

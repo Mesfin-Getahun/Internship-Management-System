@@ -318,8 +318,9 @@ CREATE TABLE `mentor_feedback` (
   `feedback_id` int NOT NULL AUTO_INCREMENT,
   `student_id` varchar(20) NOT NULL,
   `internship_id` int NOT NULL,
-  `company_mentor_id` varchar(20) NOT NULL,
-  `feedback_type` enum('weekly','midterm','final') DEFAULT 'weekly',
+  `company_mentor_id` varchar(20) DEFAULT NULL,
+  `parent_feedback_id` int DEFAULT NULL,
+  `feedback_type` enum('weekly','midterm','final','faculty') DEFAULT 'weekly',
   `rating` int DEFAULT NULL,
   `strengths` text,
   `weaknesses` text,
@@ -331,6 +332,7 @@ CREATE TABLE `mentor_feedback` (
   KEY `student_id` (`student_id`),
   KEY `internship_id` (`internship_id`),
   KEY `company_mentor_id` (`company_mentor_id`),
+  KEY `parent_feedback_id` (`parent_feedback_id`),
   CONSTRAINT `mentor_feedback_ibfk_1` FOREIGN KEY (`student_id`) REFERENCES `student` (`student_id`),
   CONSTRAINT `mentor_feedback_ibfk_2` FOREIGN KEY (`internship_id`) REFERENCES `internship` (`internship_id`),
   CONSTRAINT `mentor_feedback_ibfk_3` FOREIGN KEY (`company_mentor_id`) REFERENCES `company_mentor` (`company_mentor_id`),
@@ -344,7 +346,7 @@ CREATE TABLE `mentor_feedback` (
 
 LOCK TABLES `mentor_feedback` WRITE;
 /*!40000 ALTER TABLE `mentor_feedback` DISABLE KEYS */;
-INSERT INTO `mentor_feedback` VALUES (1,'BDU-ETS-1234',2,'CM-1001','weekly',8,'Good communication skills','Needs improvement in time management','Practice daily task planning','Doing well overall','2026-02-17 19:14:15','2026-02-17 19:14:15'),(2,'BDU-ETS-1234',2,'CM-1001','weekly',8,'Good communication skills','Needs improvement in time management','Practice daily task planning','Doing well overall','2026-02-24 18:08:15','2026-02-24 18:08:15');
+INSERT INTO `mentor_feedback` VALUES (1,'BDU-ETS-1234',2,'CM-1001',NULL,'weekly',8,'Good communication skills','Needs improvement in time management','Practice daily task planning','Doing well overall','2026-02-17 19:14:15','2026-02-17 19:14:15'),(2,'BDU-ETS-1234',2,'CM-1001',NULL,'weekly',8,'Good communication skills','Needs improvement in time management','Practice daily task planning','Doing well overall','2026-02-24 18:08:15','2026-02-24 18:08:15');
 /*!40000 ALTER TABLE `mentor_feedback` ENABLE KEYS */;
 UNLOCK TABLES;
 

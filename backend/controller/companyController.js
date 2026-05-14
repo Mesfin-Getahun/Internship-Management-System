@@ -22,10 +22,17 @@ const postInternship = async (req, res) => {
     } = req.body;
 
     // Basic validation
-    if (!title || !description) {
+    if (!title || !description || !start_date || !end_date) {
       return res.status(400).json({
         success: false,
-        message: "Title and description are required",
+        message: "Title, description, start date, and end date are required",
+      });
+    }
+
+    if (new Date(end_date) < new Date(start_date)) {
+      return res.status(400).json({
+        success: false,
+        message: "End date cannot be before start date",
       });
     }
 
@@ -134,6 +141,23 @@ const updateInternship = async (req, res) => {
       });
     }
 
+    const nextStartDate = start_date || existing[0].start_date;
+    const nextEndDate = end_date || existing[0].end_date;
+
+    if (!nextStartDate || !nextEndDate) {
+      return res.status(400).json({
+        success: false,
+        message: "Start date and end date are required",
+      });
+    }
+
+    if (new Date(nextEndDate) < new Date(nextStartDate)) {
+      return res.status(400).json({
+        success: false,
+        message: "End date cannot be before start date",
+      });
+    }
+
     // Update internship
     const query = `
       UPDATE internship
@@ -145,8 +169,8 @@ const updateInternship = async (req, res) => {
       title || existing[0].title,
       description || existing[0].description,
       image || existing[0].image,
-      start_date || existing[0].start_date,
-      end_date || existing[0].end_date,
+      nextStartDate,
+      nextEndDate,
       requirements || skills || skill || existing[0].skills,
       location || existing[0].location,
       internship_id,

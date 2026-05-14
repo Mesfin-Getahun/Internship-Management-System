@@ -10,8 +10,67 @@ function isMissingTableError(error, tableName) {
   );
 }
 
+const TWO_MONTH_DEPARTMENTS = new Set([
+  "computer science",
+  "information technology",
+  "information system",
+  "information systems",
+  "cyber security",
+  "cybersecurity",
+  "it education",
+  "information technology education",
+]);
+
+const normalizeDepartment = (department = "") =>
+  String(department).trim().toLowerCase().replace(/\s+/g, " ");
+
+const requiredInternshipMonths = (department) =>
+  TWO_MONTH_DEPARTMENTS.has(normalizeDepartment(department)) ? 2 : 4;
+
+const durationMonthsFromDates = (startDate, endDate) => {
+  if (!startDate || !endDate) return null;
+
+  const start = new Date(startDate);
+  const end = new Date(endDate);
+
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) || end < start) {
+    return null;
+  }
+
+  const days = Math.floor((end - start) / (1000 * 60 * 60 * 24)) + 1;
+  return Math.round((days / 30) * 10) / 10;
+};
+
+const durationMonthsForInternship = (internship) => {
+  const dateDuration = durationMonthsFromDates(internship.start_date, internship.end_date);
+  if (dateDuration !== null) return dateDuration;
+
+  const parsedDuration = Number.parseFloat(internship.duration);
+  return Number.isFinite(parsedDuration) ? parsedDuration : null;
+};
+
+const withDurationEligibility = (internship, department) => {
+  const minimumMonths = requiredInternshipMonths(department);
+  const durationMonths = durationMonthsForInternship(internship);
+
+  return {
+    ...internship,
+    duration_months: durationMonths,
+    required_minimum_months: minimumMonths,
+    meets_duration_requirement:
+      durationMonths === null ? false : durationMonths >= minimumMonths,
+  };
+};
+
 const fetchInternships = async (req, res) => {
   try {
+    const student_id = req.user.student_id;
+
+    const [[student]] = await db.query(
+      "SELECT department FROM student WHERE student_id = ?",
+      [student_id],
+    );
+
     const query = `
        SELECT i.*, c.company_name, COALESCE(i.location, c.location) AS location
       FROM internship i
@@ -20,10 +79,13 @@ const fetchInternships = async (req, res) => {
     `;
 
     const [internships] = await db.query(query);
+    const internshipsWithEligibility = internships.map((internship) =>
+      withDurationEligibility(internship, student?.department),
+    );
 
     res.status(200).json({
       success: true,
-      internships,
+      internships: internshipsWithEligibility,
     });
   } catch (error) {
     console.error("Fetch internships error:", error);
@@ -75,6 +137,7 @@ const suggestedInternships = async (req, res) => {
       }
 
       return {
+        ...withDurationEligibility(internship, student.department),
         internship_id: internship.internship_id,
         title: internship.title,
         company: internship.company_name,
@@ -122,6 +185,46 @@ const applyInternships = async (req, res) => {
     //   req.files.academic_doc[0].buffer,
     //   "internship_applications/academic"
     // );
+
+    const [[eligibility]] = await db.query(
+      `
+      SELECT
+        s.department,
+        i.internship_id,
+        i.title,
+        i.start_date,
+        i.end_date,
+        i.duration
+      FROM student s
+      JOIN internship i
+        ON i.internship_id = ?
+      WHERE s.student_id = ?
+        AND i.status = 'approved'
+      `,
+      [internship_id, student_id],
+    );
+
+    if (!eligibility) {
+      return res.status(404).json({
+        success: false,
+        message: "Internship not found or not approved",
+      });
+    }
+
+    const requiredMonths = requiredInternshipMonths(eligibility.department);
+    const durationMonths = durationMonthsForInternship(eligibility);
+
+    if (durationMonths === null || durationMonths < requiredMonths) {
+      const shownDuration =
+        durationMonths === null ? "not specified" : `${durationMonths} month(s)`;
+
+      return res.status(400).json({
+        success: false,
+        message: `Your department requires a minimum ${requiredMonths}-month internship. This internship duration is ${shownDuration}, so you cannot apply for it.`,
+        required_minimum_months: requiredMonths,
+        duration_months: durationMonths,
+      });
+    }
 
     const cvUrl = await uploadToCloudinary(
       req.files.cv[0].buffer,
@@ -342,9 +445,10 @@ const getStudentReports = async (req, res) => {
         r.report_url AS file_url,
         r.mentor_signed_url,
         r.status,
-        r.created_at,
-        r.submitted_at,
+        r.submission_date AS created_at,
+        r.submission_date AS submitted_at,
         r.faculty_submitted_at,
+        r.signed_at,
         r.mentor_id,
         i.title AS internship_title,
         c.company_name
@@ -352,7 +456,7 @@ const getStudentReports = async (req, res) => {
       LEFT JOIN internship i ON r.internship_id = i.internship_id
       LEFT JOIN company c ON i.company_id = c.company_id
       WHERE r.student_id = ?
-      ORDER BY COALESCE(r.created_at, r.submitted_at, r.faculty_submitted_at) DESC, r.report_id DESC
+      ORDER BY COALESCE(r.submission_date, DATE(r.signed_at), DATE(r.faculty_submitted_at)) DESC, r.report_id DESC
       `,
       [student_id],
     );
@@ -467,8 +571,8 @@ const uploadInternshipReport = async (req, res) => {
 
     await db.query(
       `INSERT INTO internship_report
-       (student_id, internship_id, report_url, status)
-       VALUES (?, ?, ?, 'submitted')`,
+       (student_id, internship_id, report_url, status, submission_date)
+       VALUES (?, ?, ?, 'submitted', CURDATE())`,
       [student_id, internship_id, reportUrl]
     );
 
@@ -631,6 +735,7 @@ const feedbacks = async (req, res) => {
     const [rows] = await db.query(
       `SELECT 
          mf.feedback_id,
+         mf.parent_feedback_id,
          mf.internship_id,
          mf.company_mentor_id,
          mf.feedback_type,
