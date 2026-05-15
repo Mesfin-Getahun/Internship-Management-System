@@ -4,10 +4,13 @@ import {
   fetchInternships,
   myInternship,
   getStudentReports,
+  getStudentEvaluations,
   uploadInternshipReport,
   getPaymentApplication,
   submitPaymentApplication,
   feedbacks,
+  getNotifications,
+  registerPushToken,
   updateProfile,
   cancelApplication,
   submitSignedReportToFaculty,
@@ -133,6 +136,7 @@ studentRoute.get("/internships/suggested", authStudent, suggestedInternships);
  */
 studentRoute.get("/myInternship", authStudent, myInternship);
 studentRoute.get("/reports", authStudent, getStudentReports);
+studentRoute.get("/evaluations", authStudent, getStudentEvaluations);
 studentRoute.get("/paymentApplication", authStudent, getPaymentApplication);
 
 /**
@@ -152,6 +156,8 @@ studentRoute.get("/paymentApplication", authStudent, getPaymentApplication);
  *         description: Server error
  */
 studentRoute.get("/viewFeedbacks", authStudent, feedbacks);
+studentRoute.get("/notifications", authStudent, getNotifications);
+studentRoute.post("/push-token", authStudent, registerPushToken);
 studentRoute.get(
   "/recommendation-letter",
   authStudent,

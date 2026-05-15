@@ -5,6 +5,7 @@ import generateAttendancePDF from "../utils/generateAttendancePDF.js";
 import { uploadToCloudinary } from "../utils/cloudinaryUpload.js";
 import fs from "fs";
 import createLog from "../utils/createLog.js";
+import { createStudentNotification } from "../utils/notificationService.js";
 
 const postInternship = async (req, res) => {
   const company_id = req.user.company_id;
@@ -447,10 +448,14 @@ const accept = async (req, res) => {
       SELECT 
         a.student_id,
         a.internship_id,
-        i.company_id
+        i.company_id,
+        i.title AS internship_title,
+        c.company_name
       FROM application a
       JOIN internship i 
         ON a.internship_id = i.internship_id
+      JOIN company c
+        ON i.company_id = c.company_id
       WHERE a.application_id = ?
         AND i.company_id = ?
       `,
@@ -499,6 +504,23 @@ const accept = async (req, res) => {
       );
     }
 
+    try {
+      await createStudentNotification({
+        studentId: student_id,
+        title: "Application accepted",
+        body: `Your application for ${rows[0].internship_title || "an internship"} at ${rows[0].company_name || "the company"} was accepted.`,
+        category: "application",
+        metadata: {
+          type: "application_accepted",
+          applicationId: application_id,
+          internshipId: internship_id,
+          companyId: applicationCompanyId,
+        },
+      });
+    } catch (notificationError) {
+      console.error("Failed to create application notification:", notificationError.message);
+    }
+
     res.status(200).json({
       success: true,
       message: "Application accepted and internship assigned",
@@ -544,6 +566,21 @@ const reject = async (req, res) => {
       "UPDATE application SET status = 'rejected' WHERE application_id = ?",
       [application_id],
     );
+
+    try {
+      await createStudentNotification({
+        studentId: existing[0].student_id,
+        title: "Application updated",
+        body: "Your internship application was rejected.",
+        category: "application",
+        metadata: {
+          type: "application_rejected",
+          applicationId: application_id,
+        },
+      });
+    } catch (notificationError) {
+      console.error("Failed to create rejection notification:", notificationError.message);
+    }
 
     res
       .status(200)

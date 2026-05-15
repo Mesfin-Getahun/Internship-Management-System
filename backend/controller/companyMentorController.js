@@ -3,6 +3,7 @@ import generateAssessmentPDF from "../utils/generateAssessmentPDF.js";
 import generateAttendancePDF from "../utils/generateAttendancePDF.js";
 import { uploadToCloudinary } from "../utils/cloudinaryUpload.js";
 import fs from "fs";
+import { createStudentNotification } from "../utils/notificationService.js";
 
 // const fetchStudents = async (req, res) => {
 //   const mentorId = req.user.company_mentor_id;
@@ -237,6 +238,22 @@ const giveFeedBack = async (req, res) => {
         overall_comment || feedback_text || null,
       ]
     );
+
+    try {
+      await createStudentNotification({
+        studentId: student_id,
+        title: "New feedback submitted",
+        body: "Your company mentor submitted new feedback.",
+        category: "feedback",
+        metadata: {
+          type: "company_mentor_feedback",
+          internshipId: internship_id,
+          companyMentorId: company_mentor_id,
+        },
+      });
+    } catch (notificationError) {
+      console.error("Failed to create feedback notification:", notificationError.message);
+    }
 
     res.status(201).json({
       success: true,

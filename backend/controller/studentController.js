@@ -2,6 +2,10 @@ import db from "../config/mysql.js";
 import bcrypt from "bcryptjs";
 import { uploadToCloudinary } from "../utils/cloudinaryUpload.js";
 import createLog from "../utils/createLog.js";
+import {
+  fetchStudentNotifications,
+  saveStudentPushToken,
+} from "../utils/notificationService.js";
 
 function isMissingTableError(error, tableName) {
   return (
@@ -370,6 +374,43 @@ const getStudentReports = async (req, res) => {
   }
 };
 
+const getStudentEvaluations = async (req, res) => {
+  try {
+    const student_id = req.user.student_id;
+
+    const [evaluations] = await db.query(
+      `
+      SELECT
+        ie.internship_evaluation_id,
+        ie.internship_id,
+        ie.assessment_pdf_url,
+        ie.attendance_pdf_url,
+        ie.total_mark,
+        ie.created_at,
+        i.title AS internship_title,
+        c.company_name
+      FROM internship_evaluation ie
+      LEFT JOIN internship i ON ie.internship_id = i.internship_id
+      LEFT JOIN company c ON i.company_id = c.company_id
+      WHERE ie.student_id = ?
+      ORDER BY ie.created_at DESC, ie.internship_evaluation_id DESC
+      `,
+      [student_id],
+    );
+
+    res.status(200).json({
+      success: true,
+      evaluations,
+    });
+  } catch (error) {
+    console.error("Fetch student evaluations error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to fetch evaluations",
+    });
+  }
+};
+
 const myInternship = async (req, res) => {
   try {
     const studentId = req.user.student_id;
@@ -623,6 +664,51 @@ const submitSignedReportToFaculty = async (req, res) => {
   }
 };
 
+const getNotifications = async (req, res) => {
+  try {
+    const student_id = req.user.student_id;
+    const notifications = await fetchStudentNotifications(student_id);
+
+    res.json({
+      success: true,
+      notifications,
+    });
+  } catch (error) {
+    console.error("Fetch notifications error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to fetch notifications",
+    });
+  }
+};
+
+const registerPushToken = async (req, res) => {
+  try {
+    const student_id = req.user.student_id;
+    const { expoPushToken } = req.body;
+
+    if (!expoPushToken) {
+      return res.status(400).json({
+        success: false,
+        message: "Expo push token is required",
+      });
+    }
+
+    await saveStudentPushToken(student_id, expoPushToken);
+
+    res.json({
+      success: true,
+      message: "Push token saved successfully",
+    });
+  } catch (error) {
+    console.error("Save push token error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to save push token",
+    });
+  }
+};
+
 const feedbacks = async (req, res) => {
   try {
     const student_id = req.user.student_id; // from auth middleware
@@ -724,10 +810,13 @@ export {
   applyInternships,
   myInternship,
   getStudentReports,
+  getStudentEvaluations,
   uploadInternshipReport,
   getPaymentApplication,
   submitPaymentApplication,
   feedbacks,
+  getNotifications,
+  registerPushToken,
   updateProfile,
   cancelApplication,
   suggestedInternships,

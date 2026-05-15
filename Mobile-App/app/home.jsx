@@ -13,6 +13,7 @@ import Badge from "../components/ui/Badge";
 import { getCurrentSession } from "../services/authService";
 import Button from "../components/ui/Button";
 import { cancelStudentApplication, getMyInternship, getPaymentApplication, getStudentFeedbacks, submitPaymentForm } from "../services/studentService";
+import { registerPushNotifications } from "../services/notificationService";
 import { appendAssetToFormData, pickPdfDocument } from "../utils/documentUpload";
 
 function formatStatusLabel(status) {
@@ -52,6 +53,12 @@ export default function HomeScreen() {
   });
   const [acceptanceLetterFile, setAcceptanceLetterFile] = useState(null);
   const [submittingPayment, setSubmittingPayment] = useState(false);
+
+  useEffect(() => {
+    registerPushNotifications().catch(() => {
+      // Best effort only; the inbox still works even if push registration fails.
+    });
+  }, []);
 
   const loadDashboard = async () => {
     setError("");

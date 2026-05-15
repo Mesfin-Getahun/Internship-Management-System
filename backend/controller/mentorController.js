@@ -1,5 +1,6 @@
 import { uploadToCloudinary } from "../utils/cloudinaryUpload.js";
 import db from "../config/mysql.js";
+import { createStudentNotification } from "../utils/notificationService.js";
 
 const fetchStudents = async (req, res) => {
   const mentorId = req.user.mentor_id;
@@ -362,6 +363,22 @@ const provideFeedback = async (req, res) => {
       `,
       [student_id, student.internship_id || null, rating || null, comments],
     );
+
+    try {
+      await createStudentNotification({
+        studentId: student_id,
+        title: "Faculty feedback submitted",
+        body: "Your faculty mentor submitted new feedback.",
+        category: "feedback",
+        metadata: {
+          type: "faculty_feedback",
+          internshipId: student.internship_id || null,
+          mentorId: mentor_id,
+        },
+      });
+    } catch (notificationError) {
+      console.error("Failed to create faculty feedback notification:", notificationError.message);
+    }
 
     res.status(201).json({
       success: true,

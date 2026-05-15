@@ -50,6 +50,20 @@ export function getStudentFeedbacks() {
   });
 }
 
+export function getStudentNotifications() {
+  return apiRequest("/api/student/notifications", {
+    requiresAuth: true,
+  });
+}
+
+export function registerStudentPushToken(expoPushToken) {
+  return apiRequest("/api/student/push-token", {
+    method: "POST",
+    body: { expoPushToken },
+    requiresAuth: true,
+  });
+}
+
 export function getRecommendationLetter() {
   return apiRequest("/api/student/recommendation-letter", {
     requiresAuth: true,
