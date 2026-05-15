@@ -486,6 +486,7 @@ const accept = async (req, res) => {
         a.internship_id,
         i.company_id,
         i.title AS internship_title,
+        i.start_date,
         c.company_name
       FROM application a
       JOIN internship i 
@@ -510,8 +511,14 @@ const accept = async (req, res) => {
       internship_id,
       company_id: applicationCompanyId,
       internship_title,
+      start_date,
       company_name,
     } = rows[0];
+    const internshipStartDate = start_date || null;
+    const placementStatus =
+      internshipStartDate && new Date(internshipStartDate) > new Date()
+        ? "accepted"
+        : "in progress";
 
     const [currentInternships] = await db.query(
       `
@@ -583,17 +590,17 @@ const accept = async (req, res) => {
       await db.query(
         `INSERT INTO student_internship 
         (student_id, internship_id, company_id, status, start_date) 
-        VALUES (?, ?, ?, 'in progress', CURDATE())`,
-        [student_id, internship_id, applicationCompanyId],
+        VALUES (?, ?, ?, ?, ?)`,
+        [student_id, internship_id, applicationCompanyId, placementStatus, internshipStartDate],
       );
     } else {
       await db.query(
         `
         UPDATE student_internship
-        SET status = 'in progress'
+        SET status = ?, start_date = ?
         WHERE id = ?
         `,
-        [existingPlacement[0].id]
+        [placementStatus, internshipStartDate, existingPlacement[0].id]
       );
     }
 

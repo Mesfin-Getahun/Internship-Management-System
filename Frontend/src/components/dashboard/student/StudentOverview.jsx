@@ -4,10 +4,12 @@ import { useAuth } from '../../../AuthContext';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faPaperPlane, faThumbsUp, faUserTie, faBriefcase, faInfoCircle, faSpinner } from '@fortawesome/free-solid-svg-icons';
 import InternshipDetails from './InternshipDetails';
+import { getInternshipProgressState } from '../../../utils/internshipProgress';
 
 export const getInternshipLabel = (appState = 'NOT_STARTED') => {
   const labels = {
     NOT_STARTED: 'Not Started',
+    DORMANT: 'Dormant',
     PENDING: 'Pending Approval',
     ACTIVATED: 'Active',
     REJECTED: 'Rejected',
@@ -94,7 +96,7 @@ const UnplacedStudentView = ({ stats, isPlaced, applications }) => (
               <div className="w-12 h-12 bg-slate-100 dark:bg-slate-800 rounded-full flex items-center justify-center mx-auto mb-3 text-slate-400">
                  <FontAwesomeIcon icon={faInfoCircle} className="h-6 w-6" />
               </div>
-              <p className="text-xs text-slate-500 font-bold mb-4">You have not been placed yet.</p>
+              <p className="text-xs text-slate-500 font-bold mb-4">Progress is dormant until a company accepts your application.</p>
             </div>
           ) : (
             <div className="space-y-4">
@@ -144,7 +146,8 @@ const StudentOverview = ({ studentData = {} }) => {
   }, [user]);
 
   const isPlaced = Boolean(activeInternship);
-  const appState = isPlaced ? 'ACTIVATED' : 'NOT_STARTED';
+  const progressState = getInternshipProgressState(activeInternship || {});
+  const appState = isPlaced ? (progressState.dormant ? 'DORMANT' : 'ACTIVATED') : 'DORMANT';
 
   const stats = [
     { label: 'Applications Sent', val: applications.length.toString(), icon: faPaperPlane, color: 'sky' },

@@ -142,12 +142,16 @@ const getStudents = async (req, res) => {
 
         si.internship_id,
         i.title AS internship_title,
+        i.start_date,
+        i.end_date,
+        si.start_date AS placement_start_date,
         si.status AS internship_status,
         c.company_name
 
       FROM student s
       LEFT JOIN student_internship si
         ON s.student_id = si.student_id
+        AND LOWER(si.status) IN ('in progress', 'accepted', 'active')
       LEFT JOIN internship i
         ON si.internship_id = i.internship_id
       LEFT JOIN company c

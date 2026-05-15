@@ -11,8 +11,13 @@ import {
   faChevronUp,
   faSpinner,
 } from '@fortawesome/free-solid-svg-icons';
+import { getInternshipProgressState } from '../../../utils/internshipProgress';
 
 const statusConfig = {
+  Dormant: {
+    badge: 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300',
+    icon: faExclamationTriangle,
+  },
   'Pending Approval': {
     badge: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400',
     icon: faExclamationTriangle,
@@ -91,10 +96,14 @@ const FacultyMonitorProgress = () => {
       const report = reportsByStudent.get(studentId);
       const evaluation = evaluationsByStudent.get(studentId);
 
-      let progress = 0;
-      if (student.internship_id) progress = 40;
-      if (report?.file_url) progress = 75;
-      if (evaluation?.evaluation_id) progress = 100;
+      const progressState = getInternshipProgressState({
+        ...student,
+        status: student.internship_status,
+      });
+
+      let progress = progressState.progress;
+      if (!progressState.dormant && report?.file_url) progress = Math.max(progress, 75);
+      if (!progressState.dormant && evaluation?.evaluation_id) progress = 100;
 
       const attendance = evaluation?.attendance_pdf_url
         ? 'Submitted'
@@ -104,15 +113,15 @@ const FacultyMonitorProgress = () => {
 
       const evaluationStatus = evaluation?.evaluation_id ? 'Completed' : 'Pending';
 
-      let status = 'In Progress';
+      let status = progressState.dormant ? 'Dormant' : 'In Progress';
       const internshipStatus = String(student.internship_status || '').toLowerCase();
       const reportStatus = String(report?.status || '').toLowerCase();
 
       if (internshipStatus === 'rejected') {
         status = 'Rejected';
-      } else if (reportStatus === 'signed' || reportStatus === 'approved') {
+      } else if (!progressState.dormant && (reportStatus === 'signed' || reportStatus === 'approved')) {
         status = 'Approved';
-      } else if (report?.file_url && evaluation?.evaluation_id) {
+      } else if (!progressState.dormant && report?.file_url && evaluation?.evaluation_id) {
         status = 'Pending Approval';
       }
 
@@ -125,6 +134,7 @@ const FacultyMonitorProgress = () => {
         attendance,
         evaluation: evaluationStatus,
         status,
+        progressMessage: progressState.message,
       };
     });
   }, [evaluations, reports, students]);
@@ -232,6 +242,7 @@ const FacultyMonitorProgress = () => {
                           <div className="bg-emerald-500 h-2.5 rounded-full transition-all" style={{ width: `${student.progress}%` }}></div>
                         </div>
                         <div className="text-[10px] text-slate-400 font-bold mt-2">{student.progress}%</div>
+                        <div className="text-[10px] text-slate-400 font-semibold mt-1">{student.progressMessage}</div>
                       </td>
                       <td className="px-6 py-4">{student.attendance}</td>
                       <td className="px-6 py-4">{student.evaluation}</td>

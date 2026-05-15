@@ -14,12 +14,16 @@ const fetchStudents = async (req, res) => {
         s.email,
         s.department,
         si.status,
+        si.start_date AS placement_start_date,
         i.internship_id,
         i.title AS internship_title,
+        i.start_date,
+        i.end_date,
         c.company_name
       FROM student s
       LEFT JOIN student_internship si
-        ON s.student_id = si.student_id AND si.status = 'in progress'
+        ON s.student_id = si.student_id
+        AND LOWER(si.status) IN ('in progress', 'accepted', 'active')
       LEFT JOIN internship i
         ON si.internship_id = i.internship_id
       LEFT JOIN company c
@@ -67,10 +71,16 @@ const getMentorProfile = async (req, res) => {
       `
       SELECT
         COUNT(DISTINCT s.student_id) AS total_students,
-        COUNT(DISTINCT CASE WHEN si.status = 'in progress' THEN si.student_id END) AS active_internships
+        COUNT(DISTINCT CASE
+          WHEN LOWER(si.status) IN ('in progress', 'accepted', 'active')
+            AND (i.start_date IS NULL OR i.start_date <= CURDATE())
+          THEN si.student_id
+        END) AS active_internships
       FROM student s
       LEFT JOIN student_internship si
         ON s.student_id = si.student_id
+      LEFT JOIN internship i
+        ON si.internship_id = i.internship_id
       WHERE s.assigned_mentor = ?
       `,
       [mentor_id],
@@ -254,10 +264,77 @@ const companyMentorFeedback = async (req, res) => {
       [mentor_id],
     );
 
+    const [feedbackHistory] = await db.query(
+      `
+      SELECT
+        mf.feedback_id,
+        mf.parent_feedback_id,
+        mf.internship_id,
+        mf.company_mentor_id,
+        mf.feedback_type,
+        mf.rating,
+        mf.strengths,
+        mf.weaknesses,
+        mf.suggestions,
+        mf.overall_comment,
+        mf.created_at,
+        mf.updated_at,
+        s.student_id,
+        s.full_name AS student_name,
+        i.title AS internship_title,
+        c.company_name,
+        CASE
+          WHEN mf.company_mentor_id IS NULL THEN 'faculty_mentor'
+          ELSE 'company_mentor'
+        END AS source_role,
+        CASE
+          WHEN mf.company_mentor_id IS NULL THEN m.full_name
+          ELSE cm.full_name
+        END AS source_name,
+        cm.full_name AS company_mentor_name,
+        m.full_name AS mentor_name
+      FROM mentor_feedback mf
+      JOIN student s
+        ON mf.student_id = s.student_id
+      LEFT JOIN internship i
+        ON mf.internship_id = i.internship_id
+      LEFT JOIN company c
+        ON i.company_id = c.company_id
+      LEFT JOIN company_mentor cm
+        ON mf.company_mentor_id = cm.company_mentor_id
+      LEFT JOIN mentor m
+        ON s.assigned_mentor = m.mentor_id
+      WHERE s.assigned_mentor = ?
+      ORDER BY mf.created_at DESC
+      `,
+      [mentor_id],
+    );
+
+    const historyByStudent = feedbackHistory.reduce((acc, feedback) => {
+      const studentKey = String(feedback.student_id || "");
+      if (!acc[studentKey]) acc[studentKey] = [];
+      acc[studentKey].push(feedback);
+      return acc;
+    }, {});
+
+    const facultyRepliesByParent = feedbackHistory.reduce((acc, feedback) => {
+      if (feedback.company_mentor_id || !feedback.parent_feedback_id) return acc;
+      const parentKey = String(feedback.parent_feedback_id);
+      if (!acc[parentKey]) acc[parentKey] = [];
+      acc[parentKey].push(feedback);
+      return acc;
+    }, {});
+
+    const feedbacksWithHistory = feedbacks.map((feedback) => ({
+      ...feedback,
+      faculty_replies: facultyRepliesByParent[String(feedback.feedback_id || "")] || [],
+      feedback_history: historyByStudent[String(feedback.student_id || "")] || [],
+    }));
+
     res.status(200).json({
       success: true,
-      count: feedbacks.length,
-      feedbacks,
+      count: feedbacksWithHistory.length,
+      feedbacks: feedbacksWithHistory,
     });
   } catch (error) {
     console.error("Faculty view feedback error:", error);

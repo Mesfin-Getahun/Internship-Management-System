@@ -623,6 +623,7 @@ const myInternship = async (req, res) => {
         i.description,
         i.start_date,
         i.end_date,
+        si.start_date AS placement_start_date,
         i.skills,
         c.company_name,
         COALESCE(i.location, c.location) AS location,
@@ -644,7 +645,14 @@ const myInternship = async (req, res) => {
       LEFT JOIN mentor m
         ON s.assigned_mentor = m.mentor_id
       WHERE si.student_id = ?
-        AND si.status = 'in progress'
+        AND LOWER(si.status) IN ('in progress', 'accepted', 'active')
+      ORDER BY
+        CASE
+          WHEN LOWER(si.status) IN ('in progress', 'active') THEN 0
+          WHEN LOWER(si.status) = 'accepted' THEN 1
+          ELSE 2
+        END,
+        i.start_date ASC
       LIMIT 1
       `,
       [studentId]
@@ -703,11 +711,13 @@ const uploadInternshipReport = async (req, res) => {
 
     const [[activeInternship]] = await db.query(
       `
-      SELECT internship_id
-      FROM student_internship
-      WHERE student_id = ?
-        AND internship_id = ?
-        AND LOWER(status) IN ('in progress', 'accepted', 'active')
+      SELECT si.internship_id, i.start_date
+      FROM student_internship si
+      JOIN internship i
+        ON si.internship_id = i.internship_id
+      WHERE si.student_id = ?
+        AND si.internship_id = ?
+        AND LOWER(si.status) IN ('in progress', 'accepted', 'active')
       LIMIT 1
       `,
       [student_id, internship_id],
@@ -717,6 +727,16 @@ const uploadInternshipReport = async (req, res) => {
       return res.status(403).json({
         success: false,
         message: "You can only upload a report for your active internship.",
+      });
+    }
+
+    if (
+      activeInternship.start_date &&
+      new Date(activeInternship.start_date) > new Date()
+    ) {
+      return res.status(403).json({
+        success: false,
+        message: "You can submit an internship report after the internship start date.",
       });
     }
 

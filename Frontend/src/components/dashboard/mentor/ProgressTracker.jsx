@@ -3,6 +3,7 @@ import axios from 'axios';
 import { useAuth } from '../../../AuthContext';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faSpinner } from '@fortawesome/free-solid-svg-icons';
+import { getInternshipProgressState } from '../../../utils/internshipProgress';
 
 const ProgressTracker = () => {
   const { user } = useAuth();
@@ -49,20 +50,23 @@ const ProgressTracker = () => {
       const studentId = String(student.student_id || '');
       const studentReports = reports.filter((report) => String(report.student_id || '') === studentId);
       const studentFeedback = feedbacks.find((feedback) => String(feedback.student_id || '') === studentId);
-      const internshipStatus = (student.status || '').toLowerCase();
+      const progressState = getInternshipProgressState({
+        ...student,
+        status: student.status,
+      });
       const signedReport = studentReports.some((report) =>
         ['signed', 'approved'].includes((report.status || '').toLowerCase())
       );
 
-      let progress = 15;
-      if (internshipStatus === 'in progress') progress = 40;
-      if (studentReports.length > 0) progress = 75;
-      if (signedReport || studentFeedback) progress = 100;
+      let progress = progressState.progress;
+      let status = progressState.dormant ? 'Dormant' : 'On Track';
 
-      let status = 'Pending';
-      if (internshipStatus === 'in progress' && !studentFeedback) status = 'On Track';
-      if (studentReports.length === 0) status = 'Needs Report';
-      if (studentFeedback) status = 'Reviewed';
+      if (!progressState.dormant && studentReports.length === 0) status = 'Needs Report';
+      if (!progressState.dormant && studentReports.length > 0) progress = Math.max(progress, 75);
+      if (!progressState.dormant && (signedReport || studentFeedback)) {
+        status = 'Reviewed';
+        progress = 100;
+      }
 
       return {
         id: student.student_id,
@@ -72,6 +76,7 @@ const ProgressTracker = () => {
         progress,
         status,
         reports: `${studentReports.length} report${studentReports.length === 1 ? '' : 's'}`,
+        progressMessage: progressState.message,
       };
     });
   }, [feedbacks, reports, students]);
@@ -121,6 +126,7 @@ const ProgressTracker = () => {
                   style={{ width: `${intern.progress}%` }}
                 ></div>
               </div>
+              <p className="text-xs text-slate-400 font-semibold">{intern.progressMessage}</p>
             </div>
 
             <div className="grid grid-cols-2 gap-4 mt-8">

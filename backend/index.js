@@ -11,6 +11,7 @@ import UILroute from "./routes/UILroute.js";
 import companyRoute from "./routes/companyRoute.js";
 import companyMentorRoute from "./routes/companyMentorRoute.js";
 import notificationRoute from "./routes/notificationRoute.js";
+import { startCompanyMentorFeedbackReminderJob } from "./utils/companyMentorFeedbackReminder.js";
 import {
   registerStudent,
   createCompanyMentor,
@@ -57,4 +58,7 @@ app.use("/api/login", router);
 app.use("/api/change-password", changeRouter);
 
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+app.listen(PORT, () => {
+  console.log(`Server running on port ${PORT}`);
+  startCompanyMentorFeedbackReminderJob();
+});

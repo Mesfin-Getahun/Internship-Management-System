@@ -3,6 +3,7 @@ import axios from 'axios';
 import { useAuth } from '../../../AuthContext';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faBriefcase, faBuilding, faUser, faSpinner, faUniversity } from '@fortawesome/free-solid-svg-icons';
+import { getInternshipProgressState } from '../../../utils/internshipProgress';
 
 const InfoCard = ({ icon, label, value, subValue }) => (
   <div>
@@ -55,11 +56,13 @@ const InternshipStatus = () => {
     return (
       <div className="flex flex-col justify-center items-center h-64 text-slate-500 animate-fade-in bg-white dark:bg-slate-900 rounded-3xl border border-slate-100 dark:border-slate-800 shadow-sm p-8">
          <FontAwesomeIcon icon={faBriefcase} size="3x" className="mb-4 opacity-50" />
-         <p className="font-bold text-lg">No Active Placement.</p>
-         <p className="text-sm mt-1">Your internship is not active yet. Apply via the Opportunities portal.</p>
+         <p className="font-bold text-lg">Progress Dormant.</p>
+         <p className="text-sm mt-1">Progress starts after a company accepts you and the internship start date arrives.</p>
       </div>
     );
   }
+
+  const progressState = getInternshipProgressState(internshipData);
 
   return (
     <div className="animate-fade-in space-y-8 pb-12">
@@ -80,7 +83,24 @@ const InternshipStatus = () => {
           <div className="flex-grow space-y-4">
             <h3 className="text-2xl font-bold text-slate-800 dark:text-white leading-tight">{internshipData.title}</h3>
             <div className="flex items-center gap-4">
-              <span className="px-3 py-1 bg-green-100 text-green-700 rounded-lg text-xs font-bold uppercase">{internshipData.status}</span>
+              <span className={`px-3 py-1 rounded-lg text-xs font-bold uppercase ${
+                progressState.dormant ? 'bg-slate-100 text-slate-700' : 'bg-green-100 text-green-700'
+              }`}>
+                {progressState.label}
+              </span>
+            </div>
+            <div className="max-w-xl">
+              <div className="flex items-center justify-between text-xs font-bold text-slate-500 mb-2">
+                <span>Internship Progress</span>
+                <span>{progressState.progress}%</span>
+              </div>
+              <div className="h-2 w-full bg-slate-100 dark:bg-slate-700 rounded-full overflow-hidden">
+                <div
+                  className={`h-full transition-all ${progressState.dormant ? 'bg-slate-400' : 'bg-blue-500'}`}
+                  style={{ width: `${progressState.progress}%` }}
+                ></div>
+              </div>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-2">{progressState.message}</p>
             </div>
           </div>
         </div>
