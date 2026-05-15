@@ -2,9 +2,9 @@ import React, { useState, useEffect, useMemo } from 'react';
 import axios from 'axios';
 import { useAuth } from '../../../AuthContext';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faUser, faBuilding, faStar, faSpinner, faCommentSlash } from '@fortawesome/free-solid-svg-icons';
+import { faUser, faBuilding, faStar, faSpinner, faCommentSlash, faReply } from '@fortawesome/free-solid-svg-icons';
 
-const FeedbackCard = ({ author, role, date, content, rating, strengths, weaknesses, suggestions }) => (
+const FeedbackCard = ({ author, role, date, content, rating, strengths, weaknesses, suggestions, children }) => (
   <div className="bg-white dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-3xl p-8 mb-6 shadow-sm transition-all hover:shadow-lg group">
     <div className="flex items-start justify-between mb-4">
       <div className="flex items-center">
@@ -51,6 +51,33 @@ const FeedbackCard = ({ author, role, date, content, rating, strengths, weakness
         </div>
       </div>
     )}
+    {children}
+  </div>
+);
+
+const FacultyReply = ({ feedback }) => (
+  <div className="mt-6 border-l-4 border-indigo-200 dark:border-indigo-800 pl-5">
+    <div className="rounded-2xl bg-indigo-50/70 dark:bg-indigo-950/20 border border-indigo-100 dark:border-indigo-900/50 p-5">
+      <div className="flex items-start justify-between gap-4">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-white dark:bg-slate-800 border border-indigo-100 dark:border-indigo-900 flex items-center justify-center">
+            <FontAwesomeIcon icon={faReply} className="w-4 h-4 text-indigo-500" />
+          </div>
+          <div>
+            <p className="font-bold text-slate-800 dark:text-white text-sm">
+              {feedback.source_name || feedback.mentor_name || 'Faculty Mentor'}
+            </p>
+            <p className="text-[10px] font-black uppercase tracking-widest text-indigo-500">Faculty Mentor Response</p>
+          </div>
+        </div>
+        <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider whitespace-nowrap">
+          {feedback.created_at ? new Date(feedback.created_at).toLocaleDateString() : 'Recent'}
+        </p>
+      </div>
+      <p className="text-sm text-slate-600 dark:text-slate-300 leading-relaxed mt-4">
+        {feedback.overall_comment || feedback.comments || feedback.feedback_text || feedback.content || 'No feedback comment provided.'}
+      </p>
+    </div>
   </div>
 );
 
@@ -82,46 +109,60 @@ const FeedbackAndEvaluation = () => {
     if (user?.token) fetchFeedback();
   }, [user]);
 
-  const categorizedFeedbacks = useMemo(() => {
-    return feedbacks.reduce(
-      (groups, feedback) => {
-        if (feedback.source_role === 'company_mentor') {
-          groups.companyMentor.push(feedback);
-        } else {
-          groups.facultyMentor.push(feedback);
-        }
-        return groups;
-      },
-      { companyMentor: [], facultyMentor: [] }
-    );
+  const threadedFeedbacks = useMemo(() => {
+    const companyMentor = feedbacks
+      .filter((feedback) => feedback.source_role === 'company_mentor')
+      .sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0));
+    const facultyMentor = feedbacks
+      .filter((feedback) => feedback.source_role !== 'company_mentor')
+      .sort((a, b) => new Date(a.created_at || 0) - new Date(b.created_at || 0));
+    const repliesByParent = new Map();
+    const attachedFacultyIds = new Set();
+
+    facultyMentor.forEach((feedback) => {
+      if (!feedback.parent_feedback_id) return;
+      const parentKey = String(feedback.parent_feedback_id);
+      repliesByParent.set(parentKey, [...(repliesByParent.get(parentKey) || []), feedback]);
+      attachedFacultyIds.add(feedback.feedback_id);
+    });
+
+    return {
+      companyMentor,
+      repliesByParent,
+      orphanFaculty: facultyMentor.filter((feedback) => !attachedFacultyIds.has(feedback.feedback_id)),
+    };
   }, [feedbacks]);
 
-  const renderFeedbackList = (items, emptyMessage) => {
-    if (items.length === 0) {
+  const renderCompanyFeedbackList = () => {
+    if (threadedFeedbacks.companyMentor.length === 0) {
       return (
         <div className="rounded-3xl border border-dashed border-slate-300 dark:border-slate-700 bg-white/70 dark:bg-slate-800/40 p-8 text-center">
-          <p className="text-sm text-slate-500 dark:text-slate-400">{emptyMessage}</p>
+          <p className="text-sm text-slate-500 dark:text-slate-400">No company mentor feedback has been submitted yet.</p>
         </div>
       );
     }
 
-    return items.map((fb, index) => (
-      <FeedbackCard
-        key={`${fb.feedback_id || index}-${fb.source_role}`}
-        author={fb.source_name || fb.company_mentor_name || fb.mentor_name || 'Supervisor'}
-        role={
-          fb.source_role === 'company_mentor'
-            ? 'Company Mentor Feedback'
-            : 'Faculty Mentor Feedback'
-        }
-        date={fb.created_at || fb.date}
-        content={fb.overall_comment || fb.comments || fb.feedback_text || fb.content || 'No feedback comment provided.'}
-        rating={fb.rating || fb.score}
-        strengths={fb.strengths}
-        weaknesses={fb.weaknesses}
-        suggestions={fb.suggestions}
-      />
-    ));
+    return threadedFeedbacks.companyMentor.map((fb, index) => {
+      const facultyReplies = threadedFeedbacks.repliesByParent.get(String(fb.feedback_id)) || [];
+
+      return (
+        <FeedbackCard
+          key={`${fb.feedback_id || index}-${fb.source_role}`}
+          author={fb.source_name || fb.company_mentor_name || 'Company Mentor'}
+          role="Company Mentor Feedback"
+          date={fb.created_at || fb.date}
+          content={fb.overall_comment || fb.comments || fb.feedback_text || fb.content || 'No feedback comment provided.'}
+          rating={fb.rating || fb.score}
+          strengths={fb.strengths}
+          weaknesses={fb.weaknesses}
+          suggestions={fb.suggestions}
+        >
+          {facultyReplies.map((reply) => (
+            <FacultyReply key={reply.feedback_id || `${fb.feedback_id}-faculty`} feedback={reply} />
+          ))}
+        </FeedbackCard>
+      );
+    });
   };
 
   return (
@@ -146,22 +187,16 @@ const FeedbackAndEvaluation = () => {
                 Performance observations and workplace feedback from your organization supervisor.
               </p>
             </div>
-            {renderFeedbackList(
-              categorizedFeedbacks.companyMentor,
-              'No company mentor feedback has been submitted yet.'
-            )}
-          </section>
-
-          <section className="space-y-4">
-            <div>
-              <h2 className="text-xl font-bold text-slate-800 dark:text-white">Faculty Mentor Feedback</h2>
-              <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
-                Academic supervision notes and university-side evaluation from your faculty mentor.
-              </p>
-            </div>
-            {renderFeedbackList(
-              categorizedFeedbacks.facultyMentor,
-              'No faculty mentor feedback has been submitted yet.'
+            {renderCompanyFeedbackList()}
+            {threadedFeedbacks.orphanFaculty.length > 0 && (
+              <div className="rounded-3xl border border-dashed border-indigo-200 dark:border-indigo-900 bg-white/70 dark:bg-slate-800/40 p-5">
+                <p className="text-xs font-black uppercase tracking-widest text-indigo-500 mb-3">
+                  Faculty feedback not linked to a company feedback item
+                </p>
+                {threadedFeedbacks.orphanFaculty.map((feedback) => (
+                  <FacultyReply key={feedback.feedback_id} feedback={feedback} />
+                ))}
+              </div>
             )}
           </section>
         </div>

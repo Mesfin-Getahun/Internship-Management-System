@@ -2,12 +2,11 @@ import React, { useState, useEffect, useMemo } from 'react';
 import axios from 'axios';
 import { useAuth } from '../../../AuthContext';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faSearch, faTimes, faStar, faBuilding, faUser, faFileAlt, faSpinner, faCommentSlash, faPaperclip } from '@fortawesome/free-solid-svg-icons';
+import { faSearch, faTimes, faStar, faBuilding, faFileAlt, faSpinner, faCommentSlash, faPaperclip } from '@fortawesome/free-solid-svg-icons';
 
 const EvaluationModal = ({ evaluation, onClose }) => {
   if (!evaluation) return null;
 
-  const isOrg = evaluation.type === 'Organization' || !evaluation.university_mentor_id;
   const rating = evaluation.rating || evaluation.score || (evaluation.total_mark ? Math.min(5, Math.round(evaluation.total_mark / 20)) : 5);
 
   const renderStars = (rating) => (
@@ -42,7 +41,7 @@ const EvaluationModal = ({ evaluation, onClose }) => {
             <div className="text-right">
               <p className="text-[10px] text-slate-400 uppercase font-black tracking-widest mb-1">Evaluation Target</p>
               <p className="text-lg font-bold text-slate-800 dark:text-white flex items-center justify-end gap-2">
-                {isOrg ? <FontAwesomeIcon icon={faBuilding} className="text-slate-400 text-sm" /> : <FontAwesomeIcon icon={faUser} className="text-slate-400 text-sm" />}
+                <FontAwesomeIcon icon={faBuilding} className="text-slate-400 text-sm" />
                 {evaluation.target || evaluation.company_name || 'Organization'}
               </p>
             </div>
@@ -97,7 +96,7 @@ const EvaluationModal = ({ evaluation, onClose }) => {
         </div>
 
         <div className="p-6 border-t border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/30 text-center text-[10px] font-bold text-slate-400 uppercase tracking-widest">
-          Evaluation submitted on {evaluation.date || evaluation.created_at ? new Date(evaluation.date || evaluation.created_at).toLocaleDateString() : 'N/A'}
+          Evaluation submitted on {evaluation.submitted_at || evaluation.date || evaluation.created_at ? new Date(evaluation.submitted_at || evaluation.date || evaluation.created_at).toLocaleDateString() : 'N/A'}
         </div>
       </div>
     </div>
@@ -106,11 +105,12 @@ const EvaluationModal = ({ evaluation, onClose }) => {
 
 const FacultyOrgEvaluations = () => {
   const [selectedEvaluation, setSelectedEvaluation] = useState(null);
-  const [filter, setFilter] = useState('All');
   const [searchTerm, setSearchTerm] = useState('');
+  const [selectedDepartment, setSelectedDepartment] = useState('All Departments');
   const [evaluations, setEvaluations] = useState([]);
   const [loading, setLoading] = useState(true);
   const [detailLoading, setDetailLoading] = useState(false);
+  const [detailLoadingId, setDetailLoadingId] = useState(null);
   const { user } = useAuth();
 
   useEffect(() => {
@@ -131,18 +131,31 @@ const FacultyOrgEvaluations = () => {
     if (user?.token) fetchEvaluations();
   }, [user]);
 
+  const departments = useMemo(() => {
+    const names = evaluations.map((evaluation) => evaluation.department).filter(Boolean);
+    return ['All Departments', ...Array.from(new Set(names)).sort()];
+  }, [evaluations]);
+
   const filteredEvaluations = useMemo(() => {
-    return evaluations
-      .filter(e => {
-         const type = e.university_mentor_id ? 'Mentor' : 'Organization';
-         return filter === 'All' || type === filter;
-      })
-      .filter(e => {
-        const sName = (e.student_name || e.student || '').toLowerCase();
-        const tName = (e.company_name || e.target || '').toLowerCase();
-        return sName.includes(searchTerm.toLowerCase()) || tName.includes(searchTerm.toLowerCase());
-      });
-  }, [filter, searchTerm, evaluations]);
+    const query = searchTerm.trim().toLowerCase();
+
+    return evaluations.filter((evaluation) => {
+      const matchesDepartment =
+        selectedDepartment === 'All Departments' || evaluation.department === selectedDepartment;
+      const studentName = (evaluation.student_name || evaluation.student || '').toLowerCase();
+      const studentId = String(evaluation.student_id || '').toLowerCase();
+      const companyName = (evaluation.company_name || evaluation.target || '').toLowerCase();
+      const internshipTitle = (evaluation.internship_title || '').toLowerCase();
+      const matchesSearch =
+        !query ||
+        studentName.includes(query) ||
+        studentId.includes(query) ||
+        companyName.includes(query) ||
+        internshipTitle.includes(query);
+
+      return matchesDepartment && matchesSearch;
+    });
+  }, [evaluations, searchTerm, selectedDepartment]);
 
   const renderStars = (rating) => (
     <div className="flex">
@@ -160,6 +173,7 @@ const FacultyOrgEvaluations = () => {
 
     try {
       setDetailLoading(true);
+      setDetailLoadingId(evaluation.evaluation_id);
       const res = await axios.get(
         `${import.meta.env.VITE_BACKEND_URL}/api/faculty/companyEvaluation/${encodeURIComponent(evaluation.evaluation_id)}`,
         { headers: { Authorization: `Bearer ${user.token}` } }
@@ -170,6 +184,7 @@ const FacultyOrgEvaluations = () => {
       setSelectedEvaluation(evaluation);
     } finally {
       setDetailLoading(false);
+      setDetailLoadingId(null);
     }
   };
 
@@ -182,31 +197,31 @@ const FacultyOrgEvaluations = () => {
         <p className="text-slate-500 text-sm mt-1">Review feedback ratings provided by host organizations.</p>
       </header>
 
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-6">
-        <div className="flex gap-2 bg-slate-100 dark:bg-slate-900 p-1.5 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm">
-          {['All', 'Organization', 'Mentor'].map(f => (
-            <button 
-              key={f}
-              onClick={() => setFilter(f)}
-              className={`px-5 py-2 text-xs font-bold uppercase tracking-wider rounded-lg transition-all ${
-                filter === f 
-                  ? 'bg-indigo-600 text-white shadow-md shadow-indigo-500/20' 
-                  : 'text-slate-500 dark:text-slate-400 hover:bg-white dark:hover:bg-slate-800'
-              }`}
-            >
-              {f}
-            </button>
-          ))}
-        </div>
-        <div className="relative w-full sm:w-72">
-          <FontAwesomeIcon icon={faSearch} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size="sm" />
+      <div className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 shadow-sm p-6 rounded-3xl">
+        <div className="flex flex-col gap-4 md:flex-row md:items-end">
+        <div className="relative flex-1">
+          <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Search Evaluation</label>
+          <FontAwesomeIcon icon={faSearch} className="absolute left-4 bottom-3.5 text-slate-400" size="sm" />
           <input 
             type="text" 
-            placeholder="Search matching evaluations..." 
+            placeholder="Search by student, company, or internship..." 
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-11 pr-4 py-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all shadow-sm"
+            className="w-full pl-11 pr-4 py-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all"
           />
+        </div>
+        <div className="w-full md:w-72">
+          <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Department</label>
+          <select
+            value={selectedDepartment}
+            onChange={(event) => setSelectedDepartment(event.target.value)}
+            className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-indigo-500"
+          >
+            {departments.map((department) => (
+              <option key={department} value={department}>{department}</option>
+            ))}
+          </select>
+        </div>
         </div>
       </div>
 
@@ -215,41 +230,90 @@ const FacultyOrgEvaluations = () => {
             <FontAwesomeIcon icon={faSpinner} spin size="2x" />
          </div>
       ) : filteredEvaluations.length > 0 ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-          {filteredEvaluations.map((e, idx) => {
-             const type = e.university_mentor_id ? 'Mentor' : 'Organization';
-             const isOrg = type === 'Organization';
-             const rating = e.rating || e.score || (e.total_mark ? Math.min(5, Math.round(e.total_mark / 20)) : 5);
-             return (
-               <div key={e.evaluation_id || e.id || idx} className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-100 dark:border-slate-800 shadow-sm p-8 flex flex-col transition-all duration-300 hover:shadow-xl hover:shadow-indigo-500/5 hover:-translate-y-1 group">
-                 <div className="flex justify-between items-start mb-6">
-                   <div>
-                     <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest mb-1">{e.student_name || e.student || 'Student Name'}</p>
-                     <p className="font-bold text-slate-800 dark:text-white flex items-center gap-2 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
-                       {isOrg ? <FontAwesomeIcon icon={faBuilding} size="sm" className="text-slate-400" /> : <FontAwesomeIcon icon={faUser} size="sm" className="text-slate-400" />}
-                       {e.company_name || e.target || 'Organization'}
-                     </p>
-                   </div>
-                   <div className={`text-[10px] font-black uppercase tracking-widest px-3 py-1.5 rounded-lg ${isOrg ? 'bg-indigo-50 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400' : 'bg-purple-50 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400'}`}>
-                     {type}
-                   </div>
-                 </div>
-                 <p className="text-sm text-slate-600 dark:text-slate-400 italic line-clamp-3 mb-6 flex-grow">"{e.summary || e.comments || e.feedback_text || `Total mark: ${e.total_mark || 'N/A'}`}"</p>
-                 <div className="flex justify-between items-center pt-6 border-t border-slate-100 dark:border-slate-800">
-                   <div className="flex items-center gap-2 bg-slate-50 dark:bg-slate-800 px-3 py-1.5 rounded-lg border border-slate-100 dark:border-slate-700">
-                     {renderStars(rating)}
-                     <span className="text-[10px] font-black text-slate-500">({rating}.0)</span>
-                   </div>
-                   <button 
-                     onClick={() => handleOpenEvaluation(e)}
-                     className="bg-slate-50 dark:bg-slate-800 hover:bg-indigo-600 text-slate-600 dark:text-slate-300 hover:text-white text-[10px] font-black uppercase tracking-widest py-2 px-4 rounded-lg transition-all active:scale-95"
-                   >
-                     {detailLoading && selectedEvaluation?.evaluation_id === e.evaluation_id ? 'Loading...' : 'Details'}
-                   </button>
-                 </div>
-               </div>
-             )
-          })}
+        <div className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 shadow-sm p-8 rounded-3xl">
+          <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className="bg-slate-50 dark:bg-slate-800/50 border-b border-slate-100 dark:border-slate-800">
+                  <th className="p-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Student</th>
+                  <th className="p-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Organization</th>
+                  <th className="p-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Internship</th>
+                  <th className="p-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Rating</th>
+                  <th className="p-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Files</th>
+                  <th className="p-4 text-[10px] font-black uppercase tracking-widest text-slate-400 text-right">Action</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                {filteredEvaluations.map((e, idx) => {
+                  const rating = e.rating || e.score || (e.total_mark ? Math.min(5, Math.round(e.total_mark / 20)) : 5);
+                  const isLoadingDetails = detailLoading && detailLoadingId === e.evaluation_id;
+
+                  return (
+                    <tr key={e.evaluation_id || e.id || idx} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/30">
+                      <td className="p-4">
+                        <div className="font-bold text-slate-800 dark:text-white">{e.student_name || e.student || 'Student Name'}</div>
+                        <div className="text-xs text-slate-500">{e.student_id || 'No ID'} | {e.department || 'No Department'}</div>
+                      </td>
+                      <td className="p-4">
+                        <div className="font-semibold text-slate-700 dark:text-slate-300 flex items-center gap-2">
+                          <FontAwesomeIcon icon={faBuilding} size="sm" className="text-slate-400" />
+                          {e.company_name || e.target || 'Organization'}
+                        </div>
+                      </td>
+                      <td className="p-4">
+                        <div className="font-semibold text-slate-700 dark:text-slate-300">{e.internship_title || 'No internship'}</div>
+                        <div className="text-xs text-slate-500">
+                          {e.submitted_at ? new Date(e.submitted_at).toLocaleDateString() : 'No date'}
+                        </div>
+                      </td>
+                      <td className="p-4">
+                        <div className="flex items-center gap-2 bg-slate-50 dark:bg-slate-800 px-3 py-1.5 rounded-lg border border-slate-100 dark:border-slate-700 w-fit">
+                          {renderStars(rating)}
+                          <span className="text-[10px] font-black text-slate-500">({rating}.0)</span>
+                        </div>
+                      </td>
+                      <td className="p-4">
+                        <div className="flex gap-2">
+                          <a
+                            href={e.assessment_pdf_url || '#'}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className={`px-3 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest ${
+                              e.assessment_pdf_url
+                                ? 'bg-indigo-50 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400'
+                                : 'bg-slate-100 text-slate-400 pointer-events-none'
+                            }`}
+                          >
+                            Assessment
+                          </a>
+                          <a
+                            href={e.attendance_pdf_url || '#'}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className={`px-3 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest ${
+                              e.attendance_pdf_url
+                                ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400'
+                                : 'bg-slate-100 text-slate-400 pointer-events-none'
+                            }`}
+                          >
+                            Attendance
+                          </a>
+                        </div>
+                      </td>
+                      <td className="p-4 text-right">
+                        <button
+                          onClick={() => handleOpenEvaluation(e)}
+                          className="bg-slate-50 dark:bg-slate-800 hover:bg-indigo-600 text-slate-600 dark:text-slate-300 hover:text-white text-[10px] font-black uppercase tracking-widest py-2 px-4 rounded-lg transition-all active:scale-95"
+                        >
+                          {isLoadingDetails ? 'Loading...' : 'Details'}
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
         </div>
       ) : (
         <div className="flex flex-col items-center justify-center p-12 bg-white dark:bg-slate-900 rounded-3xl border border-slate-100 dark:border-slate-800 shadow-sm min-h-[300px]">

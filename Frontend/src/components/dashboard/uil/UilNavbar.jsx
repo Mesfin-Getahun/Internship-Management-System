@@ -1,8 +1,9 @@
 import React, { useMemo, useState } from "react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faSearch, faBell } from "@fortawesome/free-solid-svg-icons";
+import { faSearch } from "@fortawesome/free-solid-svg-icons";
 import { useAuth } from "../../../AuthContext";
 import { useNavigate } from "react-router-dom";
+import NotificationBell from "../common/NotificationBell";
 
 const UilNavbar = ({ title }) => {
   const { user } = useAuth();
@@ -60,10 +61,7 @@ const UilNavbar = ({ title }) => {
       </div>
 
       <div className="flex items-center gap-4 shrink-0">
-        <button className="relative p-2.5 rounded-xl bg-slate-50 text-slate-500 hover:bg-slate-100 transition-colors group">
-          <FontAwesomeIcon icon={faBell} className="h-6 w-6" />
-          <span className="absolute top-2 right-2.5 w-2 h-2 bg-indigo-500 rounded-full border-2 border-white group-hover:scale-125 transition-transform"></span>
-        </button>
+        <NotificationBell accent="indigo" />
 
         <div className="h-10 w-px bg-slate-200 mx-2"></div>
 

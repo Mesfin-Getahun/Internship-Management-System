@@ -1,6 +1,7 @@
 import React from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faUniversity, faBell } from '@fortawesome/free-solid-svg-icons';
+import { faUniversity } from '@fortawesome/free-solid-svg-icons';
+import NotificationBell from '../common/NotificationBell';
 
 const FacultyNavbar = () => {
   return (
@@ -20,10 +21,7 @@ const FacultyNavbar = () => {
       </div>
       
       <div className="flex items-center gap-4">
-        <button className="relative p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors group">
-          <FontAwesomeIcon icon={faBell} className="h-6 w-6" />
-          <span className="absolute top-2 right-2.5 w-2 h-2 bg-red-500 rounded-full border-2 border-white dark:border-slate-800 group-hover:scale-125 transition-transform"></span>
-        </button>
+        <NotificationBell accent="emerald" />
         
         <div className="h-10 w-px bg-slate-200 dark:bg-slate-800 mx-2"></div>
         

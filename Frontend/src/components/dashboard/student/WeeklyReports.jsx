@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import axios from "axios";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
+  faCheckCircle,
   faCloudUploadAlt,
   faExternalLinkAlt,
   faFileAlt,
@@ -10,7 +11,21 @@ import {
 } from "@fortawesome/free-solid-svg-icons";
 import { useAuth } from "../../../AuthContext";
 
-const WeeklyReports = () => {
+const getReportStatusLabel = (report) => {
+  const status = (report?.status || "").toLowerCase();
+
+  if (report?.faculty_submitted_at || status === "faculty_submitted") {
+    return "Submitted to Faculty";
+  }
+
+  if (report?.mentor_signed_url || status === "signed") {
+    return "Signed by Mentor";
+  }
+
+  return "Submitted to Mentor";
+};
+
+const InternshipReport = () => {
   const { user } = useAuth();
   const [activeInternship, setActiveInternship] = useState(null);
   const [reports, setReports] = useState([]);
@@ -54,12 +69,25 @@ const WeeklyReports = () => {
     run();
   }, [user?.token]);
 
+  const currentInternshipReport = activeInternship?.internship_id
+    ? reports.find(
+        (report) => String(report.internship_id) === String(activeInternship.internship_id),
+      )
+    : null;
+  const hasSubmittedCurrentReport = Boolean(currentInternshipReport);
+
   const handleFileChange = (e) => {
     const file = e.target.files[0];
     setMessage("");
     setError("");
 
     if (!file) {
+      setSelectedFile(null);
+      return;
+    }
+
+    if (hasSubmittedCurrentReport) {
+      setError("You have already submitted an internship report to your mentor.");
       setSelectedFile(null);
       return;
     }
@@ -80,6 +108,11 @@ const WeeklyReports = () => {
 
     if (!activeInternship?.internship_id) {
       setError("You need an active internship before uploading reports.");
+      return;
+    }
+
+    if (hasSubmittedCurrentReport) {
+      setError("You have already submitted an internship report to your mentor.");
       return;
     }
 
@@ -149,10 +182,10 @@ const WeeklyReports = () => {
     <div className="animate-fade-in space-y-8 pb-12">
       <header>
         <h2 className="text-3xl font-bold text-slate-800 dark:text-white">
-          Weekly Internship Reports
+          Internship Report
         </h2>
         <p className="text-slate-500 text-sm mt-1">
-          Upload report PDFs and forward mentor-signed versions to faculty.
+          Upload one report PDF for mentor review, then forward the signed report to faculty.
         </p>
       </header>
 
@@ -162,18 +195,22 @@ const WeeklyReports = () => {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         <div className="lg:col-span-2 bg-white dark:bg-slate-900 rounded-3xl border border-slate-100 dark:border-slate-800 overflow-hidden shadow-sm">
           <div className="p-6 border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/30">
-            <h4 className="font-bold text-slate-800 dark:text-white">Submission History</h4>
+            <h4 className="font-bold text-slate-800 dark:text-white">Report History</h4>
           </div>
 
           {reports.length === 0 ? (
             <div className="p-12 text-center text-slate-500">
               <FontAwesomeIcon icon={faFileAlt} size="3x" className="mb-4 text-slate-300" />
-              <p className="font-bold">No reports uploaded yet.</p>
+              <p className="font-bold">No internship report uploaded yet.</p>
             </div>
           ) : (
             <div className="divide-y divide-slate-50 dark:divide-slate-800/50">
               {reports.map((report) => {
-                const isSigned = ["signed", "approved"].includes((report.status || "").toLowerCase());
+                const status = (report.status || "").toLowerCase();
+                const isFacultySubmitted = Boolean(report.faculty_submitted_at) || status === "faculty_submitted";
+                const isSigned = Boolean(report.mentor_signed_url) || status === "signed";
+                const canSubmitToFaculty = isSigned && !isFacultySubmitted;
+
                 return (
                   <div key={report.report_id} className="p-6 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
                     <div>
@@ -181,7 +218,7 @@ const WeeklyReports = () => {
                         {report.internship_title || "Internship Report"}
                       </p>
                       <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1">
-                        Status: {report.status || "submitted"} - {report.created_at ? new Date(report.created_at).toLocaleDateString() : "Recent"}
+                        Status: {getReportStatusLabel(report)} - {report.created_at ? new Date(report.created_at).toLocaleDateString() : "Recent"}
                       </p>
                       <p className="text-xs text-slate-500 mt-1">{report.company_name || "Host organization"}</p>
                     </div>
@@ -199,7 +236,13 @@ const WeeklyReports = () => {
                           Signed
                         </a>
                       )}
-                      {isSigned && !report.faculty_submitted_at && (
+                      {isFacultySubmitted && (
+                        <span className="px-4 py-2 bg-emerald-50 text-emerald-700 rounded-xl text-xs font-bold">
+                          <FontAwesomeIcon icon={faCheckCircle} className="mr-2" />
+                          Submitted to Faculty
+                        </span>
+                      )}
+                      {canSubmitToFaculty && (
                         <button
                           onClick={() => submitSignedReport(report.report_id)}
                           disabled={submitting}
@@ -218,29 +261,40 @@ const WeeklyReports = () => {
         </div>
 
         <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-100 dark:border-slate-800 p-8 shadow-sm h-fit">
-          <h4 className="text-lg font-bold text-slate-800 dark:text-white mb-2">Submit New Report</h4>
+          <h4 className="text-lg font-bold text-slate-800 dark:text-white mb-2">Submit Internship Report</h4>
           <p className="text-xs text-slate-500 mb-6">
-            {activeInternship ? `Active placement: ${activeInternship.title}` : "No active internship placement found."}
+            {hasSubmittedCurrentReport
+              ? "Your internship report has already been sent to your mentor."
+              : activeInternship
+                ? `Active placement: ${activeInternship.title}`
+                : "No active internship placement found."}
           </p>
 
           <form className="space-y-6" onSubmit={handleUpload}>
-            <div className="p-6 border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-2xl text-center group hover:border-blue-400 transition-colors cursor-pointer relative">
+            <div className={`p-6 border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-2xl text-center group transition-colors relative ${
+              hasSubmittedCurrentReport ? "cursor-not-allowed opacity-60" : "cursor-pointer hover:border-blue-400"
+            }`}>
               <input
                 type="file"
                 id="report-file"
                 accept="application/pdf"
                 className="absolute inset-0 opacity-0 cursor-pointer"
                 onChange={handleFileChange}
+                disabled={hasSubmittedCurrentReport}
               />
               <FontAwesomeIcon icon={faCloudUploadAlt} className="h-10 w-10 mx-auto text-slate-300 group-hover:text-blue-400 mb-3" />
               <p className="text-xs font-bold text-slate-500 dark:text-slate-400">
-                {selectedFile ? selectedFile.name : "Upload PDF report"}
+                {hasSubmittedCurrentReport
+                  ? "Report already submitted"
+                  : selectedFile
+                    ? selectedFile.name
+                    : "Upload PDF report"}
               </p>
             </div>
 
             <button
               className="w-full py-4 bg-blue-600 text-white rounded-2xl font-bold hover:bg-blue-700 shadow-xl shadow-blue-500/20 transition-all active:scale-95 disabled:opacity-50"
-              disabled={!selectedFile || !activeInternship || submitting}
+              disabled={!selectedFile || !activeInternship || hasSubmittedCurrentReport || submitting}
             >
               {submitting ? "Submitting..." : "Submit Report"}
             </button>
@@ -251,4 +305,4 @@ const WeeklyReports = () => {
   );
 };
 
-export default WeeklyReports;
+export default InternshipReport;

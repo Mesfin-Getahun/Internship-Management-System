@@ -79,7 +79,7 @@ const UnplacedStudentView = ({ stats, isPlaced, applications }) => (
                 <span className="opacity-0 group-hover/btn:opacity-100 transition-opacity">→</span>
               </button>
               <button className="w-full py-3 bg-white/10 hover:bg-white/20 rounded-xl text-sm font-bold transition-all text-left px-4 flex justify-between items-center group/btn">
-                Submit Weekly Report
+                Submit Internship Report
                 <span className="opacity-0 group-hover/btn:opacity-100 transition-opacity">→</span>
               </button>
             </div>

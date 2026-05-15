@@ -5,7 +5,11 @@ import generateAttendancePDF from "../utils/generateAttendancePDF.js";
 import { uploadToCloudinary } from "../utils/cloudinaryUpload.js";
 import fs from "fs";
 import createLog from "../utils/createLog.js";
+<<<<<<< HEAD
 import { createStudentNotification } from "../utils/notificationService.js";
+=======
+import { createNotification, createNotifications } from "../utils/notificationService.js";
+>>>>>>> ef1cffe16a5eca79441eeb23a8b74941c34ab1a1
 
 const postInternship = async (req, res) => {
   const company_id = req.user.company_id;
@@ -23,10 +27,17 @@ const postInternship = async (req, res) => {
     } = req.body;
 
     // Basic validation
-    if (!title || !description) {
+    if (!title || !description || !start_date || !end_date) {
       return res.status(400).json({
         success: false,
-        message: "Title and description are required",
+        message: "Title, description, start date, and end date are required",
+      });
+    }
+
+    if (new Date(end_date) < new Date(start_date)) {
+      return res.status(400).json({
+        success: false,
+        message: "End date cannot be before start date",
       });
     }
 
@@ -48,6 +59,18 @@ const postInternship = async (req, res) => {
       company_id,
       "pending",
     ]);
+
+    const [uilUsers] = await db.query("SELECT UIL_id FROM UIL");
+    await createNotifications(
+      uilUsers.map((uil) => ({
+        recipientRole: "uil",
+        recipientId: uil.UIL_id,
+        title: "Internship awaiting approval",
+        message: `${req.user.company_name || "A company"} posted ${title}.`,
+        type: "approval",
+        link: "/uil/internship-approvals",
+      })),
+    );
 
     res.status(201).json({
       success: true,
@@ -135,6 +158,23 @@ const updateInternship = async (req, res) => {
       });
     }
 
+    const nextStartDate = start_date || existing[0].start_date;
+    const nextEndDate = end_date || existing[0].end_date;
+
+    if (!nextStartDate || !nextEndDate) {
+      return res.status(400).json({
+        success: false,
+        message: "Start date and end date are required",
+      });
+    }
+
+    if (new Date(nextEndDate) < new Date(nextStartDate)) {
+      return res.status(400).json({
+        success: false,
+        message: "End date cannot be before start date",
+      });
+    }
+
     // Update internship
     const query = `
       UPDATE internship
@@ -146,8 +186,8 @@ const updateInternship = async (req, res) => {
       title || existing[0].title,
       description || existing[0].description,
       image || existing[0].image,
-      start_date || existing[0].start_date,
-      end_date || existing[0].end_date,
+      nextStartDate,
+      nextEndDate,
       requirements || skills || skill || existing[0].skills,
       location || existing[0].location,
       internship_id,
@@ -469,7 +509,64 @@ const accept = async (req, res) => {
       });
     }
 
-    const { student_id, internship_id, company_id: applicationCompanyId } = rows[0];
+    const {
+      student_id,
+      internship_id,
+      company_id: applicationCompanyId,
+      internship_title,
+      company_name,
+    } = rows[0];
+
+    const [currentInternships] = await db.query(
+      `
+      SELECT
+        current_records.internship_id,
+        current_records.internship_title,
+        current_records.company_name,
+        current_records.status
+      FROM (
+        SELECT
+          si.internship_id,
+          i.title AS internship_title,
+          c.company_name,
+          si.status
+        FROM student_internship si
+        JOIN internship i
+          ON si.internship_id = i.internship_id
+        LEFT JOIN company c
+          ON si.company_id = c.company_id
+        WHERE si.student_id = ?
+          AND si.internship_id <> ?
+          AND LOWER(si.status) IN ('in progress', 'accepted', 'active')
+
+        UNION ALL
+
+        SELECT
+          a.internship_id,
+          i.title AS internship_title,
+          c.company_name,
+          a.status
+        FROM application a
+        JOIN internship i
+          ON a.internship_id = i.internship_id
+        LEFT JOIN company c
+          ON i.company_id = c.company_id
+        WHERE a.student_id = ?
+          AND a.internship_id <> ?
+          AND LOWER(a.status) = 'accepted'
+      ) current_records
+      LIMIT 1
+      `,
+      [student_id, internship_id, student_id, internship_id],
+    );
+
+    if (currentInternships.length > 0) {
+      return res.status(409).json({
+        success: false,
+        message: `This student already has a current internship${currentInternships[0].internship_title ? `: ${currentInternships[0].internship_title}` : ""}.`,
+        current_internship: currentInternships[0],
+      });
+    }
 
     await db.query(
       "UPDATE application SET status = 'accepted' WHERE application_id = ?",
@@ -504,6 +601,7 @@ const accept = async (req, res) => {
       );
     }
 
+<<<<<<< HEAD
     try {
       await createStudentNotification({
         studentId: student_id,
@@ -520,6 +618,27 @@ const accept = async (req, res) => {
     } catch (notificationError) {
       console.error("Failed to create application notification:", notificationError.message);
     }
+=======
+    await db.query(
+      `
+      UPDATE application
+      SET status = 'withdrawn'
+      WHERE student_id = ?
+        AND internship_id <> ?
+        AND LOWER(status) = 'pending'
+      `,
+      [student_id, internship_id],
+    );
+
+    await createNotification({
+      recipientRole: "student",
+      recipientId: student_id,
+      title: "Application accepted",
+      message: `${company_name || "A company"} accepted your application for ${internship_title || "an internship"}.`,
+      type: "application",
+      link: "/student/my-applications",
+    });
+>>>>>>> ef1cffe16a5eca79441eeb23a8b74941c34ab1a1
 
     res.status(200).json({
       success: true,
@@ -547,9 +666,16 @@ const reject = async (req, res) => {
     // Check if application exists
     const [existing] = await db.query(
       `
-      SELECT a.application_id
+      SELECT
+        a.application_id,
+        a.student_id,
+        i.title AS internship_title,
+        c.company_name
       FROM application a
-      JOIN internship i ON a.internship_id = i.internship_id
+      JOIN internship i
+        ON a.internship_id = i.internship_id
+      JOIN company c
+        ON i.company_id = c.company_id
       WHERE a.application_id = ? AND i.company_id = ?
       `,
       [application_id, company_id],
@@ -567,6 +693,7 @@ const reject = async (req, res) => {
       [application_id],
     );
 
+<<<<<<< HEAD
     try {
       await createStudentNotification({
         studentId: existing[0].student_id,
@@ -581,6 +708,16 @@ const reject = async (req, res) => {
     } catch (notificationError) {
       console.error("Failed to create rejection notification:", notificationError.message);
     }
+=======
+    await createNotification({
+      recipientRole: "student",
+      recipientId: existing[0].student_id,
+      title: "Application rejected",
+      message: `${existing[0].company_name || "A company"} rejected your application for ${existing[0].internship_title || "an internship"}.`,
+      type: "application",
+      link: "/student/my-applications",
+    });
+>>>>>>> ef1cffe16a5eca79441eeb23a8b74941c34ab1a1
 
     res
       .status(200)

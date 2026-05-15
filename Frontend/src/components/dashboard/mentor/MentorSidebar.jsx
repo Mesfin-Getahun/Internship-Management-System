@@ -1,7 +1,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faTableCellsLarge, faUsers, faClipboardList, faFileSignature, faComment, faSignOutAlt, faBuilding } from '@fortawesome/free-solid-svg-icons';;
+import { faTableCellsLarge, faUsers, faClipboardList, faFileSignature, faComment, faSignOutAlt } from '@fortawesome/free-solid-svg-icons';;
 
 const MentorSidebar = ({ activeTab }) => {
   const menuItems = [
@@ -9,8 +9,7 @@ const MentorSidebar = ({ activeTab }) => {
     { id: 'my-students', label: 'My Assigned Students', icon: faUsers },
     { id: 'progress-tracker', label: 'Monitor Progress', icon: faClipboardList },
     { id: 'student-submissions', label: 'Student Submissions', icon: faFileSignature },
-    { id: 'organization-updates', label: 'Organization Updates', icon: faBuilding },
-    { id: 'feedback', label: 'Feedback Comments', icon: faComment },
+    { id: 'feedback', label: 'Feedback', icon: faComment },
   ];
 
   return (

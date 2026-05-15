@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { useAuth } from '../../../AuthContext';
@@ -11,6 +11,25 @@ const ApplicationPage = () => {
   const [cv, setCv] = useState(null);
   const [academicDoc, setAcademicDoc] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [internship, setInternship] = useState(null);
+
+  useEffect(() => {
+    const fetchInternship = async () => {
+      if (!user?.token) return;
+
+      try {
+        const res = await axios.get(`${import.meta.env.VITE_BACKEND_URL}/api/student/internships`, {
+          headers: { Authorization: `Bearer ${user.token}` },
+        });
+        const internships = res.data?.internships || [];
+        setInternship(internships.find((item) => String(item.internship_id) === String(id)) || null);
+      } catch (error) {
+        console.error("Failed to load internship eligibility:", error);
+      }
+    };
+
+    fetchInternship();
+  }, [id, user?.token]);
 
   const handleFileChange = (e, setter) => {
     setter(e.target.files[0]);
@@ -20,6 +39,16 @@ const ApplicationPage = () => {
     e.preventDefault();
     if (!cv || !academicDoc) {
       alert('Please upload both your CV and an academic document.');
+      return;
+    }
+
+    if (internship && !internship.meets_duration_requirement) {
+      alert(`Your department requires a minimum ${internship.required_minimum_months || 4}-month internship.`);
+      return;
+    }
+
+    if (internship?.application_locked) {
+      alert(`You already have a current internship${internship.current_internship_title ? `: ${internship.current_internship_title}` : ''}. You cannot apply for another internship.`);
       return;
     }
     
@@ -62,6 +91,18 @@ const ApplicationPage = () => {
       </header>
 
       <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-100 dark:border-slate-800 p-8 shadow-sm">
+        {internship && (
+          <div className={`mb-6 rounded-2xl border p-4 text-sm font-semibold ${internship.meets_duration_requirement ? 'border-emerald-100 bg-emerald-50 text-emerald-700' : 'border-rose-100 bg-rose-50 text-rose-700'}`}>
+            Minimum required for your department: {internship.required_minimum_months || 4} months. This internship duration: {internship.duration_months || internship.duration || 'not specified'} month(s).
+          </div>
+        )}
+
+        {internship?.application_locked && (
+          <div className="mb-6 rounded-2xl border border-amber-100 bg-amber-50 p-4 text-sm font-semibold text-amber-800">
+            You already have a current internship{internship.current_internship_title ? `: ${internship.current_internship_title}` : ''}. You cannot submit another application.
+          </div>
+        )}
+
         <form onSubmit={handleSubmit} className="space-y-6">
           <div>
             <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
@@ -102,10 +143,10 @@ const ApplicationPage = () => {
              </button>
              <button
                type="submit"
-               disabled={isSubmitting}
+               disabled={isSubmitting || (internship && (!internship.meets_duration_requirement || internship.application_locked))}
                className="flex-[2] py-4 bg-blue-600 text-white rounded-2xl font-bold hover:bg-blue-700 shadow-xl shadow-blue-500/20 transition-all active:scale-95 disabled:bg-slate-400 disabled:shadow-none font-inter"
              >
-               {isSubmitting ? 'Uploading Documents...' : 'Submit Application'}
+               {isSubmitting ? 'Uploading Documents...' : internship?.application_locked ? 'Already Placed' : internship && !internship.meets_duration_requirement ? 'Duration Not Eligible' : 'Submit Application'}
              </button>
           </div>
         </form>

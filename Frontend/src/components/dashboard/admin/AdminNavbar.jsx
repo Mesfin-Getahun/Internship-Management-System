@@ -2,8 +2,9 @@ import React, { useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faSearch, faBolt } from '@fortawesome/free-solid-svg-icons';
+import { faSearch } from '@fortawesome/free-solid-svg-icons';
 import { useAuth } from '../../../AuthContext';
+import NotificationBell from '../common/NotificationBell';
 
 const AdminNavbar = ({ title }) => {
   const { user } = useAuth();
@@ -78,10 +79,7 @@ const AdminNavbar = ({ title }) => {
            <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Sys OK</span>
         </div>
 
-        <button className="relative p-2.5 rounded-xl bg-slate-50 text-slate-500 hover:bg-slate-100 transition-colors group">
-          <FontAwesomeIcon icon={faBolt} className="h-6 w-6" />
-          <span className="absolute top-2 right-2.5 w-2 h-2 bg-indigo-500 rounded-full border-2 border-white group-hover:scale-125 transition-transform"></span>
-        </button>
+        <NotificationBell accent="indigo" />
         
         <div className="h-10 w-px bg-slate-200 mx-2"></div>
         

@@ -2,10 +2,14 @@ import db from "../config/mysql.js";
 import bcrypt from "bcryptjs";
 import { uploadToCloudinary } from "../utils/cloudinaryUpload.js";
 import createLog from "../utils/createLog.js";
+<<<<<<< HEAD
 import {
   fetchStudentNotifications,
   saveStudentPushToken,
 } from "../utils/notificationService.js";
+=======
+import { createNotification } from "../utils/notificationService.js";
+>>>>>>> ef1cffe16a5eca79441eeb23a8b74941c34ab1a1
 
 function isMissingTableError(error, tableName) {
   return (
@@ -14,8 +18,156 @@ function isMissingTableError(error, tableName) {
   );
 }
 
+const getExistingTable = async (tableNames) => {
+  for (const tableName of tableNames) {
+    const [rows] = await db.query("SHOW TABLES LIKE ?", [tableName]);
+    if (rows.length > 0) return tableName;
+  }
+
+  return null;
+};
+
+const getTableColumns = async (tableName) => {
+  const [rows] = await db.query(`SHOW COLUMNS FROM \`${tableName}\``);
+  return new Set(rows.map((row) => row.Field));
+};
+
+const getPaymentTableInfo = async () => {
+  let tableName = await getExistingTable(["payments", "payment"]);
+
+  if (!tableName) {
+    await db.query(`
+      CREATE TABLE IF NOT EXISTS payments (
+        payment_id INT NOT NULL AUTO_INCREMENT,
+        student_id VARCHAR(20) NOT NULL,
+        bank_name VARCHAR(100) NOT NULL,
+        account_holder_name VARCHAR(150) NOT NULL,
+        account_number VARCHAR(50) NOT NULL,
+        submitted_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP,
+        PRIMARY KEY (payment_id),
+        KEY student_id (student_id)
+      )
+    `);
+    tableName = "payments";
+  }
+
+  return {
+    tableName,
+    columns: await getTableColumns(tableName),
+  };
+};
+
+const TWO_MONTH_DEPARTMENTS = new Set([
+  "computer science",
+  "information technology",
+  "information system",
+  "information systems",
+  "cyber security",
+  "cybersecurity",
+  "it education",
+  "information technology education",
+]);
+
+const normalizeDepartment = (department = "") =>
+  String(department).trim().toLowerCase().replace(/\s+/g, " ");
+
+const requiredInternshipMonths = (department) =>
+  TWO_MONTH_DEPARTMENTS.has(normalizeDepartment(department)) ? 2 : 4;
+
+const durationMonthsFromDates = (startDate, endDate) => {
+  if (!startDate || !endDate) return null;
+
+  const start = new Date(startDate);
+  const end = new Date(endDate);
+
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) || end < start) {
+    return null;
+  }
+
+  const days = Math.floor((end - start) / (1000 * 60 * 60 * 24)) + 1;
+  return Math.round((days / 30) * 10) / 10;
+};
+
+const durationMonthsForInternship = (internship) => {
+  const dateDuration = durationMonthsFromDates(internship.start_date, internship.end_date);
+  if (dateDuration !== null) return dateDuration;
+
+  const parsedDuration = Number.parseFloat(internship.duration);
+  return Number.isFinite(parsedDuration) ? parsedDuration : null;
+};
+
+const withDurationEligibility = (internship, department) => {
+  const minimumMonths = requiredInternshipMonths(department);
+  const durationMonths = durationMonthsForInternship(internship);
+
+  return {
+    ...internship,
+    duration_months: durationMonths,
+    required_minimum_months: minimumMonths,
+    meets_duration_requirement:
+      durationMonths === null ? false : durationMonths >= minimumMonths,
+  };
+};
+
+const CURRENT_INTERNSHIP_STATUSES = ["in progress", "accepted", "active"];
+
+const getStudentCurrentInternshipLock = async (studentId) => {
+  const [rows] = await db.query(
+    `
+    SELECT
+      source,
+      internship_id,
+      internship_title,
+      company_name,
+      status
+    FROM (
+      SELECT
+        'placement' AS source,
+        si.internship_id,
+        i.title AS internship_title,
+        c.company_name,
+        si.status
+      FROM student_internship si
+      JOIN internship i
+        ON si.internship_id = i.internship_id
+      LEFT JOIN company c
+        ON si.company_id = c.company_id
+      WHERE si.student_id = ?
+        AND LOWER(si.status) IN (?, ?, ?)
+
+      UNION ALL
+
+      SELECT
+        'application' AS source,
+        a.internship_id,
+        i.title AS internship_title,
+        c.company_name,
+        a.status
+      FROM application a
+      JOIN internship i
+        ON a.internship_id = i.internship_id
+      LEFT JOIN company c
+        ON i.company_id = c.company_id
+      WHERE a.student_id = ?
+        AND LOWER(a.status) = 'accepted'
+    ) current_internship
+    LIMIT 1
+    `,
+    [studentId, ...CURRENT_INTERNSHIP_STATUSES, studentId],
+  );
+
+  return rows[0] || null;
+};
+
 const fetchInternships = async (req, res) => {
   try {
+    const student_id = req.user.student_id;
+
+    const [[student]] = await db.query(
+      "SELECT department FROM student WHERE student_id = ?",
+      [student_id],
+    );
+
     const query = `
        SELECT i.*, c.company_name, COALESCE(i.location, c.location) AS location
       FROM internship i
@@ -24,10 +176,21 @@ const fetchInternships = async (req, res) => {
     `;
 
     const [internships] = await db.query(query);
+    const currentInternshipLock = await getStudentCurrentInternshipLock(student_id);
+    const internshipsWithEligibility = internships.map((internship) =>
+      ({
+        ...withDurationEligibility(internship, student?.department),
+        application_locked: Boolean(currentInternshipLock),
+        current_internship_title: currentInternshipLock?.internship_title || null,
+        current_internship_company: currentInternshipLock?.company_name || null,
+      }),
+    );
 
     res.status(200).json({
       success: true,
-      internships,
+      internships: internshipsWithEligibility,
+      application_locked: Boolean(currentInternshipLock),
+      current_internship: currentInternshipLock,
     });
   } catch (error) {
     console.error("Fetch internships error:", error);
@@ -79,6 +242,7 @@ const suggestedInternships = async (req, res) => {
       }
 
       return {
+        ...withDurationEligibility(internship, student.department),
         internship_id: internship.internship_id,
         title: internship.title,
         company: internship.company_name,
@@ -127,6 +291,76 @@ const applyInternships = async (req, res) => {
     //   "internship_applications/academic"
     // );
 
+    const [[eligibility]] = await db.query(
+      `
+      SELECT
+        s.department,
+        i.internship_id,
+        i.company_id,
+        i.title,
+        i.start_date,
+        i.end_date,
+        i.duration
+      FROM student s
+      JOIN internship i
+        ON i.internship_id = ?
+      WHERE s.student_id = ?
+        AND i.status = 'approved'
+      `,
+      [internship_id, student_id],
+    );
+
+    if (!eligibility) {
+      return res.status(404).json({
+        success: false,
+        message: "Internship not found or not approved",
+      });
+    }
+
+    const currentInternshipLock = await getStudentCurrentInternshipLock(student_id);
+
+    if (currentInternshipLock) {
+      return res.status(409).json({
+        success: false,
+        message: `You already have a current internship${currentInternshipLock.internship_title ? `: ${currentInternshipLock.internship_title}` : ""}. You cannot apply for another internship until it is completed.`,
+        current_internship: currentInternshipLock,
+      });
+    }
+
+    const [existingApplications] = await db.query(
+      `
+      SELECT application_id, status
+      FROM application
+      WHERE student_id = ?
+        AND internship_id = ?
+        AND LOWER(status) IN ('pending', 'accepted')
+      LIMIT 1
+      `,
+      [student_id, internship_id],
+    );
+
+    if (existingApplications.length > 0) {
+      return res.status(409).json({
+        success: false,
+        message: "You already have an active application for this internship.",
+      });
+    }
+
+    const requiredMonths = requiredInternshipMonths(eligibility.department);
+    const durationMonths = durationMonthsForInternship(eligibility);
+
+    if (durationMonths === null || durationMonths < requiredMonths) {
+      const shownDuration =
+        durationMonths === null ? "not specified" : `${durationMonths} month(s)`;
+
+      return res.status(400).json({
+        success: false,
+        message: `Your department requires a minimum ${requiredMonths}-month internship. This internship duration is ${shownDuration}, so you cannot apply for it.`,
+        required_minimum_months: requiredMonths,
+        duration_months: durationMonths,
+      });
+    }
+
     const cvUrl = await uploadToCloudinary(
       req.files.cv[0].buffer,
       "internship_applications/cv",
@@ -146,6 +380,15 @@ const applyInternships = async (req, res) => {
        VALUES (?, ?, CURDATE(), 'pending', ?, ?, ?)`,
       [student_id, internship_id, statement, cvUrl, academicUrl]
     );
+
+    await createNotification({
+      recipientRole: "company",
+      recipientId: eligibility.company_id,
+      title: "New internship application",
+      message: `${req.user.full_name || student_id} applied for ${eligibility.title || "your internship"}.`,
+      type: "application",
+      link: "/organization/applications",
+    });
 
     res.status(201).json({
       success: true,
@@ -346,9 +589,10 @@ const getStudentReports = async (req, res) => {
         r.report_url AS file_url,
         r.mentor_signed_url,
         r.status,
-        r.created_at,
-        r.submitted_at,
+        r.submission_date AS created_at,
+        r.submission_date AS submitted_at,
         r.faculty_submitted_at,
+        r.signed_at,
         r.mentor_id,
         i.title AS internship_title,
         c.company_name
@@ -356,7 +600,7 @@ const getStudentReports = async (req, res) => {
       LEFT JOIN internship i ON r.internship_id = i.internship_id
       LEFT JOIN company c ON i.company_id = c.company_id
       WHERE r.student_id = ?
-      ORDER BY COALESCE(r.created_at, r.submitted_at, r.faculty_submitted_at) DESC, r.report_id DESC
+      ORDER BY COALESCE(r.submission_date, DATE(r.signed_at), DATE(r.faculty_submitted_at)) DESC, r.report_id DESC
       `,
       [student_id],
     );
@@ -429,6 +673,7 @@ const myInternship = async (req, res) => {
         si.status,
         si.company_mentor_id,
         cm.full_name AS company_mentor_name,
+        s.faculty,
         s.assigned_mentor AS university_mentor_id,
         m.full_name AS university_mentor_name
       FROM student_internship si
@@ -500,6 +745,43 @@ const uploadInternshipReport = async (req, res) => {
       return res.status(400).json({ message: "Report PDF required" });
     }
 
+    const [[activeInternship]] = await db.query(
+      `
+      SELECT internship_id
+      FROM student_internship
+      WHERE student_id = ?
+        AND internship_id = ?
+        AND LOWER(status) IN ('in progress', 'accepted', 'active')
+      LIMIT 1
+      `,
+      [student_id, internship_id],
+    );
+
+    if (!activeInternship) {
+      return res.status(403).json({
+        success: false,
+        message: "You can only upload a report for your active internship.",
+      });
+    }
+
+    const [existingReports] = await db.query(
+      `
+      SELECT report_id
+      FROM internship_report
+      WHERE student_id = ?
+        AND internship_id = ?
+      LIMIT 1
+      `,
+      [student_id, internship_id],
+    );
+
+    if (existingReports.length > 0) {
+      return res.status(409).json({
+        success: false,
+        message: "You have already submitted an internship report to your mentor.",
+      });
+    }
+
     const reportUrl = await uploadToCloudinary(
       req.file.buffer,
       "internship_reports/original",
@@ -508,10 +790,32 @@ const uploadInternshipReport = async (req, res) => {
 
     await db.query(
       `INSERT INTO internship_report
-       (student_id, internship_id, report_url, status)
-       VALUES (?, ?, ?, 'submitted')`,
+       (student_id, internship_id, report_url, status, submission_date)
+       VALUES (?, ?, ?, 'submitted', CURDATE())`,
       [student_id, internship_id, reportUrl]
     );
+
+    const [[reportContext]] = await db.query(
+      `
+      SELECT s.assigned_mentor, i.title
+      FROM student s
+      LEFT JOIN internship i
+        ON i.internship_id = ?
+      WHERE s.student_id = ?
+      `,
+      [internship_id, student_id],
+    );
+
+    if (reportContext?.assigned_mentor) {
+      await createNotification({
+        recipientRole: "mentor",
+        recipientId: reportContext.assigned_mentor,
+        title: "New student report",
+        message: `${req.user.full_name || student_id} uploaded a report for ${reportContext.title || "their internship"}.`,
+        type: "report",
+        link: "/mentor/student-submissions",
+      });
+    }
 
     res.json({ success: true, reportUrl });
   } catch (error) {
@@ -523,16 +827,42 @@ const uploadInternshipReport = async (req, res) => {
 const getPaymentApplication = async (req, res) => {
   try {
     const student_id = req.user.student_id;
+    const paymentTable = await getPaymentTableInfo();
+
+    if (!paymentTable) {
+      return res.status(503).json({
+        success: false,
+        paymentFeatureAvailable: false,
+        message: "Payment feature is unavailable because the payments table is missing.",
+      });
+    }
+
+    const { tableName, columns } = paymentTable;
+    const accountHolderColumn = columns.has("account_holder")
+      ? "account_holder"
+      : "account_holder_name";
+    const dateColumn = columns.has("updated_at")
+      ? "updated_at"
+      : columns.has("created_at")
+        ? "created_at"
+        : columns.has("submitted_at")
+          ? "submitted_at"
+          : "payment_id";
 
     const [rows] = await db.query(
       `
-      SELECT *
-      FROM payment
+      SELECT
+        payment_id,
+        student_id,
+        bank_name,
+        ${accountHolderColumn} AS account_holder,
+        account_number
+      FROM \`${tableName}\`
       WHERE student_id = ?
-      ORDER BY COALESCE(updated_at, created_at) DESC, payment_id DESC
+      ORDER BY ${dateColumn} DESC, payment_id DESC
       LIMIT 1
       `,
-      [student_id]
+      [student_id],
     );
 
     res.status(200).json({
@@ -540,12 +870,12 @@ const getPaymentApplication = async (req, res) => {
       payment: rows[0] || null,
     });
   } catch (error) {
-    if (isMissingTableError(error, "internshipdb.payment")) {
+    if (isMissingTableError(error)) {
       return res.status(200).json({
         success: true,
         payment: null,
         paymentFeatureAvailable: false,
-        message: "Payment feature is not available because the payment table is missing.",
+        message: "Payment feature is not available because the payments table is missing.",
       });
     }
 
@@ -569,59 +899,92 @@ const submitPaymentApplication = async (req, res) => {
       });
     }
 
-    if (!req.file) {
-      return res.status(400).json({
+    const paymentTable = await getPaymentTableInfo();
+
+    if (!paymentTable) {
+      return res.status(503).json({
         success: false,
-        message: "Signed acceptance letter PDF is required",
+        paymentFeatureAvailable: false,
+        message: "Payment feature is unavailable because the payments table is missing.",
       });
     }
 
-    const acceptanceLetterUrl = await uploadToCloudinary(
-      req.file.buffer,
-      "stipend_applications/acceptance_letters",
-      req.file.originalname
-    );
+    const { tableName, columns } = paymentTable;
+    const accountHolderColumn = columns.has("account_holder")
+      ? "account_holder"
+      : "account_holder_name";
+    const hasAcceptanceLetterColumn = columns.has("acceptance_letter_url");
 
     const [existing] = await db.query(
-      "SELECT payment_id FROM payment WHERE student_id = ? ORDER BY payment_id DESC LIMIT 1",
+      `SELECT payment_id FROM \`${tableName}\` WHERE student_id = ? ORDER BY payment_id DESC LIMIT 1`,
       [student_id]
     );
 
     if (existing.length > 0) {
+      const updateColumns = [
+        "bank_name = ?",
+        `${accountHolderColumn} = ?`,
+        "account_number = ?",
+      ];
+      const values = [bankName, accountHolder, accountNumber];
+
+      if (hasAcceptanceLetterColumn) {
+        updateColumns.push("acceptance_letter_url = COALESCE(acceptance_letter_url, '')");
+      }
+
+      values.push(existing[0].payment_id);
+
       await db.query(
         `
-        UPDATE payment
-        SET
-          bank_name = ?,
-          account_holder = ?,
-          account_number = ?,
-          acceptance_letter_url = ?,
-          status = 'Pending Approval'
+        UPDATE \`${tableName}\`
+        SET ${updateColumns.join(", ")}
         WHERE payment_id = ?
         `,
-        [
-          bankName,
-          accountHolder,
-          accountNumber,
-          acceptanceLetterUrl,
-          existing[0].payment_id,
-        ]
+        values,
       );
     } else {
+      const insertColumns = ["student_id", "bank_name", accountHolderColumn, "account_number"];
+      const placeholders = ["?", "?", "?", "?"];
+      const values = [student_id, bankName, accountHolder, accountNumber];
+
+      if (hasAcceptanceLetterColumn) {
+        insertColumns.push("acceptance_letter_url");
+        placeholders.push("''");
+      }
+
       await db.query(
         `
-        INSERT INTO payment
-          (student_id, bank_name, account_holder, account_number, acceptance_letter_url, status)
+        INSERT INTO \`${tableName}\`
+          (${insertColumns.join(", ")})
         VALUES
-          (?, ?, ?, ?, ?, 'Pending Approval')
+          (${placeholders.join(", ")})
         `,
-        [student_id, bankName, accountHolder, accountNumber, acceptanceLetterUrl]
+        values,
       );
     }
 
+    const dateColumn = columns.has("updated_at")
+      ? "updated_at"
+      : columns.has("created_at")
+        ? "created_at"
+        : columns.has("submitted_at")
+          ? "submitted_at"
+          : "payment_id";
+
     const [savedRows] = await db.query(
-      "SELECT * FROM payment WHERE student_id = ? ORDER BY payment_id DESC LIMIT 1",
-      [student_id]
+      `
+      SELECT
+        payment_id,
+        student_id,
+        bank_name,
+        ${accountHolderColumn} AS account_holder,
+        account_number
+      FROM \`${tableName}\`
+      WHERE student_id = ?
+      ORDER BY ${dateColumn} DESC, payment_id DESC
+      LIMIT 1
+      `,
+      [student_id],
     );
 
     res.status(200).json({
@@ -630,11 +993,11 @@ const submitPaymentApplication = async (req, res) => {
       payment: savedRows[0] || null,
     });
   } catch (error) {
-    if (isMissingTableError(error, "internshipdb.payment")) {
+    if (isMissingTableError(error)) {
       return res.status(503).json({
         success: false,
         paymentFeatureAvailable: false,
-        message: "Payment feature is unavailable because the payment table is missing.",
+        message: "Payment feature is unavailable because the payments table is missing.",
       });
     }
 
@@ -651,16 +1014,84 @@ const submitSignedReportToFaculty = async (req, res) => {
     const student_id = req.user.student_id;
     const { report_id } = req.params;
 
-    await db.query(
+    const [result] = await db.query(
       `UPDATE internship_report
        SET status = 'faculty_submitted', faculty_submitted_at = NOW()
-       WHERE report_id = ? AND student_id = ? AND status = 'signed'`,
+       WHERE report_id = ?
+         AND student_id = ?
+         AND status = 'signed'
+         AND mentor_signed_url IS NOT NULL
+         AND faculty_submitted_at IS NULL`,
       [report_id, student_id]
     );
 
-    res.json({ success: true });
+    if (result.affectedRows === 0) {
+      const [[report]] = await db.query(
+        `
+        SELECT status, mentor_signed_url, faculty_submitted_at
+        FROM internship_report
+        WHERE report_id = ?
+          AND student_id = ?
+        LIMIT 1
+        `,
+        [report_id, student_id],
+      );
+
+      if (!report) {
+        return res.status(404).json({
+          success: false,
+          message: "Report not found.",
+        });
+      }
+
+      if (report.faculty_submitted_at || report.status === "faculty_submitted") {
+        return res.status(409).json({
+          success: false,
+          message: "This report has already been submitted to faculty.",
+        });
+      }
+
+      return res.status(400).json({
+        success: false,
+        message: "The mentor must upload a signed report before you can submit it to faculty.",
+      });
+    }
+
+    const [facultyUsers] = await db.query(
+      `
+      SELECT f.faculty_id, i.title
+      FROM student s
+      JOIN faculty f
+        ON f.faculty_name = s.faculty
+      LEFT JOIN internship_report r
+        ON r.report_id = ?
+      LEFT JOIN internship i
+        ON r.internship_id = i.internship_id
+      WHERE s.student_id = ?
+      `,
+      [report_id, student_id],
+    );
+
+    await Promise.all(
+      facultyUsers.map((faculty) =>
+        createNotification({
+          recipientRole: "faculty",
+          recipientId: faculty.faculty_id,
+          title: "Signed report submitted",
+          message: `${req.user.full_name || student_id} submitted a signed report${faculty.title ? ` for ${faculty.title}` : ""}.`,
+          type: "report",
+          link: "/faculty/reports",
+        }),
+      ),
+    );
+
+    res.json({ success: true, message: "Signed report submitted to faculty." });
   } catch (err) {
-    res.status(500).json({ success: false });
+    console.error("Submit signed report to faculty error:", err);
+    res.status(500).json({
+      success: false,
+      message: "Failed to submit report to faculty.",
+    });
   }
 };
 
@@ -717,6 +1148,7 @@ const feedbacks = async (req, res) => {
     const [rows] = await db.query(
       `SELECT 
          mf.feedback_id,
+         mf.parent_feedback_id,
          mf.internship_id,
          mf.company_mentor_id,
          mf.feedback_type,
