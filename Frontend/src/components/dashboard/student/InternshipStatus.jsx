@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useAuth } from '../../../AuthContext';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faBriefcase, faBuilding, faUser, faSpinner } from '@fortawesome/free-solid-svg-icons';
+import { faBriefcase, faBuilding, faUser, faSpinner, faUniversity } from '@fortawesome/free-solid-svg-icons';
 
 const InfoCard = ({ icon, label, value, subValue }) => (
   <div>
@@ -84,9 +84,10 @@ const InternshipStatus = () => {
             </div>
           </div>
         </div>
-        <div className="mt-8 pt-8 border-t border-slate-100 dark:border-slate-700/50 grid grid-cols-1 md:grid-cols-3 gap-8">
+        <div className="mt-8 pt-8 border-t border-slate-100 dark:border-slate-700/50 grid grid-cols-1 md:grid-cols-4 gap-8">
           <InfoCard icon={faBuilding} label="Organization" value={internshipData.company_name} />
-          <InfoCard icon={faUser} label="Company Supervisor" value={internshipData.company_mentor_name} subValue="Internship Supervisor" />
+          <InfoCard icon={faUniversity} label="Faculty" value={internshipData.faculty} />
+          <InfoCard icon={faUser} label="Company Mentor" value={internshipData.company_mentor_name} subValue="Internship Supervisor" />
           <InfoCard icon={faUser} label="Assigned Mentor" value={internshipData.university_mentor_name} subValue="Faculty Advisor" />
         </div>
       </div>

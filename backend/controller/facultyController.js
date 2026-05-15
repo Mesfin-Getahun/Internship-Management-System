@@ -236,7 +236,11 @@ const facultyViewReports = async (req, res) => {
       LEFT JOIN internship i ON r.internship_id = i.internship_id
       LEFT JOIN company c ON i.company_id = c.company_id
       WHERE s.faculty = ?
-      ORDER BY r.submission_date DESC
+        AND (
+          r.faculty_submitted_at IS NOT NULL
+          OR r.status = 'faculty_submitted'
+        )
+      ORDER BY COALESCE(r.faculty_submitted_at, r.submission_date) DESC
       `,
       [faculty],
     );

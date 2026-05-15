@@ -232,7 +232,6 @@ studentRoute.post(
 studentRoute.post(
   "/paymentApplication",
   authStudent,
-  uploadPDF.single("acceptanceLetter"),
   submitPaymentApplication
 );
 

@@ -57,7 +57,7 @@ const StudentSidebar = ({ activeTab }) => {
   ];
 
   const generalMenuItems = [
-    { id: "reports", label: "Weekly Reports", icon: faFileAlt, disabled: !hasActiveInternship },
+    { id: "reports", label: "Internship Report", icon: faFileAlt, disabled: !hasActiveInternship },
     { id: "feedback", label: "Feedback", icon: faStar },
     { id: "stipend", label: "Stipend Application", icon: faDollarSign },
     {

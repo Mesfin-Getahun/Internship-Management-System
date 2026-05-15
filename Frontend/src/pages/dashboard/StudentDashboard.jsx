@@ -8,7 +8,7 @@ import StudentSidebar from "../../components/dashboard/student/StudentSidebar.js
 import StudentOverview from "../../components/dashboard/student/StudentOverview.jsx";
 import InternshipOpportunities from "../../components/dashboard/student/InternshipOpportunities.jsx";
 import MyApplications from "../../components/dashboard/student/MyApplications.jsx";
-import WeeklyReports from "../../components/dashboard/student/WeeklyReports.jsx";
+import InternshipReport from "../../components/dashboard/student/WeeklyReports.jsx";
 import StipendApplication from "../../components/dashboard/student/StipendApplication.jsx";
 import StudentProfile from "./StudentProfile.jsx";
 import FeedbackAndEvaluation from "../../components/dashboard/student/FeedbackAndEvaluation.jsx";
@@ -52,7 +52,7 @@ const StudentDashboard = () => {
             />
             <Route path="opportunities" element={<InternshipOpportunities />} />
             <Route path="my-applications" element={<MyApplications />} />
-            <Route path="reports" element={<WeeklyReports />} />
+            <Route path="reports" element={<InternshipReport />} />
             <Route path="stipend" element={<StipendApplication />} />
             <Route path="profile" element={<StudentProfile />} />
             <Route path="feedback" element={<FeedbackAndEvaluation />} />

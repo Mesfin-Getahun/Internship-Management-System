@@ -51,7 +51,7 @@ const FacultyStipendManagementLive = () => {
     <div className="animate-fade-in space-y-8 pb-12">
       <header>
         <h2 className="text-3xl font-bold text-slate-800 dark:text-white tracking-tight">Stipend Management</h2>
-        <p className="text-slate-500 text-sm mt-1">Payment rows are fetched from the backend `payment` table for students in this faculty.</p>
+        <p className="text-slate-500 text-sm mt-1">Payment rows are fetched from the backend payments table for students in this faculty.</p>
       </header>
 
       <div className="relative max-w-md">
@@ -83,7 +83,6 @@ const FacultyStipendManagementLive = () => {
                   <th className="p-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Company</th>
                   <th className="p-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Account</th>
                   <th className="p-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Bank / Amount</th>
-                  <th className="p-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Status</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
@@ -102,7 +101,6 @@ const FacultyStipendManagementLive = () => {
                       <div className="font-semibold text-slate-700 dark:text-slate-300">{payment.bank_name || payment.bank || 'No bank'}</div>
                       <div className="text-xs text-slate-500">{payment.amount ?? payment.payment_amount ?? 'No amount recorded'}</div>
                     </td>
-                    <td className="p-4 text-sm text-slate-600 dark:text-slate-400">{payment.status || 'Unknown'}</td>
                   </tr>
                 ))}
               </tbody>

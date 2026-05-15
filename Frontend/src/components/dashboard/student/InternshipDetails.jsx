@@ -1,6 +1,6 @@
 import React from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faBriefcase, faBuilding, faUser, faCalendarAlt } from '@fortawesome/free-solid-svg-icons';
+import { faBriefcase, faBuilding, faUser, faCalendarAlt, faUniversity } from '@fortawesome/free-solid-svg-icons';
 
 const InternshipDetails = ({ internship }) => {
   if (!internship) return null;
@@ -27,7 +27,8 @@ const InternshipDetails = ({ internship }) => {
       <div className="space-y-4">
         <DetailItem icon={<FontAwesomeIcon icon={faBuilding} size={20} className="text-slate-500" />} label="Company" value={internship.company_name || 'Organization'} />
         <DetailItem icon={<FontAwesomeIcon icon={faBriefcase} size={20} className="text-slate-500" />} label="Role" value={internship.title || 'Intern'} />
-        <DetailItem icon={<FontAwesomeIcon icon={faUser} size={20} className="text-slate-500" />} label="Company Mentor" value={internship.mentor_name || 'Unassigned'} />
+        <DetailItem icon={<FontAwesomeIcon icon={faUniversity} size={20} className="text-slate-500" />} label="Faculty" value={internship.faculty || 'Unassigned'} />
+        <DetailItem icon={<FontAwesomeIcon icon={faUser} size={20} className="text-slate-500" />} label="Company Mentor" value={internship.company_mentor_name || 'Unassigned'} />
         <DetailItem icon={<FontAwesomeIcon icon={faCalendarAlt} size={20} className="text-slate-500" />} label="Duration" value={duration} />
       </div>
     </div>

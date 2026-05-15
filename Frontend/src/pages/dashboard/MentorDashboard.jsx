@@ -9,7 +9,6 @@ import MyStudents from '../../components/dashboard/mentor/MyStudents';
 import ProgressTracker from '../../components/dashboard/mentor/ProgressTracker';
 import MentorEvaluation from '../../components/dashboard/mentor/MentorEvaluation';
 import StudentSubmissions from '../../components/dashboard/mentor/StudentSubmissions';
-import OrganizationUpdates from '../../components/dashboard/mentor/OrganizationUpdates';
 import MentorProfileLive from '../../components/dashboard/mentor/MentorProfileLive.jsx';
 
 const PlaceholderScreen = ({ title, description }) => (
@@ -42,7 +41,7 @@ const MentorDashboard = () => {
               <Route path="my-students" element={<MyStudents />} />
               <Route path="progress-tracker" element={<ProgressTracker />} />
               <Route path="student-submissions" element={<StudentSubmissions />} />
-              <Route path="organization-updates" element={<OrganizationUpdates />} />
+              <Route path="organization-updates" element={<Navigate to="../feedback" replace />} />
               <Route path="feedback" element={<MentorEvaluation />} />
               <Route path="evaluation" element={<Navigate to="../feedback" replace />} />
               <Route 

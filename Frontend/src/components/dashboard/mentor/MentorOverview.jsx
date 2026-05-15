@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
 import axios from 'axios';
 import { useAuth } from '../../../AuthContext';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
@@ -108,6 +109,7 @@ const MentorOverview = () => {
           val: totalAssignedStudents,
           sub: 'Total assigned',
           icon: faUserGraduate,
+          path: '/mentor/my-students',
           cardClass: 'bg-teal-50 text-teal-600 dark:bg-teal-900/20 dark:text-teal-400',
           subClass: 'text-teal-600 dark:text-teal-400',
         },
@@ -116,6 +118,7 @@ const MentorOverview = () => {
           val: activeInternships,
           sub: 'From assigned students',
           icon: faBriefcase,
+          path: '/mentor/progress-tracker',
           cardClass: 'bg-blue-50 text-blue-600 dark:bg-blue-900/20 dark:text-blue-400',
           subClass: 'text-blue-600 dark:text-blue-400',
         },
@@ -124,6 +127,7 @@ const MentorOverview = () => {
           val: awaitingFeedback,
           sub: 'Needs comment',
           icon: faClipboardCheck,
+          path: '/mentor/feedback',
           cardClass: 'bg-amber-50 text-amber-600 dark:bg-amber-900/20 dark:text-amber-400',
           subClass: 'text-amber-600 dark:text-amber-400',
         },
@@ -132,6 +136,7 @@ const MentorOverview = () => {
           val: pendingReports,
           sub: 'Waiting for signing',
           icon: faFileAlt,
+          path: '/mentor/student-submissions',
           cardClass: 'bg-rose-50 text-rose-600 dark:bg-rose-900/20 dark:text-rose-400',
           subClass: 'text-rose-600 dark:text-rose-400',
         },
@@ -162,7 +167,7 @@ const MentorOverview = () => {
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         {overview.stats.map((stat, i) => (
-          <div key={i} className="bg-white dark:bg-slate-900 p-6 rounded-3xl border border-slate-100 dark:border-slate-800 shadow-sm hover:shadow-md transition-all group">
+          <Link key={i} to={stat.path} className="bg-white dark:bg-slate-900 p-6 rounded-3xl border border-slate-100 dark:border-slate-800 shadow-sm hover:shadow-md transition-all group">
             <div className={`w-12 h-12 rounded-2xl flex items-center justify-center mb-4 transition-transform group-hover:scale-110 ${stat.cardClass}`}>
               <FontAwesomeIcon icon={stat.icon} className="h-6 w-6" />
             </div>
@@ -171,7 +176,7 @@ const MentorOverview = () => {
               <span className="text-3xl font-black text-slate-800 dark:text-white">{stat.val}</span>
               <span className={`text-[10px] font-bold ${stat.subClass}`}>{stat.sub}</span>
             </div>
-          </div>
+          </Link>
         ))}
       </div>
 
@@ -209,17 +214,17 @@ const MentorOverview = () => {
               <h4 className="text-xl font-bold mb-2">Mentor Actions</h4>
               <p className="text-teal-400 text-xs mb-6 font-medium">Direct access to supervision tools.</p>
               <div className="space-y-3">
-                <div className="w-full py-3 bg-white/10 rounded-xl text-sm font-bold px-4 flex justify-between items-center">
+                <Link to="/mentor/student-submissions" className="w-full py-3 bg-white/10 hover:bg-white/15 rounded-xl text-sm font-bold px-4 flex justify-between items-center transition-colors">
                   <span>Review Reports</span>
                   <span>{overview.reportCount}</span>
-                </div>
-                <div className="w-full py-3 bg-white/10 rounded-xl text-sm font-bold px-4 flex justify-between items-center">
-                  <span>Company Feedback</span>
+                </Link>
+                <Link to="/mentor/feedback" className="w-full py-3 bg-white/10 hover:bg-white/15 rounded-xl text-sm font-bold px-4 flex justify-between items-center transition-colors">
+                  <span>Feedback</span>
                   <span>{overview.feedbackCount}</span>
-                </div>
-                <div className="w-full py-3 bg-teal-500 rounded-xl text-sm font-bold text-center shadow-lg shadow-black/20">
+                </Link>
+                <Link to="/mentor/my-students" className="block w-full py-3 bg-teal-500 hover:bg-teal-400 rounded-xl text-sm font-bold text-center shadow-lg shadow-black/20 transition-colors">
                   Students Under Supervision: {students.length}
-                </div>
+                </Link>
               </div>
             </div>
             <div className="absolute top-0 right-0 -mr-16 -mt-16 w-48 h-48 bg-teal-500/10 rounded-full blur-3xl group-hover:bg-teal-500/20 transition-colors"></div>
