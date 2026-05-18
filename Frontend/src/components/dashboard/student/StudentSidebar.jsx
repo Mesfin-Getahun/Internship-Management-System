@@ -17,7 +17,7 @@ import {
 } from "@fortawesome/free-solid-svg-icons";
 import { useAuth } from "../../../AuthContext";
 
-const StudentSidebar = ({ activeTab }) => {
+const StudentSidebar = ({ activeTab, isOpen = false, onClose }) => {
   const { user, logout, isRecommendationAvailable } = useAuth();
   const [hasActiveInternship, setHasActiveInternship] = useState(false);
 
@@ -72,7 +72,13 @@ const StudentSidebar = ({ activeTab }) => {
   const SidebarLink = ({ item, activeTab }) => (
     <Link
       to={item.disabled ? "#" : `/student/${item.id}`}
-      onClick={(e) => item.disabled && e.preventDefault()}
+      onClick={(e) => {
+        if (item.disabled) {
+          e.preventDefault();
+          return;
+        }
+        onClose?.();
+      }}
       className={`flex items-center gap-3 px-4 py-2.5 rounded-lg font-semibold transition-all text-sm ${
         item.disabled
           ? "opacity-40 cursor-not-allowed"
@@ -92,7 +98,11 @@ const StudentSidebar = ({ activeTab }) => {
   );
 
   return (
-    <aside className="h-screen w-64 bg-slate-900 border-r border-slate-800 text-white flex flex-col pt-20">
+    <aside
+      className={`h-screen w-64 bg-slate-900 border-r border-slate-800 text-white flex flex-col pt-20 fixed left-0 top-0 z-[70] lg:z-40 transition-transform duration-300 ease-out lg:translate-x-0 ${
+        isOpen ? "translate-x-0" : "-translate-x-full"
+      }`}
+    >
       <div className="flex-grow px-4 mt-4 space-y-1 overflow-y-auto">
         <nav className="flex-1 space-y-1">
           {menuItems.map((item) => (

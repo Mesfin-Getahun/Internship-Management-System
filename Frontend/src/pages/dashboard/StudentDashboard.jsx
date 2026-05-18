@@ -1,10 +1,11 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { useAuth } from "../../AuthContext";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faInfoCircle } from "@fortawesome/free-solid-svg-icons";
 import StudentNavbar from "../../components/dashboard/student/StudentNavbar.jsx";
 import StudentSidebar from "../../components/dashboard/student/StudentSidebar.jsx";
+import DashboardSidebarOverlay from "../../components/dashboard/common/DashboardSidebarOverlay.jsx";
 import StudentOverview from "../../components/dashboard/student/StudentOverview.jsx";
 import InternshipOpportunities from "../../components/dashboard/student/InternshipOpportunities.jsx";
 import MyApplications from "../../components/dashboard/student/MyApplications.jsx";
@@ -17,7 +18,7 @@ import ApplicationPage from "../../components/dashboard/student/ApplicationPage.
 import StudentRecommendationLetter from "../../components/dashboard/student/StudentRecommendationLetter.jsx";
 
 const PlaceholderScreen = ({ title, description }) => (
-  <div className="p-20 text-center animate-fade-in bg-white dark:bg-slate-900 rounded-3xl border border-slate-100 dark:border-slate-800 shadow-sm">
+  <div className="p-6 sm:p-12 lg:p-20 text-center animate-fade-in bg-white dark:bg-slate-900 rounded-3xl border border-slate-100 dark:border-slate-800 shadow-sm">
     <div className="w-20 h-20 bg-blue-50 dark:bg-blue-900/20 text-blue-600 rounded-3xl flex items-center justify-center mx-auto mb-6">
       <FontAwesomeIcon icon={faInfoCircle} className="h-10 w-10" />
     </div>
@@ -36,14 +37,20 @@ const PlaceholderScreen = ({ title, description }) => (
 const StudentDashboard = () => {
   const location = useLocation();
   const { user } = useAuth();
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const activeTab = location.pathname.split("/").pop() || "overview";
+
+  useEffect(() => {
+    setIsSidebarOpen(false);
+  }, [location.pathname]);
 
   return (
     <div className="flex h-screen bg-slate-50 dark:bg-slate-900">
-      <StudentSidebar activeTab={activeTab} />
-      <div className="flex-1 flex flex-col overflow-hidden">
-        <StudentNavbar />
-        <main className="flex-1 overflow-y-auto p-6 pt-20">
+      <DashboardSidebarOverlay isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
+      <StudentSidebar activeTab={activeTab} isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
+      <div className="flex-1 flex flex-col overflow-hidden min-w-0 lg:ml-64">
+        <StudentNavbar onMenuClick={() => setIsSidebarOpen(true)} />
+        <main className="flex-1 overflow-y-auto px-4 sm:px-6 pb-4 sm:pb-6 pt-24">
           <Routes>
             <Route index element={<Navigate to="overview" replace />} />
             <Route

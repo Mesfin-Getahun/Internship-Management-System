@@ -992,7 +992,7 @@ const submitSignedReportToFaculty = async (req, res) => {
 
     const [result] = await db.query(
       `UPDATE internship_report
-       SET status = 'faculty_submitted', faculty_submitted_at = NOW()
+       SET status = 'signed', faculty_submitted_at = NOW()
        WHERE report_id = ?
          AND student_id = ?
          AND status = 'signed'

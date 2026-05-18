@@ -4,8 +4,9 @@ import { faSearch } from "@fortawesome/free-solid-svg-icons";
 import { useAuth } from "../../../AuthContext";
 import { useNavigate } from "react-router-dom";
 import NotificationBell from "../common/NotificationBell";
+import DashboardMenuButton from "../common/DashboardMenuButton";
 
-const UilNavbar = ({ title }) => {
+const UilNavbar = ({ title, onMenuClick }) => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [searchValue, setSearchValue] = useState("");
@@ -39,9 +40,10 @@ const UilNavbar = ({ title }) => {
   };
 
   return (
-    <nav className="fixed top-0 left-0 right-0 h-20 bg-white/80 backdrop-blur-md border-b border-slate-200 z-50 px-8 flex items-center justify-between transition-colors ml-64">
-      <div className="flex items-center gap-8 flex-grow">
-        <h1 className="text-xl font-black text-slate-800 tracking-tight uppercase">
+    <nav className="fixed top-0 left-0 lg:left-64 right-0 h-20 bg-white/80 backdrop-blur-md border-b border-slate-200 z-50 px-4 sm:px-8 flex items-center justify-between transition-colors">
+      <div className="flex items-center gap-3 sm:gap-6 lg:gap-8 flex-grow min-w-0">
+        <DashboardMenuButton onClick={onMenuClick} />
+        <h1 className="text-base sm:text-xl font-black text-slate-800 tracking-tight uppercase truncate">
           {title}
         </h1>
 

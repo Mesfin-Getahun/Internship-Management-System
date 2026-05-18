@@ -83,9 +83,16 @@ const StudentSubmissions = () => {
     () => ({
       total: reportsDb.length,
       pending: reportsDb.filter(
-        (report) => !['signed', 'approved'].includes((report.status || '').toLowerCase())
+        (report) =>
+          !['signed', 'approved', 'faculty_submitted'].includes((report.status || '').toLowerCase()) &&
+          !report.faculty_submitted_at
       ).length,
-      signed: reportsDb.filter((report) => report.mentor_signed_url).length,
+      signed: reportsDb.filter(
+        (report) =>
+          report.mentor_signed_url ||
+          report.faculty_submitted_at ||
+          ['signed', 'approved', 'faculty_submitted'].includes((report.status || '').toLowerCase())
+      ).length,
     }),
     [reportsDb]
   );
@@ -224,7 +231,7 @@ const StudentSubmissions = () => {
                 {submissions.map((report) => {
                   const isSigned = ['signed', 'approved'].includes(
                     (report.status || '').toLowerCase()
-                  );
+                  ) || Boolean(report.faculty_submitted_at) || (report.status || '').toLowerCase() === 'faculty_submitted';
 
                   return (
                     <tr

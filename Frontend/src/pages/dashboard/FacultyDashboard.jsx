@@ -1,7 +1,8 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import FacultySidebar from '../../components/dashboard/faculty/FacultySidebar.jsx';
 import FacultyNavbar from '../../components/dashboard/faculty/FacultyNavbar.jsx';
+import DashboardSidebarOverlay from '../../components/dashboard/common/DashboardSidebarOverlay.jsx';
 import FacultyOverview from '../../components/dashboard/faculty/FacultyOverviewLive.jsx';
 import FacultyManageStudents from '../../components/dashboard/faculty/FacultyManageStudentsLive.jsx';
 import FacultyAssignMentors from '../../components/dashboard/faculty/FacultyAssignMentors';
@@ -13,15 +14,21 @@ import FacultyProfile from '../../components/dashboard/faculty/FacultyProfileLiv
 
 const FacultyDashboard = () => {
   const location = useLocation();
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const activeTab = location.pathname.split('/').pop() || 'overview';
+
+  useEffect(() => {
+    setIsSidebarOpen(false);
+  }, [location.pathname]);
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex transition-colors duration-300">
-      <FacultySidebar activeTab={activeTab} />
+      <DashboardSidebarOverlay isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
+      <FacultySidebar activeTab={activeTab} isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
 
-      <div className="flex-1 flex flex-col ml-64">
-        <FacultyNavbar />
-        <main className="flex-grow p-6 pt-20">
+      <div className="flex-1 flex flex-col min-w-0 lg:ml-64">
+        <FacultyNavbar onMenuClick={() => setIsSidebarOpen(true)} />
+        <main className="flex-grow px-4 sm:px-6 pb-4 sm:pb-6 pt-24">
           <Routes>
             <Route path="/" element={<Navigate to="overview" replace />} />
             <Route path="overview" element={<FacultyOverview />} />

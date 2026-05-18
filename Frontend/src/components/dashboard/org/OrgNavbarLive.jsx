@@ -2,8 +2,9 @@ import React, { useEffect, useState } from 'react';
 import axios from 'axios';
 import { useAuth } from '../../../AuthContext';
 import NotificationBell from '../common/NotificationBell';
+import DashboardMenuButton from '../common/DashboardMenuButton';
 
-const OrgNavbarLive = () => {
+const OrgNavbarLive = ({ onMenuClick }) => {
   const [profile, setProfile] = useState(null);
   const { user } = useAuth();
 
@@ -32,18 +33,19 @@ const OrgNavbarLive = () => {
   const avatarUrl = profile?.profile_pic || `https://ui-avatars.com/api/?name=${encodeURIComponent(companyName)}&background=0D8ABC&color=fff`;
 
   return (
-    <nav className="fixed top-0 left-0 right-0 h-20 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 z-50 px-8 flex items-center justify-between transition-colors">
-      <div className="flex items-center gap-4">
+    <nav className="fixed top-0 left-0 right-0 h-20 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 z-50 px-4 sm:px-8 flex items-center justify-between transition-colors">
+      <div className="flex items-center gap-3 sm:gap-4 min-w-0">
+        <DashboardMenuButton onClick={onMenuClick} />
         <div className="w-10 h-10 rounded-xl bg-blue-600 flex items-center justify-center text-white font-bold shadow-lg shadow-blue-600/20">
           {(companyName || 'O').charAt(0).toUpperCase()}
         </div>
-        <div className="flex flex-col">
-          <span className="font-extrabold text-xl tracking-tight text-slate-800 dark:text-white leading-none">Organization</span>
-          <span className="text-blue-600 font-bold text-xs uppercase tracking-widest mt-0.5">Partner Portal</span>
+        <div className="flex flex-col min-w-0">
+          <span className="font-extrabold text-base sm:text-xl tracking-tight text-slate-800 dark:text-white leading-none truncate">Organization</span>
+          <span className="hidden sm:block text-blue-600 font-bold text-xs uppercase tracking-widest mt-0.5">Partner Portal</span>
         </div>
       </div>
 
-      <div className="flex items-center gap-6">
+      <div className="flex items-center gap-3 sm:gap-6 shrink-0">
         <NotificationBell accent="blue" />
         <div className="hidden sm:flex flex-col items-end mr-2">
           <p className="text-sm font-bold text-slate-800 dark:text-white">{companyName}</p>

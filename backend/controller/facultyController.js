@@ -226,9 +226,21 @@ const facultyViewReports = async (req, res) => {
         r.report_id,
         r.report_url AS file_url,
         r.mentor_signed_url,
-        r.status,
+        CASE
+          WHEN r.faculty_submitted_at IS NOT NULL OR r.status = 'faculty_submitted' THEN 'signed'
+          ELSE r.status
+        END AS status,
+        r.status AS raw_status,
         r.submission_date AS created_at,
         r.faculty_submitted_at AS submitted_at,
+        CASE
+          WHEN r.mentor_signed_url IS NOT NULL
+            OR r.signed_at IS NOT NULL
+            OR r.faculty_submitted_at IS NOT NULL
+            OR r.status IN ('signed', 'faculty_submitted', 'approved')
+          THEN 1
+          ELSE 0
+        END AS is_signed,
         s.student_id,
         s.full_name AS student_name,
         s.department,
@@ -249,7 +261,17 @@ const facultyViewReports = async (req, res) => {
       [faculty],
     );
 
-    res.json({ success: true, reports });
+    const signedReports = reports.filter((report) => Number(report.is_signed) === 1).length;
+
+    res.json({
+      success: true,
+      reports,
+      stats: {
+        total_reports: reports.length,
+        signed_reports: signedReports,
+        unsigned_reports: reports.length - signedReports,
+      },
+    });
   } catch (error) {
     console.error("Fetch faculty reports error:", error);
     res.status(500).json({
@@ -426,7 +448,16 @@ const getFacultyProfile = async (req, res) => {
 
     const [[reportStats]] = await db.query(
       `
-      SELECT COUNT(*) AS total_reports
+      SELECT
+        COUNT(*) AS total_reports,
+        SUM(CASE
+          WHEN r.mentor_signed_url IS NOT NULL
+            OR r.signed_at IS NOT NULL
+            OR r.faculty_submitted_at IS NOT NULL
+            OR r.status IN ('signed', 'faculty_submitted', 'approved')
+          THEN 1
+          ELSE 0
+        END) AS signed_reports
       FROM internship_report r
       JOIN student s ON r.student_id = s.student_id
       WHERE s.faculty = ?
@@ -457,6 +488,9 @@ const getFacultyProfile = async (req, res) => {
         total_students: Number(studentStats?.total_students || 0),
         students_mentored: Number(studentStats?.students_mentored || 0),
         total_reports: Number(reportStats?.total_reports || 0),
+        signed_reports: Number(reportStats?.signed_reports || 0),
+        unsigned_reports:
+          Number(reportStats?.total_reports || 0) - Number(reportStats?.signed_reports || 0),
         total_evaluations: Number(evaluationStats?.total_evaluations || 0),
       },
     });

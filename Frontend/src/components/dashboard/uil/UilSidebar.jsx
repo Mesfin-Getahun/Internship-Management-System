@@ -15,7 +15,7 @@ import {
   faPlus,
 } from "@fortawesome/free-solid-svg-icons";
 
-const UilSidebar = ({ activeTab }) => {
+const UilSidebar = ({ activeTab, isOpen = false, onClose }) => {
   const { logout } = useAuth();
   const navigate = useNavigate();
 
@@ -45,7 +45,11 @@ const UilSidebar = ({ activeTab }) => {
   ];
 
   return (
-    <aside className="w-64 bg-slate-900 border-r border-slate-800 flex flex-col h-screen fixed left-0 top-0 pt-20 z-40 transition-colors">
+    <aside
+      className={`w-64 bg-slate-900 border-r border-slate-800 flex flex-col h-screen fixed left-0 top-0 pt-20 z-[70] lg:z-40 transition-transform duration-300 ease-out lg:translate-x-0 ${
+        isOpen ? "translate-x-0" : "-translate-x-full"
+      }`}
+    >
       <div className="px-6 py-4 border-b border-slate-800">
         <h2 className="text-white font-black text-xs uppercase tracking-[0.2em] opacity-50">
           University UIL
@@ -56,6 +60,7 @@ const UilSidebar = ({ activeTab }) => {
           <Link
             key={item.id}
             to={`/uil/${item.id}`}
+            onClick={onClose}
             className={`flex items-center gap-3 px-4 py-3 rounded-xl font-semibold transition-all text-sm ${
               activeTab === item.id
                 ? "bg-indigo-600 text-white shadow-lg shadow-indigo-500/30"

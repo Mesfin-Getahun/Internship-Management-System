@@ -13,7 +13,7 @@ import {
   faSignOutAlt,
 } from "@fortawesome/free-solid-svg-icons";
 
-const FacultySidebar = ({ activeTab }) => {
+const FacultySidebar = ({ activeTab, isOpen = false, onClose }) => {
   const menuItems = [
     { id: "overview", label: "Dashboard Overview", icon: faTableCellsLarge },
     { id: "manage-students", label: "Manage Students", icon: faUsers },
@@ -26,12 +26,17 @@ const FacultySidebar = ({ activeTab }) => {
   ];
 
   return (
-    <aside className="w-64 bg-slate-900 border-r border-slate-800 flex flex-col h-screen fixed left-0 top-0 pt-20 z-40">
+    <aside
+      className={`w-64 bg-slate-900 border-r border-slate-800 flex flex-col h-screen fixed left-0 top-0 pt-20 z-[70] lg:z-40 transition-transform duration-300 ease-out lg:translate-x-0 ${
+        isOpen ? "translate-x-0" : "-translate-x-full"
+      }`}
+    >
       <nav className="flex-grow px-4 mt-6 space-y-1 overflow-y-auto custom-scrollbar">
         {menuItems.map((item) => (
           <Link
             key={item.id}
             to={`/faculty/${item.id}`}
+            onClick={onClose}
             className={`flex items-center gap-3 px-4 py-3 rounded-xl font-semibold transition-all text-sm ${
               activeTab === item.id
                 ? "bg-emerald-600 text-white shadow-lg shadow-emerald-900/40"

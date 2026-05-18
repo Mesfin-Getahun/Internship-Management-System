@@ -5,7 +5,10 @@ import generateAttendancePDF from "../utils/generateAttendancePDF.js";
 import { uploadToCloudinary } from "../utils/cloudinaryUpload.js";
 import fs from "fs";
 import createLog from "../utils/createLog.js";
-import { createNotification, createNotifications } from "../utils/notificationService.js";
+import {
+  createNotification,
+  createNotifications,
+} from "../utils/notificationService.js";
 
 const postInternship = async (req, res) => {
   const company_id = req.user.company_id;
@@ -217,8 +220,7 @@ const updateProfile = async (req, res) => {
       region,
       profile_pic,
       password,
-    } =
-      req.body;
+    } = req.body;
 
     if (!company_id) {
       return res.status(401).json({
@@ -272,7 +274,7 @@ const updateProfile = async (req, res) => {
     await createLog(
       company_id,
       "COMPANY_PROFILE_UPDATED",
-      `Company profile updated for ${company_name || existing[0].company_name} (${email || existing[0].email})`
+      `Company profile updated for ${company_name || existing[0].company_name} (${email || existing[0].email})`,
     );
 
     res.status(200).json({
@@ -311,7 +313,7 @@ const getProfile = async (req, res) => {
       FROM company
       WHERE company_id = ?
       `,
-      [company_id]
+      [company_id],
     );
 
     if (rows.length === 0) {
@@ -345,7 +347,7 @@ const getCompanyMentors = async (req, res) => {
         phone_number
       FROM company_mentor
       ORDER BY full_name
-      `
+      `,
     );
 
     res.status(200).json({
@@ -583,7 +585,7 @@ const accept = async (req, res) => {
       WHERE student_id = ? AND internship_id = ?
       LIMIT 1
       `,
-      [student_id, internship_id]
+      [student_id, internship_id],
     );
 
     if (existingPlacement.length === 0) {
@@ -591,7 +593,13 @@ const accept = async (req, res) => {
         `INSERT INTO student_internship 
         (student_id, internship_id, company_id, status, start_date) 
         VALUES (?, ?, ?, ?, ?)`,
-        [student_id, internship_id, applicationCompanyId, placementStatus, internshipStartDate],
+        [
+          student_id,
+          internship_id,
+          applicationCompanyId,
+          placementStatus,
+          internshipStartDate,
+        ],
       );
     } else {
       await db.query(
@@ -600,7 +608,7 @@ const accept = async (req, res) => {
         SET status = ?, start_date = ?
         WHERE id = ?
         `,
-        [placementStatus, internshipStartDate, existingPlacement[0].id]
+        [placementStatus, internshipStartDate, existingPlacement[0].id],
       );
     }
 
@@ -614,7 +622,6 @@ const accept = async (req, res) => {
       `,
       [student_id, internship_id],
     );
-
     await createNotification({
       recipientRole: "student",
       recipientId: student_id,
@@ -700,12 +707,8 @@ const reject = async (req, res) => {
 const assignMentor = async (req, res) => {
   try {
     const company_id = req.user.company_id;
-    const {
-      student_internship_id,
-      company_mentor_id,
-      student_id,
-      mentor_id,
-    } = req.body;
+    const { student_internship_id, company_mentor_id, student_id, mentor_id } =
+      req.body;
 
     const resolvedMentorId = company_mentor_id || mentor_id;
     let resolvedInternshipId = student_internship_id;
@@ -727,7 +730,7 @@ const assignMentor = async (req, res) => {
         ORDER BY id DESC
         LIMIT 1
         `,
-        [student_id, company_id]
+        [student_id, company_id],
       );
 
       if (placements.length === 0) {
@@ -1018,7 +1021,7 @@ const registerCompany = async (req, res) => {
     await createLog(
       result.insertId,
       "COMPANY_REGISTERED",
-      `Company registration submitted by ${orgName} (${orgEmail})`
+      `Company registration submitted by ${orgName} (${orgEmail})`,
     );
 
     res.status(201).json({

@@ -55,7 +55,8 @@ const ProgressTracker = () => {
         status: student.status,
       });
       const signedReport = studentReports.some((report) =>
-        ['signed', 'approved'].includes((report.status || '').toLowerCase())
+        ['signed', 'approved', 'faculty_submitted'].includes((report.status || '').toLowerCase()) ||
+        Boolean(report.faculty_submitted_at)
       );
 
       let progress = progressState.progress;

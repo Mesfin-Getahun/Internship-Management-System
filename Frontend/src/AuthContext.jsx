@@ -3,11 +3,59 @@ import axios from 'axios';
 
 const AuthContext = createContext(null);
 
+const decodeJwtPayload = (token) => {
+  try {
+    const payload = token?.split('.')?.[1];
+    if (!payload) return null;
+
+    const normalizedPayload = payload.replace(/-/g, '+').replace(/_/g, '/');
+    const paddedPayload = normalizedPayload.padEnd(
+      normalizedPayload.length + ((4 - (normalizedPayload.length % 4)) % 4),
+      '=',
+    );
+
+    return JSON.parse(window.atob(paddedPayload));
+  } catch (e) {
+    return null;
+  }
+};
+
+const isJwtExpired = (token) => {
+  const exp = decodeJwtPayload(token)?.exp;
+  return typeof exp === 'number' && exp * 1000 <= Date.now();
+};
+
+const hasAuthorizationHeader = (headers) => {
+  if (!headers) return false;
+  if (typeof headers.get === 'function') {
+    return Boolean(headers.get('Authorization') || headers.get('authorization'));
+  }
+
+  return Boolean(headers.Authorization || headers.authorization);
+};
+
+const redirectToLogin = () => {
+  try {
+    if (window.location.hash !== '#/login') {
+      window.location.hash = '#/login';
+    }
+  } catch (e) {
+    // noop
+  }
+};
+
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(() => {
     try {
       const raw = localStorage.getItem('ims_user');
-      return raw ? JSON.parse(raw) : null;
+      const savedUser = raw ? JSON.parse(raw) : null;
+
+      if (savedUser?.token && isJwtExpired(savedUser.token)) {
+        localStorage.removeItem('ims_user');
+        return null;
+      }
+
+      return savedUser;
     } catch (e) {
       return null;
     }
@@ -22,15 +70,51 @@ export const AuthProvider = ({ children }) => {
     }
   }, [user]);
 
-  const login = (payload) => setUser(payload);
-  const logout = () => {
+  const login = useCallback((payload) => setUser(payload), []);
+  const logout = useCallback(() => {
     setUser(null);
     try {
-      window.location.hash = '#/login';
+      localStorage.removeItem('ims_user');
     } catch (e) {
       // noop
     }
-  };
+    redirectToLogin();
+  }, []);
+
+  useEffect(() => {
+    const interceptorId = axios.interceptors.response.use(
+      (response) => response,
+      (error) => {
+        const isUnauthorized = error.response?.status === 401;
+        const requestHadToken = hasAuthorizationHeader(error.config?.headers);
+
+        if (isUnauthorized && requestHadToken) {
+          logout();
+        }
+
+        return Promise.reject(error);
+      },
+    );
+
+    return () => axios.interceptors.response.eject(interceptorId);
+  }, [logout]);
+
+  useEffect(() => {
+    if (!user?.token) return undefined;
+
+    const payload = decodeJwtPayload(user.token);
+    if (typeof payload?.exp !== 'number') return undefined;
+
+    const expiresInMs = payload.exp * 1000 - Date.now();
+
+    if (expiresInMs <= 0) {
+      logout();
+      return undefined;
+    }
+
+    const timeoutId = window.setTimeout(logout, expiresInMs);
+    return () => window.clearTimeout(timeoutId);
+  }, [user?.token, logout]);
 
   const completeSetup = () => {
     if (user) {

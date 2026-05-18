@@ -6,6 +6,7 @@ import { faSpinner, faFilePdf, faPaperclip, faSearch } from '@fortawesome/free-s
 
 const FacultyReportsLive = () => {
   const [reports, setReports] = useState([]);
+  const [reportStats, setReportStats] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedDepartment, setSelectedDepartment] = useState('All Departments');
   const [loading, setLoading] = useState(true);
@@ -21,6 +22,7 @@ const FacultyReportsLive = () => {
           headers: { Authorization: `Bearer ${user?.token}` },
         });
         setReports(Array.isArray(res.data?.reports) ? res.data.reports : []);
+        setReportStats(res.data?.stats || null);
       } catch (err) {
         console.error(err);
         setError(err.response?.data?.message || 'Failed to load faculty reports.');
@@ -55,11 +57,26 @@ const FacultyReportsLive = () => {
     });
   }, [reports, searchTerm, selectedDepartment]);
 
-  const summary = useMemo(() => ({
-    total: filteredReports.length,
-    departments: departments.length - 1,
-    signed: filteredReports.filter((report) => report.mentor_signed_url).length,
-  }), [departments.length, filteredReports]);
+  const isSignedReport = (report) => {
+    const status = (report.status || report.raw_status || '').toLowerCase();
+    return Boolean(report.is_signed) ||
+      Boolean(report.mentor_signed_url) ||
+      Boolean(report.submitted_at) ||
+      ['signed', 'faculty_submitted', 'approved'].includes(status);
+  };
+
+  const summary = useMemo(() => {
+    const signed = filteredReports.filter(isSignedReport).length;
+    return {
+      total: filteredReports.length,
+      departments: departments.length - 1,
+      signed,
+      unsigned: filteredReports.length - signed,
+      allTotal: reportStats?.total_reports,
+      allSigned: reportStats?.signed_reports,
+      allUnsigned: reportStats?.unsigned_reports,
+    };
+  }, [departments.length, filteredReports, reportStats]);
 
   return (
     <div className="animate-fade-in space-y-8 pb-12">
@@ -68,11 +85,12 @@ const FacultyReportsLive = () => {
         <p className="text-slate-500 text-sm mt-1">Only reports submitted to faculty are shown here.</p>
       </header>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
         {[
-          ['Faculty Submitted', summary.total],
+          ['Total Reports', summary.total],
           ['Departments', summary.departments],
-          ['Mentor Signed', summary.signed],
+          ['Signed', summary.signed],
+          ['Unsigned', summary.unsigned],
         ].map(([label, value]) => (
           <div key={label} className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 shadow-sm p-6 rounded-3xl">
             <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">{label}</p>

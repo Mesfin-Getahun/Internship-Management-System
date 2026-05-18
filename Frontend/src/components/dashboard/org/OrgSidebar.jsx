@@ -7,7 +7,7 @@ import { useAuth } from "../../../AuthContext";
 const base =
   "flex items-center px-4 py-2.5 text-sm font-medium rounded-xl transition-colors";
 
-const OrgSidebar = () => {
+const OrgSidebar = ({ isOpen = false, onClose }) => {
   const { logout } = useAuth();
 
   const menuItems = [
@@ -24,7 +24,11 @@ const OrgSidebar = () => {
   ];
 
   return (
-    <aside className="fixed top-0 left-0 h-screen w-64 bg-slate-900 text-white flex flex-col border-r border-slate-800">
+    <aside
+      className={`fixed top-0 left-0 h-screen w-64 bg-slate-900 text-white flex flex-col border-r border-slate-800 z-[70] lg:z-40 transition-transform duration-300 ease-out lg:translate-x-0 ${
+        isOpen ? "translate-x-0" : "-translate-x-full"
+      }`}
+    >
       {/* logo / title */}
       <div className="flex items-center px-6 py-5 border-b border-slate-800">
         <div className="flex items-center justify-center w-10 h-10 rounded-2xl bg-blue-500/10 text-blue-400 mr-3">
@@ -44,6 +48,7 @@ const OrgSidebar = () => {
             key={to}
             to={`/organization/${to}`}
             end={to === "overview"}
+            onClick={onClose}
             className={({ isActive }) =>
               `${base} ${
                 isActive

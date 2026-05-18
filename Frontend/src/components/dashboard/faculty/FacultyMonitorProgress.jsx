@@ -119,7 +119,10 @@ const FacultyMonitorProgress = () => {
 
       if (internshipStatus === 'rejected') {
         status = 'Rejected';
-      } else if (!progressState.dormant && (reportStatus === 'signed' || reportStatus === 'approved')) {
+      } else if (
+        !progressState.dormant &&
+        (['signed', 'approved', 'faculty_submitted'].includes(reportStatus) || report?.faculty_submitted_at)
+      ) {
         status = 'Approved';
       } else if (!progressState.dormant && report?.file_url && evaluation?.evaluation_id) {
         status = 'Pending Approval';

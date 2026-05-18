@@ -1,9 +1,10 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faInfoCircle } from '@fortawesome/free-solid-svg-icons';
 import UilSidebar from '../../components/dashboard/uil/UilSidebar.jsx';
 import UilNavbar from '../../components/dashboard/uil/UilNavbar.jsx';
+import DashboardSidebarOverlay from '../../components/dashboard/common/DashboardSidebarOverlay.jsx';
 import UilOverview from '../../components/dashboard/uil/UilOverview.jsx';
 import OrgApprovals from '../../components/dashboard/uil/OrgApprovals.jsx';
 import InternshipMonitoring from '../../components/dashboard/uil/InternshipMonitoring.jsx';
@@ -13,7 +14,7 @@ import UilRecommendationLetter from '../../components/dashboard/uil/UilRecommend
 import CompanyInvitation from '../../components/dashboard/uil/CompanyInvitation.jsx';
 
 const PlaceholderScreen = ({ title, description }) => (
-  <div className="p-20 text-center animate-fade-in bg-white rounded-3xl border border-slate-100 shadow-sm">
+  <div className="p-6 sm:p-12 lg:p-20 text-center animate-fade-in bg-white rounded-3xl border border-slate-100 shadow-sm">
     <div className="w-20 h-20 bg-indigo-50 text-indigo-600 rounded-3xl flex items-center justify-center mx-auto mb-6">
       <FontAwesomeIcon icon={faInfoCircle} className="h-10 w-10" />
     </div>
@@ -27,6 +28,7 @@ const PlaceholderScreen = ({ title, description }) => (
 
 const UilDashboard = () => {
   const location = useLocation();
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const activeTab = location.pathname.split('/').pop() || 'dashboard';
 
   const tabTitles = {
@@ -41,14 +43,19 @@ const UilDashboard = () => {
     'settings': 'Administrative Settings'
   };
 
+  useEffect(() => {
+    setIsSidebarOpen(false);
+  }, [location.pathname]);
+
   return (
     <div className="min-h-screen bg-[#f5f7fb] flex font-['Inter']">
-      <UilSidebar activeTab={activeTab} />
+      <DashboardSidebarOverlay isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
+      <UilSidebar activeTab={activeTab} isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
       
       <div className="flex-grow flex flex-col min-w-0">
-        <UilNavbar title={tabTitles[activeTab] || 'UIL Portal'} />
+        <UilNavbar title={tabTitles[activeTab] || 'UIL Portal'} onMenuClick={() => setIsSidebarOpen(true)} />
         
-        <main className="flex-grow pl-[288px] pr-8 pt-28 pb-12 overflow-x-hidden">
+        <main className="flex-grow px-4 sm:px-6 lg:pl-[288px] lg:pr-8 pt-24 sm:pt-28 pb-12 overflow-x-hidden">
           <div className="max-w-7xl mx-auto">
             <Routes>
               <Route path="/" element={<Navigate to="dashboard" replace />} />

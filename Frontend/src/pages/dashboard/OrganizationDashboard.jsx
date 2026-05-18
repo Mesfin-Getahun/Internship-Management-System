@@ -1,7 +1,8 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { Routes, Route, Navigate, useLocation } from "react-router-dom";
 import OrgNavbar from '../../components/dashboard/org/OrgNavbarLive.jsx';
 import OrgSidebar from '../../components/dashboard/org/OrgSidebar.jsx';
+import DashboardSidebarOverlay from '../../components/dashboard/common/DashboardSidebarOverlay.jsx';
 import OrgOverview from '../../components/dashboard/org/OrgOverviewLive.jsx';
 import OrgVacancies from '../../components/dashboard/org/OrgVacancies.jsx';
 
@@ -14,14 +15,20 @@ import AssignedStudents from '../../components/dashboard/org/AssignedStudentsLiv
 
 const OrganizationDashboard = () => {
   const location = useLocation();
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const activeTab = location.pathname.split("/").pop() || "overview";
+
+  useEffect(() => {
+    setIsSidebarOpen(false);
+  }, [location.pathname]);
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-900">
-      <OrgSidebar />
-      <div className="ml-64 flex flex-col">
-        <OrgNavbar />
-        <main className="flex-1 p-6 pt-20">
+      <DashboardSidebarOverlay isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
+      <OrgSidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
+      <div className="flex flex-col min-w-0 lg:ml-64">
+        <OrgNavbar onMenuClick={() => setIsSidebarOpen(true)} />
+        <main className="flex-1 px-4 sm:px-6 pb-4 sm:pb-6 pt-24">
           <Routes>
             <Route index element={<OrgOverview />} />
             <Route path="overview" element={<OrgOverview />} />
