@@ -341,12 +341,25 @@ const getCompanyMentors = async (req, res) => {
     const [mentors] = await db.query(
       `
       SELECT
-        company_mentor_id,
-        full_name,
-        email,
-        phone_number
-      FROM company_mentor
-      ORDER BY full_name
+        cm.company_mentor_id,
+        cm.full_name,
+        cm.email,
+        cm.phone_number,
+        cm.must_change_password,
+        COUNT(DISTINCT si.id) AS assigned_students,
+        COUNT(DISTINCT mf.feedback_id) AS feedback_count
+      FROM company_mentor cm
+      LEFT JOIN student_internship si
+        ON si.company_mentor_id = cm.company_mentor_id
+      LEFT JOIN mentor_feedback mf
+        ON mf.company_mentor_id = cm.company_mentor_id
+      GROUP BY
+        cm.company_mentor_id,
+        cm.full_name,
+        cm.email,
+        cm.phone_number,
+        cm.must_change_password
+      ORDER BY cm.full_name
       `,
     );
 
@@ -360,6 +373,280 @@ const getCompanyMentors = async (req, res) => {
     res.status(500).json({
       success: false,
       message: "Failed to fetch company mentors",
+    });
+  }
+};
+
+const buildCompanyMentorDefaultPassword = (email, fullName) =>
+  `${String(email || "").trim()}${String(fullName || "").trim()}`;
+
+const generateCompanyMentorId = async () => {
+  for (let attempt = 0; attempt < 5; attempt += 1) {
+    const suffix = `${Date.now().toString(36)}${Math.random()
+      .toString(36)
+      .slice(2, 6)}`.toUpperCase();
+    const candidate = `CM-${suffix.slice(-10)}`;
+    const [rows] = await db.query(
+      "SELECT company_mentor_id FROM company_mentor WHERE company_mentor_id = ? LIMIT 1",
+      [candidate],
+    );
+
+    if (rows.length === 0) {
+      return candidate;
+    }
+  }
+
+  throw new Error("Unable to generate a unique company mentor ID");
+};
+
+const createCompanyMentor = async (req, res) => {
+  try {
+    const {
+      company_mentor_id,
+      full_name,
+      email,
+      phone_number,
+    } = req.body;
+
+    const cleanFullName = String(full_name || "").trim();
+    const cleanEmail = String(email || "").trim().toLowerCase();
+    const cleanPhone = String(phone_number || "").trim() || null;
+
+    if (!cleanFullName || !cleanEmail) {
+      return res.status(400).json({
+        success: false,
+        message: "Mentor name and email are required",
+      });
+    }
+
+    const mentorId =
+      String(company_mentor_id || "").trim() || (await generateCompanyMentorId());
+
+    const [existing] = await db.query(
+      `SELECT company_mentor_id
+       FROM company_mentor
+       WHERE company_mentor_id = ? OR LOWER(email) = ?
+       LIMIT 1`,
+      [mentorId, cleanEmail],
+    );
+
+    if (existing.length > 0) {
+      return res.status(409).json({
+        success: false,
+        message: "A company mentor with this ID or email already exists",
+      });
+    }
+
+    const defaultPassword = buildCompanyMentorDefaultPassword(
+      cleanEmail,
+      cleanFullName,
+    );
+    const hashedPassword = await bcrypt.hash(defaultPassword, 10);
+
+    await db.query(
+      `INSERT INTO company_mentor
+       (company_mentor_id, full_name, email, phone_number, password, must_change_password)
+       VALUES (?, ?, ?, ?, ?, TRUE)`,
+      [mentorId, cleanFullName, cleanEmail, cleanPhone, hashedPassword],
+    );
+
+    await createLog(
+      req.user.company_id,
+      "COMPANY_MENTOR_CREATED",
+      `Company mentor ${cleanFullName} (${cleanEmail}) created by ${req.user.company_name || "company"}`,
+    );
+
+    res.status(201).json({
+      success: true,
+      message: "Company mentor created successfully",
+      mentor: {
+        company_mentor_id: mentorId,
+        full_name: cleanFullName,
+        email: cleanEmail,
+        phone_number: cleanPhone,
+        must_change_password: 1,
+        assigned_students: 0,
+        feedback_count: 0,
+      },
+      default_password_rule: "email + full_name",
+    });
+  } catch (error) {
+    console.error("Create company mentor error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to create company mentor",
+    });
+  }
+};
+
+const updateCompanyMentor = async (req, res) => {
+  try {
+    const { company_mentor_id } = req.params;
+    const {
+      full_name,
+      email,
+      phone_number,
+      reset_password,
+    } = req.body;
+
+    const [existingRows] = await db.query(
+      `SELECT company_mentor_id, full_name, email, phone_number, must_change_password
+       FROM company_mentor
+       WHERE company_mentor_id = ?
+       LIMIT 1`,
+      [company_mentor_id],
+    );
+
+    if (existingRows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: "Company mentor not found",
+      });
+    }
+
+    const existing = existingRows[0];
+    const cleanFullName =
+      String(full_name || "").trim() || existing.full_name;
+    const cleanEmail =
+      String(email || "").trim().toLowerCase() || existing.email;
+    const cleanPhone =
+      phone_number === undefined
+        ? existing.phone_number
+        : String(phone_number || "").trim() || null;
+
+    if (!cleanFullName || !cleanEmail) {
+      return res.status(400).json({
+        success: false,
+        message: "Mentor name and email are required",
+      });
+    }
+
+    const [duplicateRows] = await db.query(
+      `SELECT company_mentor_id
+       FROM company_mentor
+       WHERE LOWER(email) = ? AND company_mentor_id <> ?
+       LIMIT 1`,
+      [cleanEmail, company_mentor_id],
+    );
+
+    if (duplicateRows.length > 0) {
+      return res.status(409).json({
+        success: false,
+        message: "Another company mentor already uses this email",
+      });
+    }
+
+    const shouldResetPassword =
+      reset_password === true ||
+      reset_password === "true" ||
+      Number(existing.must_change_password) === 1;
+
+    if (shouldResetPassword) {
+      const defaultPassword = buildCompanyMentorDefaultPassword(
+        cleanEmail,
+        cleanFullName,
+      );
+      const hashedPassword = await bcrypt.hash(defaultPassword, 10);
+
+      await db.query(
+        `UPDATE company_mentor
+         SET full_name = ?, email = ?, phone_number = ?, password = ?, must_change_password = TRUE
+         WHERE company_mentor_id = ?`,
+        [cleanFullName, cleanEmail, cleanPhone, hashedPassword, company_mentor_id],
+      );
+    } else {
+      await db.query(
+        `UPDATE company_mentor
+         SET full_name = ?, email = ?, phone_number = ?
+         WHERE company_mentor_id = ?`,
+        [cleanFullName, cleanEmail, cleanPhone, company_mentor_id],
+      );
+    }
+
+    await createLog(
+      req.user.company_id,
+      "COMPANY_MENTOR_UPDATED",
+      `Company mentor ${cleanFullName} (${cleanEmail}) updated by ${req.user.company_name || "company"}`,
+    );
+
+    res.status(200).json({
+      success: true,
+      message: shouldResetPassword
+        ? "Company mentor updated and temporary password reset"
+        : "Company mentor updated successfully",
+      default_password_rule: shouldResetPassword ? "email + full_name" : null,
+    });
+  } catch (error) {
+    console.error("Update company mentor error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to update company mentor",
+    });
+  }
+};
+
+const deleteCompanyMentor = async (req, res) => {
+  try {
+    const { company_mentor_id } = req.params;
+
+    const [mentorRows] = await db.query(
+      `SELECT company_mentor_id, full_name, email
+       FROM company_mentor
+       WHERE company_mentor_id = ?
+       LIMIT 1`,
+      [company_mentor_id],
+    );
+
+    if (mentorRows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: "Company mentor not found",
+      });
+    }
+
+    const [[usage]] = await db.query(
+      `SELECT
+         (SELECT COUNT(*) FROM student_internship WHERE company_mentor_id = ?) AS assigned_students,
+         (SELECT COUNT(*) FROM mentor_feedback WHERE company_mentor_id = ?) AS feedback_count`,
+      [company_mentor_id, company_mentor_id],
+    );
+
+    if (Number(usage.assigned_students || 0) > 0) {
+      return res.status(409).json({
+        success: false,
+        message:
+          "This mentor is assigned to students. Reassign those students before deleting the mentor.",
+      });
+    }
+
+    if (Number(usage.feedback_count || 0) > 0) {
+      return res.status(409).json({
+        success: false,
+        message:
+          "This mentor has feedback history and cannot be deleted without losing records.",
+      });
+    }
+
+    await db.query(
+      "DELETE FROM company_mentor WHERE company_mentor_id = ?",
+      [company_mentor_id],
+    );
+
+    await createLog(
+      req.user.company_id,
+      "COMPANY_MENTOR_DELETED",
+      `Company mentor ${mentorRows[0].full_name || company_mentor_id} deleted by ${req.user.company_name || "company"}`,
+    );
+
+    res.status(200).json({
+      success: true,
+      message: "Company mentor deleted successfully",
+    });
+  } catch (error) {
+    console.error("Delete company mentor error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to delete company mentor",
     });
   }
 };
@@ -1047,6 +1334,9 @@ export {
   updateInternship,
   getProfile,
   getCompanyMentors,
+  createCompanyMentor,
+  updateCompanyMentor,
+  deleteCompanyMentor,
   getApplications,
   postEvaluation,
   assignMentor,

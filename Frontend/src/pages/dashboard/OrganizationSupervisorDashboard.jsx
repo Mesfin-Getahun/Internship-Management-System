@@ -9,6 +9,7 @@ import Evaluation from "../../components/dashboard/org_supervisor/Evaluation.jsx
 import SupervisorStudentEvaluation from "../../components/dashboard/org_supervisor/SupervisorStudentEvaluation.jsx";
 import MyStudents from "../../components/dashboard/org_supervisor/MyStudents.jsx";
 import SupervisorFeedback from "../../components/dashboard/org_supervisor/SupervisorFeedback.jsx";
+import SupervisorChangePassword from "../../components/dashboard/org_supervisor/SupervisorChangePassword.jsx";
 
 const OrganizationSupervisorDashboard = () => {
   const location = useLocation();
@@ -34,6 +35,7 @@ const OrganizationSupervisorDashboard = () => {
               <Route path="attendance" element={<Attendance />} />
               <Route path="evaluation" element={<Evaluation />} />
               <Route path="feedback" element={<SupervisorFeedback />} />
+              <Route path="change-password" element={<SupervisorChangePassword />} />
               <Route path="evaluate/:studentId" element={<SupervisorStudentEvaluation />} />
             </Routes>
           </div>

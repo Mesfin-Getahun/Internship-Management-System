@@ -10,6 +10,9 @@ import {
   updateProfile,
   getProfile,
   getCompanyMentors,
+  createCompanyMentor,
+  updateCompanyMentor,
+  deleteCompanyMentor,
   viewApplication,
   activeInternships,
   registerCompany,
@@ -203,6 +206,17 @@ companyRoute.get(
 companyRoute.get("/activeInternships", authCompany, activeInternships);
 companyRoute.get("/profile", authCompany, getProfile);
 companyRoute.get("/mentors", authCompany, getCompanyMentors);
+companyRoute.post("/mentors", authCompany, createCompanyMentor);
+companyRoute.put(
+  "/mentors/:company_mentor_id",
+  authCompany,
+  updateCompanyMentor,
+);
+companyRoute.delete(
+  "/mentors/:company_mentor_id",
+  authCompany,
+  deleteCompanyMentor,
+);
 
 /**
  * @swagger

@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faTableCellsLarge, faUsers, faFileAlt, faSignOutAlt, faCommentDots, faSpinner } from '@fortawesome/free-solid-svg-icons';
+import { faTableCellsLarge, faUsers, faFileAlt, faSignOutAlt, faCommentDots, faSpinner, faKey } from '@fortawesome/free-solid-svg-icons';
 import { useAuth } from "../../../AuthContext";
 import axios from "axios";
 
@@ -41,6 +41,7 @@ const OrgSupervisorSidebar = ({ activeTab, isOpen = false, onClose }) => {
     { id: "students", label: "Students", icon: faUsers, badge: studentCount },
     { id: "evaluation", label: "Evaluation", icon: faFileAlt },
     { id: "feedback", label: "Feedback", icon: faCommentDots },
+    { id: "change-password", label: "Change Password", icon: faKey },
   ];
 
   return (

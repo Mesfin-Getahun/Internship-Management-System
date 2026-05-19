@@ -12,6 +12,7 @@ import OrgPostInternship from '../../components/dashboard/org/OrgPostInternship.
 
 
 import AssignedStudents from '../../components/dashboard/org/AssignedStudentsLive.jsx';
+import CompanyMentors from '../../components/dashboard/org/CompanyMentors.jsx';
 
 const OrganizationDashboard = () => {
   const location = useLocation();
@@ -36,6 +37,7 @@ const OrganizationDashboard = () => {
             
             <Route path="applications" element={<OrgApplications />} />
             <Route path="post-internship" element={<OrgPostInternship />} />
+            <Route path="company-mentors" element={<CompanyMentors />} />
             <Route path="assigned-students" element={<AssignedStudents />} />
             <Route path="profile" element={<OrgProfile />} />
           

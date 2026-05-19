@@ -42,21 +42,45 @@ export const registerStudent = async (req, res) => {
 
 export const createCompanyMentor = async (req, res) => {
   try {
-    const { company_mentor_id, full_name, email, phone_number, password } =
-      req.body;
+    const { company_mentor_id, full_name, email, phone_number } = req.body;
 
-    const hashedPassword = await bcrypt.hash(password, 10);
+    if (!company_mentor_id || !full_name || !email) {
+      return res.status(400).json({
+        success: false,
+        message: "Company mentor ID, full name, and email are required",
+      });
+    }
+
+    const [[exists]] = await db.query(
+      "SELECT company_mentor_id FROM company_mentor WHERE company_mentor_id = ? OR email = ?",
+      [company_mentor_id, email],
+    );
+
+    if (exists) {
+      return res.status(409).json({
+        success: false,
+        message: "Company mentor already exists",
+      });
+    }
+
+    const defaultPassword = `${String(email || "").trim()}${String(full_name || "").trim()}`;
+    const hashedPassword = await bcrypt.hash(defaultPassword, 10);
 
     await db.query(
       `INSERT INTO company_mentor
-       (company_mentor_id, full_name, email, phone_number, password)
-       VALUES (?, ?, ?, ?, ?)`,
+       (company_mentor_id, full_name, email, phone_number, password, must_change_password)
+       VALUES (?, ?, ?, ?, ?, TRUE)`,
       [company_mentor_id, full_name, email, phone_number, hashedPassword],
     );
 
-    res.json({ success: true, message: "Mentor created successfully" });
+    res.status(201).json({
+      success: true,
+      message: "Mentor created successfully",
+      default_password_rule: "email + full_name",
+    });
   } catch (err) {
-    res.status(500).json({ success: false });
+    console.error("Company mentor registration error:", err);
+    res.status(500).json({ success: false, message: "Registration failed" });
   }
 };
 
