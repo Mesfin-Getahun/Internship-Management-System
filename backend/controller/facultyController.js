@@ -151,7 +151,7 @@ const getStudents = async (req, res) => {
       FROM student s
       LEFT JOIN student_internship si
         ON s.student_id = si.student_id
-        AND LOWER(si.status) IN ('in progress', 'accepted', 'active')
+        AND LOWER(si.status) IN ('in progress', 'accepted', 'active', 'completed', 'complete')
       LEFT JOIN internship i
         ON si.internship_id = i.internship_id
       LEFT JOIN company c

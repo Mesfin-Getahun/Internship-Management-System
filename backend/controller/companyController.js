@@ -726,7 +726,9 @@ const assignMentor = async (req, res) => {
         `
         SELECT id
         FROM student_internship
-        WHERE student_id = ? AND company_id = ? AND status = 'in progress'
+        WHERE student_id = ?
+          AND company_id = ?
+          AND LOWER(status) IN ('in progress', 'accepted', 'active')
         ORDER BY id DESC
         LIMIT 1
         `,

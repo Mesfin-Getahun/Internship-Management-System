@@ -652,6 +652,8 @@ const myInternship = async (req, res) => {
           WHEN LOWER(si.status) = 'accepted' THEN 1
           ELSE 2
         END,
+        CASE WHEN si.company_mentor_id IS NULL THEN 1 ELSE 0 END,
+        si.id DESC,
         i.start_date ASC
       LIMIT 1
       `,
