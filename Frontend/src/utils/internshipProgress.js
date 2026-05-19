@@ -1,4 +1,4 @@
-const CURRENT_PLACEMENT_STATUSES = new Set(['accepted', 'active', 'in progress']);
+const CURRENT_PLACEMENT_STATUSES = new Set(['accepted', 'active', 'in progress', 'completed', 'complete']);
 
 const startOfDay = (date) => {
   if (!date) return null;
@@ -14,6 +14,15 @@ export const getInternshipProgressState = (placement = {}, today = new Date()) =
   const rawStatus = String(placement.status || placement.internship_status || '').toLowerCase();
   const hasPlacement = Boolean(placement.internship_id || placement.company_name || placement.company_id);
   const isCurrentPlacement = CURRENT_PLACEMENT_STATUSES.has(rawStatus);
+
+  if (rawStatus === 'completed' || rawStatus === 'complete') {
+    return {
+      dormant: false,
+      progress: 100,
+      label: 'Completed',
+      message: 'Internship completed.',
+    };
+  }
 
   if (!hasPlacement || !isCurrentPlacement) {
     return {

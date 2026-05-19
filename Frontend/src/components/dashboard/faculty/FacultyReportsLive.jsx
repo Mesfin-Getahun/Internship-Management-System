@@ -3,9 +3,11 @@ import axios from 'axios';
 import { useAuth } from '../../../AuthContext';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faSpinner, faFilePdf, faPaperclip, faSearch } from '@fortawesome/free-solid-svg-icons';
+import { ALL_DEPARTMENTS, getDepartmentOptions, matchesDepartment } from '../../../utils/departmentFilters';
 
 const FacultyReportsLive = () => {
   const [reports, setReports] = useState([]);
+  const [students, setStudents] = useState([]);
   const [reportStats, setReportStats] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedDepartment, setSelectedDepartment] = useState('All Departments');
@@ -18,11 +20,16 @@ const FacultyReportsLive = () => {
       try {
         setLoading(true);
         setError('');
-        const res = await axios.get(`${import.meta.env.VITE_BACKEND_URL}/api/faculty/reports`, {
+        const authConfig = {
           headers: { Authorization: `Bearer ${user?.token}` },
-        });
-        setReports(Array.isArray(res.data?.reports) ? res.data.reports : []);
-        setReportStats(res.data?.stats || null);
+        };
+        const [reportsRes, studentsRes] = await Promise.all([
+          axios.get(`${import.meta.env.VITE_BACKEND_URL}/api/faculty/reports`, authConfig),
+          axios.get(`${import.meta.env.VITE_BACKEND_URL}/api/faculty/students`, authConfig),
+        ]);
+        setReports(Array.isArray(reportsRes.data?.reports) ? reportsRes.data.reports : []);
+        setStudents(Array.isArray(studentsRes.data?.students) ? studentsRes.data.students : []);
+        setReportStats(reportsRes.data?.stats || null);
       } catch (err) {
         console.error(err);
         setError(err.response?.data?.message || 'Failed to load faculty reports.');
@@ -39,21 +46,18 @@ const FacultyReportsLive = () => {
   }, [user?.token]);
 
   const departments = useMemo(() => {
-    const names = reports.map((report) => report.department).filter(Boolean);
-    return ['All Departments', ...Array.from(new Set(names)).sort()];
-  }, [reports]);
+    return getDepartmentOptions(students, reports);
+  }, [reports, students]);
 
   const filteredReports = useMemo(() => {
     const query = searchTerm.trim().toLowerCase();
 
     return reports.filter((report) => {
-      const matchesDepartment =
-        selectedDepartment === 'All Departments' || report.department === selectedDepartment;
       const studentName = (report.student_name || '').toLowerCase();
       const studentId = String(report.student_id || '').toLowerCase();
       const matchesSearch = !query || studentName.includes(query) || studentId.includes(query);
 
-      return matchesDepartment && matchesSearch;
+      return matchesDepartment(report, selectedDepartment) && matchesSearch;
     });
   }, [reports, searchTerm, selectedDepartment]);
 
@@ -69,14 +73,14 @@ const FacultyReportsLive = () => {
     const signed = filteredReports.filter(isSignedReport).length;
     return {
       total: filteredReports.length,
-      departments: departments.length - 1,
       signed,
       unsigned: filteredReports.length - signed,
+      departments: departments.filter((department) => department !== ALL_DEPARTMENTS).length,
       allTotal: reportStats?.total_reports,
       allSigned: reportStats?.signed_reports,
       allUnsigned: reportStats?.unsigned_reports,
     };
-  }, [departments.length, filteredReports, reportStats]);
+  }, [departments, filteredReports, reportStats]);
 
   return (
     <div className="animate-fade-in space-y-8 pb-12">

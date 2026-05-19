@@ -5,11 +5,14 @@ import 'react-toastify/dist/ReactToastify.css';
 import { useAuth } from '../../../AuthContext';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faSpinner } from '@fortawesome/free-solid-svg-icons';
+import { getDepartmentOptions, matchesDepartment } from '../../../utils/departmentFilters';
 
 const FacultyAssignMentors = () => {
   const [unassignedStudents, setUnassignedStudents] = useState([]);
   const [mentors, setMentors] = useState([]);
   const [selectedStudents, setSelectedStudents] = useState([]);
+  const [departments, setDepartments] = useState(['All Departments']);
+  const [selectedDepartment, setSelectedDepartment] = useState('All Departments');
   const [loading, setLoading] = useState(true);
   const [assigningMentorId, setAssigningMentorId] = useState(null);
   const { user } = useAuth();
@@ -34,6 +37,7 @@ const FacultyAssignMentors = () => {
       const studentsData = Array.isArray(studentsRes.data?.students) ? studentsRes.data.students : [];
       const mentorsData = Array.isArray(mentorsRes.data?.mentors) ? mentorsRes.data.mentors : [];
 
+      setDepartments(getDepartmentOptions(studentsData));
       setUnassignedStudents(
         studentsData.filter(
           (student) => !student.university_mentor_id && !student.university_mentor_name,
@@ -53,6 +57,10 @@ const FacultyAssignMentors = () => {
       fetchAssignmentData();
     }
   }, [user?.token]);
+
+  const filteredUnassignedStudents = unassignedStudents.filter((student) =>
+    matchesDepartment(student, selectedDepartment),
+  );
 
   const handleSelectStudent = (studentId) => {
     setSelectedStudents((prev) =>
@@ -112,14 +120,26 @@ const FacultyAssignMentors = () => {
         <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-100 dark:border-slate-800 shadow-sm flex flex-col h-[600px] overflow-hidden">
           <div className="p-6 border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/20">
             <h3 className="font-bold text-slate-800 dark:text-white">Pending Assignments</h3>
-            <p className="text-[10px] text-slate-400 font-bold uppercase mt-1 tracking-widest">{unassignedStudents.length} Students Needing Mentors</p>
+            <p className="text-[10px] text-slate-400 font-bold uppercase mt-1 tracking-widest">{filteredUnassignedStudents.length} Students Needing Mentors</p>
+            <select
+              value={selectedDepartment}
+              onChange={(event) => {
+                setSelectedDepartment(event.target.value);
+                setSelectedStudents([]);
+              }}
+              className="mt-4 w-full px-4 py-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            >
+              {departments.map((department) => (
+                <option key={department} value={department}>{department}</option>
+              ))}
+            </select>
           </div>
           <div className="flex-grow overflow-y-auto p-4 space-y-3 custom-scrollbar relative">
             {loading ? (
                <div className="flex justify-center items-center h-full text-indigo-500">
                  <FontAwesomeIcon icon={faSpinner} spin size="2x" />
                </div>
-            ) : unassignedStudents.length > 0 ? unassignedStudents.map((s) => {
+            ) : filteredUnassignedStudents.length > 0 ? filteredUnassignedStudents.map((s) => {
                const sId = s.student_id || s.id;
                return (
                 <div key={sId} className="p-5 bg-white dark:bg-slate-800 rounded-2xl border border-slate-100 dark:border-slate-700 flex items-center justify-between hover:border-indigo-300 dark:hover:border-indigo-700 transition-all group cursor-pointer shadow-sm hover:shadow-md" onClick={() => handleSelectStudent(sId)}>

@@ -1,4 +1,5 @@
 ﻿import React, { useEffect, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { useAuth } from '../../../AuthContext';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
@@ -7,6 +8,7 @@ import { getInternshipProgressState } from '../../../utils/internshipProgress';
 
 const ProgressTracker = () => {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [students, setStudents] = useState([]);
   const [reports, setReports] = useState([]);
   const [feedbacks, setFeedbacks] = useState([]);
@@ -54,18 +56,19 @@ const ProgressTracker = () => {
         ...student,
         status: student.status,
       });
-      const signedReport = studentReports.some((report) =>
-        ['signed', 'approved', 'faculty_submitted'].includes((report.status || '').toLowerCase()) ||
-        Boolean(report.faculty_submitted_at)
-      );
+      const rawStatus = String(student.status || student.internship_status || '').toLowerCase();
 
       let progress = progressState.progress;
       let status = progressState.dormant ? 'Dormant' : 'On Track';
+      const completedByDate = !progressState.dormant && progressState.label === 'Completed';
+      const completedByStatus = ['completed', 'complete'].includes(rawStatus);
 
       if (!progressState.dormant && studentReports.length === 0) status = 'Needs Report';
-      if (!progressState.dormant && studentReports.length > 0) progress = Math.max(progress, 75);
-      if (!progressState.dormant && (signedReport || studentFeedback)) {
+      if (!progressState.dormant && studentFeedback) {
         status = 'Reviewed';
+      }
+      if (completedByDate || completedByStatus) {
+        status = 'Completed';
         progress = 100;
       }
 
@@ -106,8 +109,10 @@ const ProgressTracker = () => {
                 <p className="text-xs text-slate-400 font-bold uppercase tracking-widest">{intern.org} • {intern.role}</p>
               </div>
               <span className={`px-3 py-1 rounded-xl text-[10px] font-black uppercase tracking-widest ${
-                intern.status === 'On Track' || intern.status === 'Reviewed'
-                  ? 'bg-teal-100 text-teal-700'
+                intern.status === 'Completed'
+                  ? 'bg-green-100 text-green-700'
+                  : intern.status === 'On Track' || intern.status === 'Reviewed'
+                    ? 'bg-teal-100 text-teal-700'
                   : intern.status === 'Needs Report'
                     ? 'bg-amber-100 text-amber-700'
                     : 'bg-slate-100 text-slate-700'
@@ -123,7 +128,7 @@ const ProgressTracker = () => {
               </div>
               <div className="h-2 w-full bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
                 <div
-                  className={`h-full transition-all duration-1000 ${intern.status === 'Needs Report' ? 'bg-amber-500' : 'bg-teal-500'}`}
+                  className={`h-full transition-all duration-1000 ${intern.status === 'Completed' ? 'bg-green-500' : 'bg-amber-500'}`}
                   style={{ width: `${intern.progress}%` }}
                 ></div>
               </div>
@@ -137,21 +142,33 @@ const ProgressTracker = () => {
               </div>
               <div className="p-4 bg-slate-50 dark:bg-slate-800 rounded-2xl">
                 <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest mb-1">Current State</p>
-                <p className="text-sm font-bold text-slate-700 dark:text-slate-300">{intern.status}</p>
+                <p className={`text-sm font-bold ${intern.status === 'Completed' ? 'text-green-700 dark:text-green-400' : 'text-slate-700 dark:text-slate-300'}`}>{intern.status}</p>
               </div>
             </div>
 
             <div className="mt-8 flex gap-3">
-              <div className="flex-1 py-3 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-xl text-xs font-bold text-center">
+              <button
+                type="button"
+                onClick={() => navigate('/mentor/student-submissions', { state: { studentId: intern.id } })}
+                className="flex-1 py-3 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-xl text-xs font-bold text-center hover:bg-slate-200 dark:hover:bg-slate-700 transition-all active:scale-95"
+              >
                 {intern.reports}
-              </div>
-              <div className={`flex-1 py-3 rounded-xl text-xs font-bold transition-all shadow-lg text-center ${
+              </button>
+              <button
+                type="button"
+                onClick={() => navigate(
+                  intern.status === 'Reviewed' || intern.status === 'Completed'
+                    ? '/mentor/feedback'
+                    : '/mentor/my-students',
+                  { state: { studentId: intern.id } },
+                )}
+                className={`flex-1 py-3 rounded-xl text-xs font-bold transition-all shadow-lg text-center active:scale-95 ${
                 intern.status === 'Needs Report'
                   ? 'bg-amber-500 text-white shadow-amber-500/20'
                   : 'bg-teal-600 text-white shadow-teal-600/20'
               }`}>
                 {intern.status === 'Reviewed' ? 'Feedback Ready' : 'Current Status'}
-              </div>
+              </button>
             </div>
           </div>
         ))}

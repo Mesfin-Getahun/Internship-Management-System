@@ -30,6 +30,10 @@ const statusConfig = {
     badge: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400',
     icon: faCheckCircle,
   },
+  Completed: {
+    badge: 'bg-teal-100 text-teal-700 dark:bg-teal-900/30 dark:text-teal-400',
+    icon: faCheckCircle,
+  },
   Rejected: {
     badge: 'bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-400',
     icon: faTimesCircle,
@@ -116,6 +120,8 @@ const FacultyMonitorProgress = () => {
       let status = progressState.dormant ? 'Dormant' : 'In Progress';
       const internshipStatus = String(student.internship_status || '').toLowerCase();
       const reportStatus = String(report?.status || '').toLowerCase();
+      const completedByDate = !progressState.dormant && progressState.label === 'Completed';
+      const completedByStatus = ['completed', 'complete'].includes(internshipStatus);
 
       if (internshipStatus === 'rejected') {
         status = 'Rejected';
@@ -126,6 +132,10 @@ const FacultyMonitorProgress = () => {
         status = 'Approved';
       } else if (!progressState.dormant && report?.file_url && evaluation?.evaluation_id) {
         status = 'Pending Approval';
+      }
+      if (completedByDate || completedByStatus) {
+        status = 'Completed';
+        progress = 100;
       }
 
       return {

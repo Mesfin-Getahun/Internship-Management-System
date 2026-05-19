@@ -3,6 +3,7 @@ import axios from 'axios';
 import { useAuth } from '../../../AuthContext';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faSearch, faTimes, faStar, faBuilding, faFileAlt, faSpinner, faCommentSlash, faPaperclip } from '@fortawesome/free-solid-svg-icons';
+import { getDepartmentOptions, matchesDepartment } from '../../../utils/departmentFilters';
 
 const EvaluationModal = ({ evaluation, onClose }) => {
   if (!evaluation) return null;
@@ -108,6 +109,7 @@ const FacultyOrgEvaluations = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedDepartment, setSelectedDepartment] = useState('All Departments');
   const [evaluations, setEvaluations] = useState([]);
+  const [students, setStudents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [detailLoading, setDetailLoading] = useState(false);
   const [detailLoadingId, setDetailLoadingId] = useState(null);
@@ -117,11 +119,16 @@ const FacultyOrgEvaluations = () => {
     const fetchEvaluations = async () => {
       try {
         setLoading(true);
-        const res = await axios.get(`${import.meta.env.VITE_BACKEND_URL}/api/faculty/companyEvaluation`, {
+        const authConfig = {
            headers: { Authorization: `Bearer ${user?.token}` }
-        });
-        const data = res.data.evaluations || res.data || [];
+        };
+        const [evaluationsRes, studentsRes] = await Promise.all([
+          axios.get(`${import.meta.env.VITE_BACKEND_URL}/api/faculty/companyEvaluation`, authConfig),
+          axios.get(`${import.meta.env.VITE_BACKEND_URL}/api/faculty/students`, authConfig),
+        ]);
+        const data = evaluationsRes.data.evaluations || evaluationsRes.data || [];
         setEvaluations(data);
+        setStudents(Array.isArray(studentsRes.data?.students) ? studentsRes.data.students : []);
       } catch (err) {
          console.error(err);
       } finally {
@@ -132,16 +139,13 @@ const FacultyOrgEvaluations = () => {
   }, [user]);
 
   const departments = useMemo(() => {
-    const names = evaluations.map((evaluation) => evaluation.department).filter(Boolean);
-    return ['All Departments', ...Array.from(new Set(names)).sort()];
-  }, [evaluations]);
+    return getDepartmentOptions(students, evaluations);
+  }, [evaluations, students]);
 
   const filteredEvaluations = useMemo(() => {
     const query = searchTerm.trim().toLowerCase();
 
     return evaluations.filter((evaluation) => {
-      const matchesDepartment =
-        selectedDepartment === 'All Departments' || evaluation.department === selectedDepartment;
       const studentName = (evaluation.student_name || evaluation.student || '').toLowerCase();
       const studentId = String(evaluation.student_id || '').toLowerCase();
       const companyName = (evaluation.company_name || evaluation.target || '').toLowerCase();
@@ -153,7 +157,7 @@ const FacultyOrgEvaluations = () => {
         companyName.includes(query) ||
         internshipTitle.includes(query);
 
-      return matchesDepartment && matchesSearch;
+      return matchesDepartment(evaluation, selectedDepartment) && matchesSearch;
     });
   }, [evaluations, searchTerm, selectedDepartment]);
 

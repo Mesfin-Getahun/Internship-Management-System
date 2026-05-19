@@ -3,10 +3,12 @@ import axios from 'axios';
 import { useAuth } from '../../../AuthContext';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faEye, faBriefcase, faSpinner, faUserMinus, faUserPen, faUpload } from '@fortawesome/free-solid-svg-icons';
+import { getDepartmentOptions, matchesDepartment } from '../../../utils/departmentFilters';
 
 const FacultyManageStudentsLive = () => {
   const [students, setStudents] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
+  const [selectedDepartment, setSelectedDepartment] = useState('All Departments');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [mentors, setMentors] = useState([]);
@@ -51,11 +53,15 @@ const FacultyManageStudentsLive = () => {
     fetchData();
   }, [user?.token]);
 
+  const departments = useMemo(() => getDepartmentOptions(students), [students]);
+
   const filteredStudents = useMemo(() => {
     const query = searchTerm.trim().toLowerCase();
-    if (!query) return students;
 
     return students.filter((student) => {
+      if (!matchesDepartment(student, selectedDepartment)) return false;
+      if (!query) return true;
+
       const name = (student.full_name || '').toLowerCase();
       const id = String(student.student_id || '').toLowerCase();
       const department = (student.department || '').toLowerCase();
@@ -68,7 +74,7 @@ const FacultyManageStudentsLive = () => {
         company.includes(query)
       );
     });
-  }, [searchTerm, students]);
+  }, [searchTerm, selectedDepartment, students]);
 
   const getPlacementLabel = (student) => {
     if (!student.internship_id) return 'Not Placed';
@@ -150,13 +156,22 @@ const FacultyManageStudentsLive = () => {
           <h2 className="text-2xl font-bold text-slate-800 dark:text-white">Manage Students</h2>
           <p className="text-slate-500 text-sm mt-1">Students listed here are fetched from the logged-in faculty&apos;s department only.</p>
         </div>
-        <div className="flex gap-3 items-center">
+        <div className="flex flex-col sm:flex-row gap-3 sm:items-center w-full sm:w-auto">
+          <select
+            value={selectedDepartment}
+            onChange={(event) => setSelectedDepartment(event.target.value)}
+            className="px-4 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all w-full sm:w-56"
+          >
+            {departments.map((department) => (
+              <option key={department} value={department}>{department}</option>
+            ))}
+          </select>
           <input
             type="text"
             value={searchTerm}
             onChange={(event) => setSearchTerm(event.target.value)}
             placeholder="Search by name, ID, dept, or company..."
-            className="px-4 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all w-72"
+            className="px-4 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all w-full sm:w-72"
           />
           <input 
             type="file" 
