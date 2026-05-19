@@ -429,6 +429,8 @@ const fulfillmentReports = async (req, res) => {
         s.student_id,
         s.full_name AS student_name,
         c.company_name,
+        si.id AS placement_id,
+        i.internship_id,
         i.title AS internship_title,
         si.status AS placement_status,
         ie.evaluation_id,

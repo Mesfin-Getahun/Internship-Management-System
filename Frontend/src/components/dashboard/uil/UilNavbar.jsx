@@ -16,7 +16,7 @@ const UilNavbar = ({ title, onMenuClick }) => {
       { keywords: ["dashboard", "overview", "home"], path: "/uil/dashboard" },
       { keywords: ["org", "organization", "approval", "approvals"], path: "/uil/approvals" },
       { keywords: ["internship", "placement"], path: "/uil/internship-approvals" },
-      { keywords: ["monitor", "tracking"], path: "/uil/monitoring" },
+      { keywords: ["monitor", "tracking"], path: "/uil/internship-approvals" },
       { keywords: ["report", "reports"], path: "/uil/reports" },
       { keywords: ["recommendation", "letter"], path: "/uil/recommendation" },
       { keywords: ["notification", "notifications", "message"], path: "/uil/notifications" },

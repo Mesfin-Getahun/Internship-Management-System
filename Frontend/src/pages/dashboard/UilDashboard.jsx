@@ -7,7 +7,6 @@ import UilNavbar from '../../components/dashboard/uil/UilNavbar.jsx';
 import DashboardSidebarOverlay from '../../components/dashboard/common/DashboardSidebarOverlay.jsx';
 import UilOverview from '../../components/dashboard/uil/UilOverview.jsx';
 import OrgApprovals from '../../components/dashboard/uil/OrgApprovals.jsx';
-import InternshipMonitoring from '../../components/dashboard/uil/InternshipMonitoring.jsx';
 import InternshipApprovals from '../../components/dashboard/uil/InternshipApprovals.jsx';
 import FulfillmentReports from '../../components/dashboard/uil/FulfillmentReports.jsx';
 import UilRecommendationLetter from '../../components/dashboard/uil/UilRecommendationLetter.jsx';
@@ -35,8 +34,7 @@ const UilDashboard = () => {
     'dashboard': 'Dashboard Overview',
     'company-invitation': 'Invite New Company',
     'approvals': 'Organization Approvals',
-    'internship-approvals': 'Internship Approvals',
-    'monitoring': 'Internship Monitoring',
+    'internship-approvals': 'Internship Management',
     'reports': 'Fulfillment Reports',
     'recommendation': 'Recommendation Letter',
     'notifications': 'Communications Hub',
@@ -63,7 +61,7 @@ const UilDashboard = () => {
               <Route path="company-invitation" element={<CompanyInvitation />} />
               <Route path="approvals" element={<OrgApprovals />} />
               <Route path="internship-approvals" element={<InternshipApprovals />} />
-              <Route path="monitoring" element={<InternshipMonitoring />} />
+              <Route path="monitoring" element={<Navigate to="../internship-approvals" replace />} />
               <Route path="reports" element={<FulfillmentReports />} />
               <Route path="recommendation" element={<UilRecommendationLetter />} />
               <Route 

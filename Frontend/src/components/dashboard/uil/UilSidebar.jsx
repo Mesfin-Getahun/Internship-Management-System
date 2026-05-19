@@ -5,7 +5,6 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faTableCellsLarge,
   faCheckSquare,
-  faDesktop,
   faFileAlt,
   faBell,
   faCog,
@@ -30,10 +29,9 @@ const UilSidebar = ({ activeTab, isOpen = false, onClose }) => {
     { id: "approvals", label: "Org Approvals", icon: faCheckSquare },
     {
       id: "internship-approvals",
-      label: "Internship Approvals",
+      label: "Internship Management",
       icon: faBriefcase,
     },
-    { id: "monitoring", label: "Internship Monitoring", icon: faDesktop },
     { id: "reports", label: "Fulfillment Reports", icon: faFileAlt },
     {
       id: "recommendation",

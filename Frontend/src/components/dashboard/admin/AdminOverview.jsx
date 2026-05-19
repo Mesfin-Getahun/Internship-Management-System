@@ -118,6 +118,51 @@ const AdminOverview = () => {
   }, [overview]);
 
   const recentLogs = overview?.recent_logs || [];
+  const systemHealth = useMemo(() => {
+    const storage = Number(monitoring?.storage_used_percent || 0);
+    const cpu = Number(monitoring?.cpu_percent || 0);
+    const apiLatency = Number(monitoring?.api_latency_ms || 0);
+    const maintenanceMode = Boolean(monitoring?.maintenance_mode);
+
+    return [
+      {
+        label: "Host",
+        value: monitoring?.host_status || "Unknown",
+        detail: "Primary application node",
+        healthy: monitoring?.host_status === "Online",
+      },
+      {
+        label: "Database",
+        value: monitoring?.database_status || "Unknown",
+        detail: "MySQL connectivity",
+        healthy: monitoring?.database_status === "Connected",
+      },
+      {
+        label: "API Latency",
+        value: `${apiLatency}ms`,
+        detail: "Estimated response time",
+        healthy: apiLatency <= 250,
+      },
+      {
+        label: "Storage",
+        value: `${storage}%`,
+        detail: "Backup footprint",
+        healthy: storage < 85,
+      },
+      {
+        label: "CPU",
+        value: `${cpu}%`,
+        detail: "Server load",
+        healthy: cpu < 85,
+      },
+      {
+        label: "Maintenance",
+        value: maintenanceMode ? "Enabled" : "Disabled",
+        detail: "Portal access mode",
+        healthy: !maintenanceMode,
+      },
+    ];
+  }, [monitoring]);
 
   if (loading) {
     return (
@@ -157,6 +202,36 @@ const AdminOverview = () => {
             <div className="text-xl font-black text-slate-800">{stat.val}</div>
           </Link>
         ))}
+      </div>
+
+      <div className="bg-white rounded-3xl border border-slate-100 shadow-sm p-6">
+        <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between mb-5">
+          <div>
+            <h3 className="font-bold text-slate-800">System Health</h3>
+            <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mt-1">
+              Live platform status from the monitoring service
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => navigate("/admin/monitoring")}
+            className="text-indigo-600 text-[10px] font-black uppercase tracking-widest hover:underline"
+          >
+            Open Monitoring
+          </button>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-6 gap-3">
+          {systemHealth.map((item) => (
+            <div key={item.label} className="rounded-2xl border border-slate-100 bg-slate-50/60 p-4">
+              <div className="flex items-center justify-between gap-3">
+                <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">{item.label}</p>
+                <span className={`h-2.5 w-2.5 rounded-full ${item.healthy ? "bg-emerald-500" : "bg-amber-500"} animate-pulse`}></span>
+              </div>
+              <p className={`mt-2 text-lg font-black ${item.healthy ? "text-slate-800" : "text-amber-700"}`}>{item.value}</p>
+              <p className="mt-1 text-[9px] font-bold uppercase tracking-widest text-slate-400">{item.detail}</p>
+            </div>
+          ))}
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
