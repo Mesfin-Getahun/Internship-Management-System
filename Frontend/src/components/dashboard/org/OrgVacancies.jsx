@@ -4,7 +4,7 @@ import { toast } from 'react-toastify';
 import axios from 'axios';
 import { useAuth } from '../../../AuthContext';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faPlusCircle, faEdit, faTrashAlt, faChevronDown, faChevronUp, faMapMarkerAlt, faUsers, faSpinner, faBuilding } from '@fortawesome/free-solid-svg-icons';
+import { faPlusCircle, faEdit, faTrashAlt, faChevronDown, faChevronUp, faMapMarkerAlt, faSpinner, faBuilding, faLock } from '@fortawesome/free-solid-svg-icons';
 
 const OrgVacancies = () => {
   const navigate = useNavigate();
@@ -51,7 +51,7 @@ const OrgVacancies = () => {
          fetchInternships(); // refresh the list
       } catch (err) {
          console.error(err);
-         toast.error("Failed to delete the vacancy.");
+         toast.error(err.response?.data?.message || "Failed to delete the vacancy.");
       }
     }
   };
@@ -89,22 +89,49 @@ const OrgVacancies = () => {
          </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-          {internships.map(internship => (
+          {internships.map(internship => {
+            const internshipId = internship.internship_id || internship.id;
+            const isLocked = internship.is_locked || internship.can_edit === false || internship.can_delete === false;
+            const lockLabel = Number(internship.locked_students || 0) > 0 ? 'Accepted' : 'Applied';
+
+            return (
             <div 
-              key={internship.internship_id || internship.id}
+              key={internshipId}
               className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-100 dark:border-slate-800 shadow-sm transition-all duration-300 flex flex-col group overflow-hidden"
             >
-              <div className="p-6 cursor-pointer flex-grow" onClick={() => handleToggleDetails(internship.internship_id || internship.id)}>
+              <div className="p-6 cursor-pointer flex-grow" onClick={() => handleToggleDetails(internshipId)}>
                 <div className="flex items-start justify-between">
                   <div>
                     <h3 className="text-lg font-bold text-slate-800 dark:text-white group-hover:text-blue-600 transition-colors leading-tight pr-4">
                        {internship.title}
                     </h3>
-                    <p className="text-xs font-bold uppercase tracking-widest text-slate-400 mt-2">{internship.status || 'Active'}</p>
+                    <div className="flex flex-wrap items-center gap-2 mt-2">
+                      <p className="text-xs font-bold uppercase tracking-widest text-slate-400">{internship.status || 'Active'}</p>
+                      {isLocked && (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-1 text-[10px] font-black uppercase tracking-widest text-amber-700 border border-amber-100 dark:bg-amber-900/20 dark:text-amber-300 dark:border-amber-800">
+                          <FontAwesomeIcon icon={faLock} />
+                          {lockLabel}
+                        </span>
+                      )}
+                    </div>
                   </div>
                   <div className="flex items-center gap-2 flex-shrink-0">
-                     <button title="Edit" onClick={(e) => handleEdit(e, internship.internship_id || internship.id)} className="w-8 h-8 flex items-center justify-center text-blue-600 bg-blue-50 hover:bg-blue-100 dark:bg-blue-900/20 dark:text-blue-400 dark:hover:bg-blue-900/40 rounded-full transition-colors"><FontAwesomeIcon icon={faEdit} size="sm" /></button>
-                     <button title="Delete" onClick={(e) => handleDelete(e, internship.internship_id || internship.id, internship.title)} className="w-8 h-8 flex items-center justify-center text-red-600 bg-red-50 hover:bg-red-100 dark:bg-red-900/20 dark:text-red-400 dark:hover:bg-red-900/40 rounded-full transition-colors"><FontAwesomeIcon icon={faTrashAlt} size="sm" /></button>
+                     <button
+                       title={isLocked ? "Internships with applications cannot be edited" : "Edit"}
+                       disabled={isLocked}
+                       onClick={(e) => handleEdit(e, internshipId)}
+                       className="w-8 h-8 flex items-center justify-center text-blue-600 bg-blue-50 hover:bg-blue-100 dark:bg-blue-900/20 dark:text-blue-400 dark:hover:bg-blue-900/40 rounded-full transition-colors disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-blue-50 dark:disabled:hover:bg-blue-900/20"
+                     >
+                       <FontAwesomeIcon icon={faEdit} size="sm" />
+                     </button>
+                     <button
+                       title={isLocked ? "Internships with applications cannot be deleted" : "Delete"}
+                       disabled={isLocked}
+                       onClick={(e) => handleDelete(e, internshipId, internship.title)}
+                       className="w-8 h-8 flex items-center justify-center text-red-600 bg-red-50 hover:bg-red-100 dark:bg-red-900/20 dark:text-red-400 dark:hover:bg-red-900/40 rounded-full transition-colors disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-red-50 dark:disabled:hover:bg-red-900/20"
+                     >
+                       <FontAwesomeIcon icon={faTrashAlt} size="sm" />
+                     </button>
                   </div>
                 </div>
                 
@@ -116,16 +143,21 @@ const OrgVacancies = () => {
                 </div>
               </div>
               
-              <div className="px-6 py-4 bg-slate-50 dark:bg-slate-800 border-t border-slate-100 dark:border-slate-700 cursor-pointer flex justify-between items-center" onClick={() => handleToggleDetails(internship.internship_id || internship.id)}>
+              <div className="px-6 py-4 bg-slate-50 dark:bg-slate-800 border-t border-slate-100 dark:border-slate-700 cursor-pointer flex justify-between items-center" onClick={() => handleToggleDetails(internshipId)}>
                  <span className="text-xs font-bold text-slate-500 uppercase tracking-widest">
-                    {expandedId === (internship.internship_id || internship.id) ? 'Collapse Details' : 'View Requirements'}
+                    {expandedId === internshipId ? 'Collapse Details' : 'View Requirements'}
                  </span>
-                 <FontAwesomeIcon icon={expandedId === (internship.internship_id || internship.id) ? faChevronUp : faChevronDown} className="text-slate-400" />
+                 <FontAwesomeIcon icon={expandedId === internshipId ? faChevronUp : faChevronDown} className="text-slate-400" />
               </div>
 
-              {expandedId === (internship.internship_id || internship.id) && (
+              {expandedId === internshipId && (
                 <div className="px-6 py-5 bg-white dark:bg-slate-900 border-t border-slate-100 dark:border-slate-800 animate-fade-in-fast">
                   <div className="space-y-4">
+                     {isLocked && (
+                        <p className="rounded-xl border border-amber-100 bg-amber-50 px-4 py-3 text-xs font-semibold text-amber-800 dark:border-amber-800 dark:bg-amber-900/20 dark:text-amber-200">
+                          This vacancy is locked because a student has applied or been accepted. Its details are kept for internship records.
+                        </p>
+                     )}
                      <div>
                        <h4 className="text-[10px] uppercase font-black tracking-widest text-slate-400 mb-1">Description</h4>
                        <p className="text-slate-600 dark:text-slate-300 text-sm leading-relaxed whitespace-pre-wrap">
@@ -149,7 +181,8 @@ const OrgVacancies = () => {
                 </div>
               )}
             </div>
-          ))}
+          );
+          })}
         </div>
       )}
     </div>

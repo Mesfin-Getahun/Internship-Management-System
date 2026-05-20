@@ -10,6 +10,57 @@ import {
   createNotifications,
 } from "../utils/notificationService.js";
 
+const LOCKED_INTERNSHIP_STATUSES = [
+  "accepted",
+  "in progress",
+  "active",
+  "completed",
+  "complete",
+];
+
+const getInternshipLockedUsage = async (internship_id, company_id) => {
+  const [rows] = await db.query(
+    `
+    SELECT
+      (
+        SELECT COUNT(*)
+        FROM application a
+        JOIN internship i
+          ON a.internship_id = i.internship_id
+        WHERE a.internship_id = ?
+          AND i.company_id = ?
+      ) AS student_applications,
+      (
+        SELECT COUNT(*)
+        FROM student_internship si
+        JOIN internship i
+          ON si.internship_id = i.internship_id
+        WHERE si.internship_id = ?
+          AND i.company_id = ?
+      ) AS student_placements
+    `,
+    [internship_id, company_id, internship_id, company_id],
+  );
+
+  const usage = rows[0] || {};
+
+  return {
+    studentApplications: Number(usage.student_applications || 0),
+    studentPlacements: Number(usage.student_placements || 0),
+  };
+};
+
+const hasLockedInternshipUsage = (usage) =>
+  usage.studentApplications > 0 || usage.studentPlacements > 0;
+
+const sendLockedInternshipResponse = (res, action, usage) =>
+  res.status(409).json({
+    success: false,
+    message: `This internship cannot be ${action} because one or more students have already applied or been accepted for it.`,
+    student_applications: usage.studentApplications,
+    student_placements: usage.studentPlacements,
+  });
+
 const postInternship = async (req, res) => {
   const company_id = req.user.company_id;
   try {
@@ -96,17 +147,31 @@ const deleteInternship = async (req, res) => {
       });
     }
 
-    const [result] = await db.query(
-      "DELETE FROM internship WHERE internship_id = ? AND company_id = ?",
+    const [existing] = await db.query(
+      "SELECT internship_id FROM internship WHERE internship_id = ? AND company_id = ? LIMIT 1",
       [internship_id, company_id],
     );
 
-    if (result.affectedRows === 0) {
+    if (existing.length === 0) {
       return res.status(404).json({
         success: false,
         message: "Internship not found",
       });
     }
+
+    const lockedUsage = await getInternshipLockedUsage(
+      internship_id,
+      company_id,
+    );
+
+    if (hasLockedInternshipUsage(lockedUsage)) {
+      return sendLockedInternshipResponse(res, "deleted", lockedUsage);
+    }
+
+    await db.query(
+      "DELETE FROM internship WHERE internship_id = ? AND company_id = ?",
+      [internship_id, company_id],
+    );
 
     res.status(200).json({
       success: true,
@@ -155,6 +220,15 @@ const updateInternship = async (req, res) => {
         success: false,
         message: "Internship not found",
       });
+    }
+
+    const lockedUsage = await getInternshipLockedUsage(
+      internship_id,
+      company_id,
+    );
+
+    if (hasLockedInternshipUsage(lockedUsage)) {
+      return sendLockedInternshipResponse(res, "updated", lockedUsage);
     }
 
     const nextStartDate = start_date || existing[0].start_date;
@@ -1199,7 +1273,17 @@ const activeInternships = async (req, res) => {
         i.location,
         i.status,
 
-        COUNT(CASE WHEN si.status = 'in progress' THEN si.student_id END) AS active_students
+        COUNT(CASE WHEN si.status = 'in progress' THEN si.student_id END) AS active_students,
+        COUNT(CASE
+          WHEN LOWER(COALESCE(si.status, '')) IN ('accepted', 'in progress', 'active', 'completed', 'complete')
+          THEN si.student_id
+        END) AS locked_students,
+        COUNT(DISTINCT si.id) AS placement_count,
+        (
+          SELECT COUNT(*)
+          FROM application a
+          WHERE a.internship_id = i.internship_id
+        ) AS application_count
 
       FROM internship i
       LEFT JOIN student_internship si 
@@ -1213,10 +1297,28 @@ const activeInternships = async (req, res) => {
       [company_id],
     );
 
+    const internships = rows.map((internship) => {
+      const lockedStudents = Number(internship.locked_students || 0);
+      const placementCount = Number(internship.placement_count || 0);
+      const applicationCount = Number(internship.application_count || 0);
+      const is_locked =
+        lockedStudents > 0 || placementCount > 0 || applicationCount > 0;
+
+      return {
+        ...internship,
+        locked_students: lockedStudents,
+        placement_count: placementCount,
+        application_count: applicationCount,
+        is_locked,
+        can_edit: !is_locked,
+        can_delete: !is_locked,
+      };
+    });
+
     res.status(200).json({
       success: true,
-      count: rows.length,
-      internships: rows,
+      count: internships.length,
+      internships,
     });
   } catch (error) {
     console.error("Active internships error:", error);

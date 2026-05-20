@@ -11,7 +11,7 @@ const OrgPostInternship = () => {
   const { user } = useAuth();
   const editingId = searchParams.get('edit');
 
-  const [isEditing, setIsEditing] = useState(!!editingId);
+  const isEditing = !!editingId;
   const [loadingContext, setLoadingContext] = useState(false);
   
   const [formData, setFormData] = useState({
@@ -36,6 +36,12 @@ const OrgPostInternship = () => {
             const target = allInternships.find(v => (v.internship_id || v.id).toString() === editingId.toString());
             
             if (target) {
+               if (target.is_locked || target.can_edit === false) {
+                  toast.warn("This vacancy cannot be edited because a student has already applied or been accepted.");
+                  navigate('/organization/vacancies');
+                  return;
+               }
+
                setFormData({
                   title: target.title || '',
                   description: target.description || '',
