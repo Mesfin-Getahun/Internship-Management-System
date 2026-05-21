@@ -46,6 +46,10 @@ const SupervisorChangePassword = () => {
         role: "company_mentor",
         currentPassword: formData.currentPassword,
         newPassword: formData.newPassword,
+      }, {
+        headers: user?.token
+          ? { Authorization: `Bearer ${user.token}` }
+          : undefined,
       });
 
       login({ ...user, isFirstLogin: false, must_change_password: 0 });

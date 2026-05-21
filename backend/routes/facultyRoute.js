@@ -13,9 +13,8 @@ import {
   uploadStudents,
 } from "../controller/facultyController.js";
 import { authFaculty } from "../middleware/auth.js";
-import multer from "multer";
-
-const upload = multer({ storage: multer.memoryStorage() });
+import { spreadsheetUpload } from "../middleware/fileUploadLimits.js";
+import { uploadLimiter } from "../middleware/security.js";
 
 /**
  * @swagger
@@ -179,6 +178,12 @@ facultyRoute.put("/changeMentor/:id", authFaculty, changeMentor);
 facultyRoute.get("/reports", authFaculty, facultyViewReports);
 facultyRoute.get("/payments", authFaculty, getPaymentData);
 facultyRoute.get("/profile", authFaculty, getFacultyProfile);
-facultyRoute.post("/uploadStudents", authFaculty, upload.single("file"), uploadStudents);
+facultyRoute.post(
+  "/uploadStudents",
+  authFaculty,
+  uploadLimiter,
+  spreadsheetUpload.single("file"),
+  uploadStudents,
+);
 
 export default facultyRoute;

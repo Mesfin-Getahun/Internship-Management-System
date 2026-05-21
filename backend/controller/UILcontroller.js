@@ -4,6 +4,7 @@ import jwt from "jsonwebtoken";
 import { sendEmail } from "../utils/sendEmail.js";
 import { uploadToCloudinary } from "../utils/cloudinaryUpload.js";
 import createLog from "../utils/createLog.js";
+import { escapeHtml } from "../utils/security.js";
 
 const RECOMMENDATION_SETTING_KEYS = [
   "recommendation_letter_url",
@@ -36,16 +37,32 @@ const normalizeBaseUrl = (value) => {
   }
 };
 
+const isAllowedFrontendBaseUrl = (value) => {
+  const normalized = normalizeBaseUrl(value);
+  if (!normalized) return null;
+
+  const allowed = String(process.env.FRONTEND_URL || process.env.APP_URL || "")
+    .split(",")
+    .map((entry) => normalizeBaseUrl(entry.trim()))
+    .filter(Boolean);
+
+  if (allowed.length === 0 || allowed.includes(normalized)) {
+    return normalized;
+  }
+
+  return null;
+};
+
 const getFrontendBaseUrl = (req, explicitUrl) => {
   const requestOrigin = req.get("origin");
   const requestReferer = req.get("referer");
 
   return (
-    normalizeBaseUrl(explicitUrl) ||
-    normalizeBaseUrl(process.env.FRONTEND_URL) ||
+    isAllowedFrontendBaseUrl(explicitUrl) ||
+    isAllowedFrontendBaseUrl(requestOrigin) ||
+    isAllowedFrontendBaseUrl(requestReferer) ||
+    normalizeBaseUrl(String(process.env.FRONTEND_URL || "").split(",")[0]) ||
     normalizeBaseUrl(process.env.APP_URL) ||
-    normalizeBaseUrl(requestOrigin) ||
-    normalizeBaseUrl(requestReferer) ||
     "http://localhost:3000"
   );
 };
@@ -513,10 +530,10 @@ const inviteCompany = async (req, res) => {
       email,
       "Complete your UIL company registration",
       `
-        <h2>Hello ${company_name}</h2>
+        <h2>Hello ${escapeHtml(company_name)}</h2>
         <p>You have been invited by UIL to complete your company registration.</p>
         <p>Click the link below to finish your registration and set your password:</p>
-        <p><a href="${inviteUrl}" target="_blank">Complete company registration</a></p>
+        <p><a href="${escapeHtml(inviteUrl)}" target="_blank" rel="noopener noreferrer">Complete company registration</a></p>
         <p>This invitation link will expire in 7 days.</p>
         <br/>
         <p>Best regards,<br/>Internship Management Team</p>
@@ -802,7 +819,7 @@ const acceptCompany = async (req, res) => {
         company[0].email,
         "Company Registration Approved",
         `
-          <h2>Congratulations ${company[0].company_name}</h2>
+          <h2>Congratulations ${escapeHtml(company[0].company_name)}</h2>
           <p>Your company registration has been <b>approved</b>.</p>
           <p>You can now log in and start posting internships.</p>
           <br/>
@@ -903,7 +920,7 @@ const rejectCompany = async (req, res) => {
         company[0].email,
         "Company Registration Rejected",
         `
-          <h2>Hello ${company[0].company_name}</h2>
+          <h2>Hello ${escapeHtml(company[0].company_name)}</h2>
           <p>We regret to inform you that your company registration has been <b>rejected</b>.</p>
           <p>If you believe this is a mistake, please contact the administrator.</p>
           <br/>

@@ -14,6 +14,7 @@ import {
   exportAdminData,
   backupDatabase,
 } from "../controller/adminDashboardController.js";
+import { expensiveActionLimiter } from "../middleware/security.js";
 
 const adminDashboardRoute = express.Router();
 
@@ -30,6 +31,6 @@ adminDashboardRoute.get("/logs", getSystemLogs);
 adminDashboardRoute.get("/monitoring", getPlatformMonitoring);
 adminDashboardRoute.get("/backups", getBackupHistory);
 adminDashboardRoute.get("/export/:dataType", exportAdminData);
-adminDashboardRoute.post("/backup", backupDatabase);
+adminDashboardRoute.post("/backup", expensiveActionLimiter, backupDatabase);
 
 export default adminDashboardRoute;

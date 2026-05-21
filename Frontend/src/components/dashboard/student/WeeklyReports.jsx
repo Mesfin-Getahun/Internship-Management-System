@@ -225,13 +225,13 @@ const InternshipReport = () => {
 
                     <div className="flex flex-wrap gap-2">
                       {report.file_url && (
-                        <a href={report.file_url} target="_blank" rel="noreferrer" className="px-4 py-2 bg-slate-100 text-slate-600 rounded-xl text-xs font-bold hover:bg-slate-200 transition-all">
+                        <a href={report.file_url} target="_blank" rel="noopener noreferrer" className="px-4 py-2 bg-slate-100 text-slate-600 rounded-xl text-xs font-bold hover:bg-slate-200 transition-all">
                           <FontAwesomeIcon icon={faExternalLinkAlt} className="mr-2" />
                           Original
                         </a>
                       )}
                       {report.mentor_signed_url && (
-                        <a href={report.mentor_signed_url} target="_blank" rel="noreferrer" className="px-4 py-2 bg-blue-50 text-blue-700 rounded-xl text-xs font-bold hover:bg-blue-100 transition-all">
+                        <a href={report.mentor_signed_url} target="_blank" rel="noopener noreferrer" className="px-4 py-2 bg-blue-50 text-blue-700 rounded-xl text-xs font-bold hover:bg-blue-100 transition-all">
                           <FontAwesomeIcon icon={faExternalLinkAlt} className="mr-2" />
                           Signed
                         </a>

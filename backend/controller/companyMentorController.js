@@ -242,6 +242,44 @@ const giveFeedBack = async (req, res) => {
       });
     }
 
+    const [[assignedPlacement]] = await db.query(
+      `
+      SELECT
+        s.assigned_mentor,
+        s.full_name,
+        i.title
+      FROM student_internship si
+      JOIN student s
+        ON si.student_id = s.student_id
+      JOIN internship i
+        ON si.internship_id = i.internship_id
+      WHERE si.company_mentor_id = ?
+        AND si.student_id = ?
+        AND si.internship_id = ?
+      LIMIT 1
+      `,
+      [company_mentor_id, student_id, internship_id],
+    );
+
+    if (!assignedPlacement) {
+      return res.status(403).json({
+        success: false,
+        message: "You can only give feedback for students assigned to you",
+      });
+    }
+
+    const numericRating =
+      rating === undefined || rating === null || rating === ""
+        ? null
+        : Number(rating);
+
+    if (numericRating !== null && (!Number.isFinite(numericRating) || numericRating < 0 || numericRating > 100)) {
+      return res.status(400).json({
+        success: false,
+        message: "Rating must be a number between 0 and 100",
+      });
+    }
+
     await db.query(
       `INSERT INTO mentor_feedback
        (student_id, internship_id, company_mentor_id, feedback_type, rating,
@@ -252,7 +290,7 @@ const giveFeedBack = async (req, res) => {
         internship_id,
         company_mentor_id,
         feedback_type || "weekly",
-        rating,
+        numericRating,
         strengths || null,
         weaknesses || null,
         suggestions || null,
@@ -260,31 +298,20 @@ const giveFeedBack = async (req, res) => {
       ]
     );
 
-    const [[studentContext]] = await db.query(
-      `
-      SELECT s.assigned_mentor, s.full_name, i.title
-      FROM student s
-      LEFT JOIN internship i
-        ON i.internship_id = ?
-      WHERE s.student_id = ?
-      `,
-      [internship_id, student_id],
-    );
-
     await createNotifications([
       {
         recipientRole: "student",
         recipientId: student_id,
         title: "Company mentor feedback",
-        message: `${req.user.full_name || "Your company mentor"} added feedback for ${studentContext?.title || "your internship"}.`,
+        message: `${req.user.full_name || "Your company mentor"} added feedback for ${assignedPlacement.title || "your internship"}.`,
         type: "feedback",
         link: "/student/feedback",
       },
-      studentContext?.assigned_mentor && {
+      assignedPlacement.assigned_mentor && {
         recipientRole: "mentor",
-        recipientId: studentContext.assigned_mentor,
+        recipientId: assignedPlacement.assigned_mentor,
         title: "Company feedback available",
-        message: `${req.user.full_name || "A company mentor"} added feedback for ${studentContext.full_name || student_id}.`,
+        message: `${req.user.full_name || "A company mentor"} added feedback for ${assignedPlacement.full_name || student_id}.`,
         type: "feedback",
         link: "/mentor/organization-updates",
       },

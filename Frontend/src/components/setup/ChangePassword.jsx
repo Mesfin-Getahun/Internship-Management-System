@@ -127,6 +127,11 @@ const ChangePassword = () => {
         role,
         currentPassword: passwords.current,
         newPassword: passwords.new,
+        setupToken: user?.setupToken,
+      }, {
+        headers: user?.token
+          ? { Authorization: `Bearer ${user.token}` }
+          : undefined,
       });
 
       const reloginResponse = await axios.post(`${import.meta.env.VITE_BACKEND_URL}/api/login`, {

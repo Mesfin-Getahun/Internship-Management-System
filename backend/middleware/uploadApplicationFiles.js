@@ -1,11 +1,6 @@
-import multer from "multer";
+import { applicationFilesUpload } from "./fileUploadLimits.js";
 
-const storage = multer.memoryStorage();
-
-export const uploadApplicationFiles = multer({
-  storage,
-  limits: { fileSize: 5 * 1024 * 1024 },
-}).fields([
+export const uploadApplicationFiles = applicationFilesUpload.fields([
   { name: "cv", maxCount: 1 },
   { name: "academic_doc", maxCount: 1 },
 ]);

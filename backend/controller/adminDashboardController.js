@@ -1,4 +1,4 @@
-import { exec } from "child_process";
+import { spawn } from "child_process";
 import fs from "fs";
 import os from "os";
 import path from "path";
@@ -63,11 +63,14 @@ const escapeCsvValue = (value) => {
   }
 
   const normalized = String(value).replace(/\r?\n|\r/g, " ");
-  if (/[",]/.test(normalized)) {
-    return `"${normalized.replace(/"/g, '""')}"`;
+  const formulaSafe = /^[=+\-@]/.test(normalized)
+    ? `'${normalized}`
+    : normalized;
+  if (/[",]/.test(formulaSafe)) {
+    return `"${formulaSafe.replace(/"/g, '""')}"`;
   }
 
-  return normalized;
+  return formulaSafe;
 };
 
 const buildCsvContent = (rows) => {
@@ -374,7 +377,10 @@ export const updateMaintenanceMode = async (req, res) => {
 
 export const getSystemLogs = async (req, res) => {
   try {
-    const limit = Number(req.query.limit || 100);
+    const requestedLimit = Number(req.query.limit || 100);
+    const limit = Number.isFinite(requestedLimit)
+      ? Math.min(Math.max(Math.trunc(requestedLimit), 1), 200)
+      : 100;
     const logs = await fetchSystemLogs(limit);
 
     res.json({ success: true, logs });
@@ -581,11 +587,47 @@ export const backupDatabase = async (req, res) => {
     const dbHost = process.env.DB_HOST || "localhost";
     const dbUser = process.env.DB_USER || "root";
     const dbName = process.env.DB_NAME || "internshipdb";
-    const command = `mysqldump -h ${dbHost} -u ${dbUser} -p${process.env.DB_PASSWORD || ""} ${dbName} > "${filePath}"`;
 
-    exec(command, async (error) => {
-      if (error) {
-        console.error("Backup Error:", error);
+    const output = fs.createWriteStream(filePath, { flags: "wx" });
+    const dump = spawn(
+      "mysqldump",
+      ["-h", dbHost, "-u", dbUser, dbName],
+      {
+        env: {
+          ...process.env,
+          MYSQL_PWD: process.env.DB_PASSWORD || "",
+        },
+        windowsHide: true,
+      },
+    );
+
+    dump.stdout.pipe(output);
+
+    let errorOutput = "";
+    dump.stderr.on("data", (chunk) => {
+      errorOutput += chunk.toString();
+    });
+
+    let responseSent = false;
+
+    dump.on("error", (error) => {
+      console.error("Backup process error:", error);
+      output.destroy();
+      if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+      responseSent = true;
+      return res.status(500).json({
+        success: false,
+        message: "Backup failed",
+      });
+    });
+
+    dump.on("close", async (code) => {
+      if (responseSent) return;
+      output.end();
+
+      if (code !== 0) {
+        console.error("Backup Error:", errorOutput);
+        if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
         return res.status(500).json({
           success: false,
           message: "Backup failed",

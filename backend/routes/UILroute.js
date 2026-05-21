@@ -1,5 +1,4 @@
 import express from "express";
-import multer from "multer";
 import {
   acceptCompany,
   rejectCompany,
@@ -19,6 +18,8 @@ import {
 } from "../controller/UILcontroller.js";
 import { authUIL } from "../middleware/auth.js";
 import { uploadPDF } from "../middleware/uploadPDF.js";
+import { companyDocumentUpload } from "../middleware/fileUploadLimits.js";
+import { uploadLimiter } from "../middleware/security.js";
 
 /**
  * @swagger
@@ -28,7 +29,6 @@ import { uploadPDF } from "../middleware/uploadPDF.js";
  */
 
 const UILroute = express.Router();
-const upload = multer({ storage: multer.memoryStorage() });
 
 /**
  * @swagger
@@ -195,6 +195,7 @@ UILroute.get("/recommendation-letter", authUIL, getRecommendationLetter);
 UILroute.post(
   "/recommendation-letter",
   authUIL,
+  uploadLimiter,
   uploadPDF.single("recommendationLetter"),
   uploadRecommendationLetter,
 );
@@ -305,7 +306,8 @@ UILroute.get("/verifyCompanyInvite/:token", verifyCompanyInvite);
  */
 UILroute.post(
   "/completeCompanyRegistration",
-  upload.fields([
+  uploadLimiter,
+  companyDocumentUpload.fields([
     { name: "profileFile", maxCount: 1 },
     { name: "licenseFile", maxCount: 1 },
   ]),

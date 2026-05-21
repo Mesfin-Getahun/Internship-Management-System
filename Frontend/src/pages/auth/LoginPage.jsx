@@ -58,7 +58,7 @@ const LoginPage = () => {
       });
 
       if (response.data.success) {
-        const { user, role, token, firstLogin } = response.data;
+        const { user, role, token, firstLogin, setupToken } = response.data;
         const normalizedRole = normalizeRole(role);
         console.debug("Login role returned by backend:", role, "->", normalizedRole);
         
@@ -66,6 +66,7 @@ const LoginPage = () => {
           ...user,
           role: normalizedRole,
           token,
+          setupToken,
           isFirstLogin: !!firstLogin,
         };
 

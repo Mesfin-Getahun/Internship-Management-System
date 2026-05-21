@@ -1,5 +1,14 @@
 import cloudinary from "../config/cloudinary.js";
 import streamifier from "streamifier";
+import { requireTrustedUrl } from "./security.js";
+
+const safePublicId = (originalName) => {
+  if (!originalName) return undefined;
+  return String(originalName)
+    .split(".")[0]
+    .replace(/[^A-Za-z0-9_-]/g, "_")
+    .slice(0, 80);
+};
 
 export const uploadToCloudinary = (buffer, folder, originalName) => {
   return new Promise((resolve, reject) => {
@@ -7,11 +16,17 @@ export const uploadToCloudinary = (buffer, folder, originalName) => {
       {
         folder,
         resource_type: "raw",
-        public_id: originalName ? originalName.split(".")[0] : undefined, // keep name without extension
+        public_id: safePublicId(originalName),
       },
       (err, result) => {
         if (err) reject(err);
-        else resolve(result.secure_url);
+        else {
+          try {
+            resolve(requireTrustedUrl(result.secure_url));
+          } catch (error) {
+            reject(error);
+          }
+        }
       }
     );
 

@@ -18,7 +18,8 @@ import {
   registerCompany,
 } from "../controller/companyController.js";
 import { authCompany } from "../middleware/auth.js";
-import multer from "multer";
+import { companyDocumentUpload } from "../middleware/fileUploadLimits.js";
+import { uploadLimiter } from "../middleware/security.js";
 
 /**
  * @swagger
@@ -28,7 +29,6 @@ import multer from "multer";
  */
 
 const companyRoute = express.Router();
-const upload = multer({ storage: multer.memoryStorage() });
 
 /**
  * @swagger
@@ -67,7 +67,8 @@ const upload = multer({ storage: multer.memoryStorage() });
  */
 companyRoute.post(
   "/register",
-  upload.fields([
+  uploadLimiter,
+  companyDocumentUpload.fields([
     { name: "profileFile", maxCount: 1 },
     { name: "licenseFile", maxCount: 1 },
   ]),

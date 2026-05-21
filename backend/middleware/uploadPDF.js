@@ -1,14 +1,6 @@
-import multer from "multer";
+import { pdfUpload } from "./fileUploadLimits.js";
 
-const storage = multer.memoryStorage();
-
-export const uploadPDF = multer({
-  storage,
-  fileFilter: (req, file, cb) => {
-    if (file.mimetype === "application/pdf") cb(null, true);
-    else cb(new Error("Only PDF files allowed"));
-  },
-});
+export const uploadPDF = pdfUpload;
 
 // import multer from "multer";
 // import cloudinary from "../config/cloudinary.js";

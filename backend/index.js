@@ -21,6 +21,12 @@ import {
   createAdmin,
 } from "./middleware/register.js";
 import { checkMaintenanceMode } from "./middleware/Maintenance.js";
+import { authAdmin } from "./middleware/auth.js";
+import {
+  authLimiter,
+  globalLimiter,
+  securityHeaders,
+} from "./middleware/security.js";
 
 import router from "./middleware/login.js";
 import changeRouter from "./middleware/changePassword.js";
@@ -30,11 +36,33 @@ if (!process.env.JWT_SECRET) {
 }
 
 const app = express();
+
+const allowedOrigins = new Set(
+  String(process.env.FRONTEND_URL || "http://localhost:3000,http://localhost:5173")
+    .split(",")
+    .map((origin) => origin.trim())
+    .filter(Boolean),
+);
+
+app.use(securityHeaders);
 setupSwagger(app);
 
-app.use(cors());
+app.use(
+  cors({
+    origin(origin, callback) {
+      if (!origin || allowedOrigins.has(origin)) {
+        callback(null, true);
+        return;
+      }
 
-app.use(express.json());
+      callback(new Error("Not allowed by CORS"));
+    },
+    credentials: true,
+  }),
+);
+
+app.use(globalLimiter);
+app.use(express.json({ limit: "1mb" }));
 
 app.use(checkMaintenanceMode);
 
@@ -48,14 +76,48 @@ app.use("/api/admin", adminDashboardRoute);
 app.use("/api/notifications", notificationRoute);
 
 app.use("/api/registerStudent", registerStudent);
-app.use("/api/registerMentor", createMentor);
-app.use("/api/registerCompanyMentor", createCompanyMentor);
-app.use("/api/registerFaculty", createFaculty);
-app.use("/api/registerUIL", createUIL);
-app.use("/api/registerAdmin", createAdmin);
+app.use("/api/registerMentor", authAdmin, createMentor);
+app.use("/api/registerCompanyMentor", authAdmin, createCompanyMentor);
+app.use("/api/registerFaculty", authAdmin, createFaculty);
+app.use("/api/registerUIL", authAdmin, createUIL);
+app.use("/api/registerAdmin", authAdmin, createAdmin);
 
-app.use("/api/login", router);
-app.use("/api/change-password", changeRouter);
+app.use("/api/login", authLimiter, router);
+app.use("/api/change-password", authLimiter, changeRouter);
+
+app.use((err, req, res, next) => {
+  if (!err) {
+    next();
+    return;
+  }
+
+  if (err.message === "Not allowed by CORS") {
+    return res.status(403).json({
+      success: false,
+      message: "Origin is not allowed",
+    });
+  }
+
+  if (err.type === "entity.too.large" || err.code === "LIMIT_FILE_SIZE") {
+    return res.status(413).json({
+      success: false,
+      message: "Request body or uploaded file is too large",
+    });
+  }
+
+  if (err.code?.startsWith?.("LIMIT_") || err.message === "Unsupported file type") {
+    return res.status(400).json({
+      success: false,
+      message: err.message || "Invalid upload",
+    });
+  }
+
+  console.error("Unhandled request error:", err);
+  return res.status(err.statusCode || 500).json({
+    success: false,
+    message: err.statusCode ? err.message : "Server error",
+  });
+});
 
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {

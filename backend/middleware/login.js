@@ -18,6 +18,17 @@ const getUserField = (record, fieldName) => {
   return matchedKey ? record[matchedKey] : undefined;
 };
 
+const createPasswordSetupToken = ({ id, role }) =>
+  jwt.sign(
+    {
+      id,
+      role,
+      purpose: "password_setup",
+    },
+    process.env.JWT_SECRET,
+    { expiresIn: "15m" },
+  );
+
 router.post("/", async (req, res) => {
   const { id, email, password } = req.body;
 
@@ -65,10 +76,24 @@ router.post("/", async (req, res) => {
 
       // 🔥 CHECK FIRST LOGIN
       if (user.must_change_password) {
+        const resolvedUserId = getUserField(user, idColumn);
+
+        if (resolvedUserId === undefined || resolvedUserId === null) {
+          console.error(
+            `Password setup token creation error: missing ${idColumn} for role ${role}`,
+            user,
+          );
+          return null;
+        }
+
         return {
           user: sanitizeUser(user),
           role,
           firstLogin: true,
+          setupToken: createPasswordSetupToken({
+            id: resolvedUserId,
+            role,
+          }),
         };
       }
 
@@ -137,7 +162,7 @@ router.post("/", async (req, res) => {
       }
 
       const token = jwt.sign(
-        { company_id: company.company_id },
+        { id: company.company_id, company_id: company.company_id, role: "company" },
         process.env.JWT_SECRET,
         { expiresIn: "1d" }
       );
@@ -190,6 +215,7 @@ router.post("/", async (req, res) => {
         firstLogin: true,
         role: result.role,
         user: result.user,
+        setupToken: result.setupToken,
         message: "You must change your password before continuing",
       });
     }

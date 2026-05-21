@@ -1,6 +1,13 @@
 import jwt from "jsonwebtoken";
 import db from "../config/mysql.js";
 
+const normalizeRole = (role) => String(role || "").trim().toLowerCase();
+
+const hasExpectedRole = (decoded, expectedRole) => {
+  const role = normalizeRole(decoded?.role);
+  return role === normalizeRole(expectedRole);
+};
+
 const authStudent = async (req, res, next) => {
   try {
     const authHeader = req.headers.authorization;
@@ -14,6 +21,12 @@ const authStudent = async (req, res, next) => {
     const token = authHeader.split(" ")[1];
 
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
+
+    if (!hasExpectedRole(decoded, "student")) {
+      return res
+        .status(403)
+        .json({ success: false, message: "Student access required" });
+    }
 
     const [rows] = await db.query(
       "SELECT * FROM student WHERE student_id = ?",
@@ -55,6 +68,12 @@ const authMentor = async (req, res, next) => {
 
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
+    if (!hasExpectedRole(decoded, "mentor")) {
+      return res
+        .status(403)
+        .json({ success: false, message: "Mentor access required" });
+    }
+
     const [rows] = await db.query("SELECT * FROM mentor WHERE mentor_id = ?", [
       decoded.id,
     ]);
@@ -93,6 +112,12 @@ const authCompany = async (req, res, next) => {
     const token = authHeader.split(" ")[1];
 
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
+
+    if (!hasExpectedRole(decoded, "company")) {
+      return res
+        .status(403)
+        .json({ success: false, message: "Company access required" });
+    }
 
     const [rows] = await db.query(
       "SELECT * FROM company WHERE company_id = ?",
@@ -170,6 +195,12 @@ const authAdmin = async (req, res, next) => {
 
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
+    if (!hasExpectedRole(decoded, "admin")) {
+      return res
+        .status(403)
+        .json({ success: false, message: "Admin access required" });
+    }
+
     const [rows] = await db.query("SELECT * FROM admin WHERE admin_id = ?", [
       decoded.id,
     ]);
@@ -225,6 +256,13 @@ const authUIL = async (req, res, next) => {
       });
     }
 
+    if (!hasExpectedRole(decoded, "uil")) {
+      return res.status(403).json({
+        success: false,
+        message: "UIL access required",
+      });
+    }
+
     const uilId = decoded?.id || decoded?.UIL_id || decoded?.uil_id;
 
     if (!uilId) {
@@ -273,6 +311,12 @@ const authFaculty = async (req, res, next) => {
 
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
+    if (!hasExpectedRole(decoded, "faculty")) {
+      return res
+        .status(403)
+        .json({ success: false, message: "Faculty access required" });
+    }
+
     const [rows] = await db.query(
       "SELECT * FROM faculty WHERE faculty_id = ?",
       [decoded.id],
@@ -312,6 +356,13 @@ const authCompanyMentor = async (req, res, next) => {
     const token = authHeader.split(" ")[1];
 
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
+
+    if (!hasExpectedRole(decoded, "company_mentor")) {
+      return res.status(403).json({
+        success: false,
+        message: "Company mentor access required",
+      });
+    }
 
     const [rows] = await db.query(
       "SELECT * FROM company_mentor WHERE company_mentor_id = ?",

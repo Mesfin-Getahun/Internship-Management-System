@@ -6,6 +6,7 @@ import {
   getFeedbacks,
 } from "../controller/companyMentorController.js";
 import { authCompanyMentor } from "../middleware/auth.js";
+import { expensiveActionLimiter } from "../middleware/security.js";
 
 /**
  * @swagger
@@ -22,6 +23,7 @@ companyMentorRoute.get("/feedbacks", authCompanyMentor, getFeedbacks);
 companyMentorRoute.post(
   "/evaluation/:internship_id/:student_id",
   authCompanyMentor,
+  expensiveActionLimiter,
   postEvaluation
 );
 

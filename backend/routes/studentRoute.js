@@ -17,6 +17,7 @@ import {
 import { uploadApplicationFiles } from "../middleware/uploadApplicationFiles.js";
 import { uploadPDF } from "../middleware/uploadPDF.js";
 import { authStudent } from "../middleware/auth.js";
+import { uploadLimiter } from "../middleware/security.js";
 /**
  * @swagger
  * tags:
@@ -69,6 +70,7 @@ const studentRoute = express.Router();
 studentRoute.post(
   "/applyInternship/:internship_id",
   authStudent,
+  uploadLimiter,
   uploadApplicationFiles,
   applyInternships
 );
@@ -225,8 +227,9 @@ studentRoute.put("/updateProfile", authStudent, updateProfile);
  */
 studentRoute.post(
   "/uploadReport/:internship_id",
-  uploadPDF.single("report"),
   authStudent,
+  uploadLimiter,
+  uploadPDF.single("report"),
   uploadInternshipReport
 );
 studentRoute.post(
