@@ -3,11 +3,7 @@ import generateAssessmentPDF from "../utils/generateAssessmentPDF.js";
 import generateAttendancePDF from "../utils/generateAttendancePDF.js";
 import { uploadToCloudinary } from "../utils/cloudinaryUpload.js";
 import fs from "fs";
-<<<<<<< HEAD
-import { createStudentNotification } from "../utils/notificationService.js";
-=======
 import { createNotifications } from "../utils/notificationService.js";
->>>>>>> ef1cffe16a5eca79441eeb23a8b74941c34ab1a1
 
 // const fetchStudents = async (req, res) => {
 //   const mentorId = req.user.company_mentor_id;
@@ -264,23 +260,6 @@ const giveFeedBack = async (req, res) => {
       ]
     );
 
-<<<<<<< HEAD
-    try {
-      await createStudentNotification({
-        studentId: student_id,
-        title: "New feedback submitted",
-        body: "Your company mentor submitted new feedback.",
-        category: "feedback",
-        metadata: {
-          type: "company_mentor_feedback",
-          internshipId: internship_id,
-          companyMentorId: company_mentor_id,
-        },
-      });
-    } catch (notificationError) {
-      console.error("Failed to create feedback notification:", notificationError.message);
-    }
-=======
     const [[studentContext]] = await db.query(
       `
       SELECT s.assigned_mentor, s.full_name, i.title
@@ -310,7 +289,6 @@ const giveFeedBack = async (req, res) => {
         link: "/mentor/organization-updates",
       },
     ].filter(Boolean));
->>>>>>> ef1cffe16a5eca79441eeb23a8b74941c34ab1a1
 
     res.status(201).json({
       success: true,

@@ -4,6 +4,7 @@ import { useAuth } from '../../../AuthContext';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faPaperPlane, faThumbsUp, faUserTie, faBriefcase, faInfoCircle, faSpinner } from '@fortawesome/free-solid-svg-icons';
 import InternshipDetails from './InternshipDetails';
+import { useNavigate } from 'react-router-dom';
 
 export const getInternshipLabel = (appState = 'NOT_STARTED') => {
   const labels = {
@@ -26,7 +27,7 @@ const PlacedStudentView = ({ internship }) => (
   </div>
 );
 
-const UnplacedStudentView = ({ stats, isPlaced, applications }) => (
+const UnplacedStudentView = ({ stats, isPlaced, applications, navigate }) => (
   <>
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
       {stats.map((stat, i) => (
@@ -74,11 +75,11 @@ const UnplacedStudentView = ({ stats, isPlaced, applications }) => (
             <h4 className="text-xl font-bold mb-2">Quick Actions</h4>
             <p className="text-blue-100 text-xs mb-6 font-medium">Common student tasks.</p>
             <div className="space-y-3">
-              <button className="w-full py-3 bg-white/10 hover:bg-white/20 rounded-xl text-sm font-bold transition-all text-left px-4 flex justify-between items-center group/btn">
+              <button onClick={() => navigate('/student/opportunities')} className="w-full py-3 bg-white/10 hover:bg-white/20 rounded-xl text-sm font-bold transition-all text-left px-4 flex justify-between items-center group/btn">
                 Browse Opportunities
                 <span className="opacity-0 group-hover/btn:opacity-100 transition-opacity">→</span>
               </button>
-              <button className="w-full py-3 bg-white/10 hover:bg-white/20 rounded-xl text-sm font-bold transition-all text-left px-4 flex justify-between items-center group/btn">
+              <button onClick={() => navigate('/student/reports')} className="w-full py-3 bg-white/10 hover:bg-white/20 rounded-xl text-sm font-bold transition-all text-left px-4 flex justify-between items-center group/btn">
                 Submit Internship Report
                 <span className="opacity-0 group-hover/btn:opacity-100 transition-opacity">→</span>
               </button>
@@ -115,26 +116,39 @@ const UnplacedStudentView = ({ stats, isPlaced, applications }) => (
 
 const StudentOverview = ({ studentData = {} }) => {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [applications, setApplications] = useState([]);
   const [activeInternship, setActiveInternship] = useState(null);
+  const [latestFeedback, setLatestFeedback] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchMyApplications = async () => {
       try {
         setLoading(true);
-        const res = await axios.get(`${import.meta.env.VITE_BACKEND_URL}/api/student/myInternship`, {
-          headers: { Authorization: `Bearer ${user?.token}` }
-        });
-        const data = res.data.applications || res.data.internships || res.data.data || [];
-        setActiveInternship(res.data.internship || null);
+        const [myInternshipRes, feedbackRes] = await Promise.all([
+          axios.get(`${import.meta.env.VITE_BACKEND_URL}/api/student/myInternship`, {
+            headers: { Authorization: `Bearer ${user?.token}` }
+          }),
+          axios.get(`${import.meta.env.VITE_BACKEND_URL}/api/student/viewFeedbacks`, {
+            headers: { Authorization: `Bearer ${user?.token}` }
+          }).catch(() => ({ data: { feedbacks: [] } }))
+        ]);
+        
+        const data = myInternshipRes.data.applications || myInternshipRes.data.internships || myInternshipRes.data.data || [];
+        setActiveInternship(myInternshipRes.data.internship || null);
         if (Array.isArray(data)) {
            setApplications(data);
         } else if (data) {
            setApplications([data]);
         }
+
+        const feedbacks = feedbackRes.data?.feedbacks || [];
+        if (feedbacks.length > 0) {
+          setLatestFeedback(feedbacks[0]);
+        }
       } catch (err) {
-        console.error("Failed to fetch applications:", err);
+        console.error("Failed to fetch dashboard data:", err);
       } finally {
         setLoading(false);
       }
@@ -168,7 +182,32 @@ const StudentOverview = ({ studentData = {} }) => {
         <p className="text-slate-500 text-sm mt-1 font-medium">Monitor your internship applications and performance tracking.</p>
       </header>
 
-      {isPlaced ? <PlacedStudentView internship={activeInternship} /> : <UnplacedStudentView stats={stats} isPlaced={isPlaced} applications={applications} />}
+      {isPlaced ? <PlacedStudentView internship={activeInternship} /> : <UnplacedStudentView stats={stats} isPlaced={isPlaced} applications={applications} navigate={navigate} />}
+
+      <div className="mt-8 bg-white dark:bg-slate-900 rounded-3xl border border-slate-100 dark:border-slate-800 shadow-sm overflow-hidden">
+        <div className="p-6 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center bg-slate-50/50 dark:bg-slate-800/30">
+          <h3 className="font-bold text-slate-800 dark:text-white">Latest Feedback</h3>
+        </div>
+        <div className="p-6">
+          {latestFeedback ? (
+            <div className="flex gap-4">
+               <div className="w-12 h-12 rounded-xl bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 flex items-center justify-center font-black shrink-0">
+                  {latestFeedback.source_name?.charAt(0) || "M"}
+               </div>
+               <div>
+                  <h4 className="font-bold text-slate-800 dark:text-white mb-1">
+                     {latestFeedback.overall_comment || latestFeedback.suggestions || "Feedback received."}
+                  </h4>
+                  <p className="text-xs text-slate-500 font-semibold mb-2">
+                     By {latestFeedback.source_name || "Mentor"}
+                  </p>
+               </div>
+            </div>
+          ) : (
+            <p className="text-sm text-slate-500 text-center py-4">No mentor feedback has been posted yet. New feedback will show up here once it is submitted.</p>
+          )}
+        </div>
+      </div>
     </div>
   );
 };

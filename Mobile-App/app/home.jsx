@@ -51,7 +51,6 @@ export default function HomeScreen() {
     accountHolder: "",
     accountNumber: "",
   });
-  const [acceptanceLetterFile, setAcceptanceLetterFile] = useState(null);
   const [submittingPayment, setSubmittingPayment] = useState(false);
 
   useEffect(() => {
@@ -137,12 +136,7 @@ export default function HomeScreen() {
     );
   };
 
-  const handlePickAcceptanceLetter = async () => {
-    const file = await pickPdfDocument();
-    if (file) {
-      setAcceptanceLetterFile(file);
-    }
-  };
+
 
   const handleSubmitPayment = async () => {
     if (data?.paymentFeatureAvailable === false) {
@@ -158,10 +152,7 @@ export default function HomeScreen() {
       return;
     }
 
-    if (!acceptanceLetterFile) {
-      Alert.alert("Missing File", "Please choose the signed acceptance letter PDF.");
-      return;
-    }
+
 
     setSubmittingPayment(true);
 
@@ -169,11 +160,9 @@ export default function HomeScreen() {
     formData.append("bankName", paymentForm.bankName);
     formData.append("accountHolder", paymentForm.accountHolder);
     formData.append("accountNumber", paymentForm.accountNumber);
-    appendAssetToFormData(formData, "acceptanceLetter", acceptanceLetterFile);
 
     try {
       const response = await submitPaymentForm(formData);
-      setAcceptanceLetterFile(null);
       setSubmittingPayment(false);
       Alert.alert("Payment Submitted", response.message || "Payment application submitted successfully.");
       loadDashboard().catch(() => {});
@@ -342,7 +331,7 @@ export default function HomeScreen() {
           ) : (
             <View className="mt-4">
               <Text className="mb-3 text-sm leading-6 text-slate-500 dark:text-slate-300">
-                Fill this form and submit your signed acceptance letter so the faculty side can review your payment application.
+                Fill this form so the faculty side can review your payment application.
               </Text>
 
               <InputField
@@ -370,19 +359,6 @@ export default function HomeScreen() {
                 keyboardType="number-pad"
                 className="mb-4"
               />
-
-              <View className="mb-4 rounded-[22px] bg-slate-50 dark:bg-slate-800/80 p-4">
-                <Text className="mb-3 text-sm font-semibold text-slate-700 dark:text-slate-200">
-                  {acceptanceLetterFile
-                    ? `Acceptance Letter: ${acceptanceLetterFile.name}`
-                    : "Signed acceptance letter PDF is required"}
-                </Text>
-                <Button
-                  title="Choose Acceptance Letter PDF"
-                  variant="outline"
-                  onPress={handlePickAcceptanceLetter}
-                />
-              </View>
 
               <Button
                 title="Submit Payment Application"

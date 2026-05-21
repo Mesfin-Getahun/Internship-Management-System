@@ -5,11 +5,7 @@ import generateAttendancePDF from "../utils/generateAttendancePDF.js";
 import { uploadToCloudinary } from "../utils/cloudinaryUpload.js";
 import fs from "fs";
 import createLog from "../utils/createLog.js";
-<<<<<<< HEAD
-import { createStudentNotification } from "../utils/notificationService.js";
-=======
 import { createNotification, createNotifications } from "../utils/notificationService.js";
->>>>>>> ef1cffe16a5eca79441eeb23a8b74941c34ab1a1
 
 const postInternship = async (req, res) => {
   const company_id = req.user.company_id;
@@ -601,24 +597,6 @@ const accept = async (req, res) => {
       );
     }
 
-<<<<<<< HEAD
-    try {
-      await createStudentNotification({
-        studentId: student_id,
-        title: "Application accepted",
-        body: `Your application for ${rows[0].internship_title || "an internship"} at ${rows[0].company_name || "the company"} was accepted.`,
-        category: "application",
-        metadata: {
-          type: "application_accepted",
-          applicationId: application_id,
-          internshipId: internship_id,
-          companyId: applicationCompanyId,
-        },
-      });
-    } catch (notificationError) {
-      console.error("Failed to create application notification:", notificationError.message);
-    }
-=======
     await db.query(
       `
       UPDATE application
@@ -638,7 +616,6 @@ const accept = async (req, res) => {
       type: "application",
       link: "/student/my-applications",
     });
->>>>>>> ef1cffe16a5eca79441eeb23a8b74941c34ab1a1
 
     res.status(200).json({
       success: true,
@@ -693,22 +670,6 @@ const reject = async (req, res) => {
       [application_id],
     );
 
-<<<<<<< HEAD
-    try {
-      await createStudentNotification({
-        studentId: existing[0].student_id,
-        title: "Application updated",
-        body: "Your internship application was rejected.",
-        category: "application",
-        metadata: {
-          type: "application_rejected",
-          applicationId: application_id,
-        },
-      });
-    } catch (notificationError) {
-      console.error("Failed to create rejection notification:", notificationError.message);
-    }
-=======
     await createNotification({
       recipientRole: "student",
       recipientId: existing[0].student_id,
@@ -717,7 +678,6 @@ const reject = async (req, res) => {
       type: "application",
       link: "/student/my-applications",
     });
->>>>>>> ef1cffe16a5eca79441eeb23a8b74941c34ab1a1
 
     res
       .status(200)

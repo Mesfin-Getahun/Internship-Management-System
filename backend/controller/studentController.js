@@ -2,14 +2,7 @@ import db from "../config/mysql.js";
 import bcrypt from "bcryptjs";
 import { uploadToCloudinary } from "../utils/cloudinaryUpload.js";
 import createLog from "../utils/createLog.js";
-<<<<<<< HEAD
-import {
-  fetchStudentNotifications,
-  saveStudentPushToken,
-} from "../utils/notificationService.js";
-=======
 import { createNotification } from "../utils/notificationService.js";
->>>>>>> ef1cffe16a5eca79441eeb23a8b74941c34ab1a1
 
 function isMissingTableError(error, tableName) {
   return (
@@ -295,6 +288,8 @@ const applyInternships = async (req, res) => {
       `
       SELECT
         s.department,
+        s.phone_number,
+        s.skills,
         i.internship_id,
         i.company_id,
         i.title,
@@ -314,6 +309,13 @@ const applyInternships = async (req, res) => {
       return res.status(404).json({
         success: false,
         message: "Internship not found or not approved",
+      });
+    }
+
+    if (!eligibility.phone_number || !eligibility.skills) {
+      return res.status(403).json({
+        success: false,
+        message: "BR-04 Enforcement: Please complete your profile with an active phone number and skills before applying.",
       });
     }
 
@@ -1148,7 +1150,6 @@ const feedbacks = async (req, res) => {
     const [rows] = await db.query(
       `SELECT 
          mf.feedback_id,
-         mf.parent_feedback_id,
          mf.internship_id,
          mf.company_mentor_id,
          mf.feedback_type,

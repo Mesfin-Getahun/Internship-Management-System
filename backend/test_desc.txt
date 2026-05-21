@@ -1,0 +1,13 @@
+Field	Type	Null	Key	Default	Extra
+feedback_id	int	NO	PRI	NULL	auto_increment
+student_id	varchar(20)	NO	MUL	NULL	
+internship_id	int	NO	MUL	NULL	
+company_mentor_id	varchar(20)	NO	MUL	NULL	
+feedback_type	enum('weekly','midterm','final')	YES		weekly	
+rating	int	YES		NULL	
+strengths	text	YES		NULL	
+weaknesses	text	YES		NULL	
+suggestions	text	YES		NULL	
+overall_comment	text	YES		NULL	
+created_at	timestamp	YES		CURRENT_TIMESTAMP	DEFAULT_GENERATED
+updated_at	timestamp	YES		CURRENT_TIMESTAMP	DEFAULT_GENERATED on update CURRENT_TIMESTAMP

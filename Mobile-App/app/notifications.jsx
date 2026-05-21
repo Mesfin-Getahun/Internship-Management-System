@@ -106,9 +106,9 @@ export default function NotificationsScreen() {
                 }
               }}
             >
-              <Card className={`mb-4 border ${Number(item.is_read) ? "border-slate-100" : "border-blue-100"}`}>
+              <Card className={`mb-4 border ${Number(item.is_read) ? "border-slate-100 dark:border-slate-800" : "border-blue-100 dark:border-blue-900"} dark:bg-slate-900`}>
                 <View className="flex-row items-start">
-                  <View className={`mr-3 h-12 w-12 items-center justify-center rounded-full ${Number(item.is_read) ? "bg-slate-100" : "bg-blue-50"}`}>
+                  <View className={`mr-3 h-12 w-12 items-center justify-center rounded-full ${Number(item.is_read) ? "bg-slate-100 dark:bg-slate-800" : "bg-blue-50 dark:bg-blue-900/50"}`}>
                     <FontAwesome
                       name={getNotificationIcon(item.category, item.title)}
                       size={18}
@@ -117,16 +117,16 @@ export default function NotificationsScreen() {
                   </View>
                   <View className="flex-1">
                     <View className="flex-row items-center justify-between">
-                      <Text className="flex-1 pr-3 text-sm font-bold text-slate-800">{item.title}</Text>
-                      <Text className="text-xs text-slate-400">{formatNotificationTime(item.created_at)}</Text>
+                      <Text className="flex-1 pr-3 text-sm font-bold text-slate-800 dark:text-slate-100">{item.title}</Text>
+                      <Text className="text-xs text-slate-400 dark:text-slate-500">{formatNotificationTime(item.created_at)}</Text>
                     </View>
                     <Text className="mt-1 text-xs font-semibold uppercase tracking-[1.2px] text-violet-500">
                       {item.category || "General"}
                     </Text>
-                    <Text className="mt-2 text-sm leading-6 text-slate-500">{item.body || item.message}</Text>
+                    <Text className="mt-2 text-sm leading-6 text-slate-500 dark:text-slate-400">{item.body || item.message}</Text>
                     {Number(item.is_read) === 0 ? (
-                      <View className="mt-3 self-start rounded-full bg-blue-50 px-3 py-1">
-                        <Text className="text-xs font-semibold text-blue-700">Unread</Text>
+                      <View className="mt-3 self-start rounded-full bg-blue-50 dark:bg-blue-900/20 px-3 py-1">
+                        <Text className="text-xs font-semibold text-blue-700 dark:text-blue-300">Unread</Text>
                       </View>
                     ) : null}
                   </View>

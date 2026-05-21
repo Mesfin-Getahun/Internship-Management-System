@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { Alert, ScrollView, Text, TouchableOpacity, View } from "react-native";
 import { FontAwesome } from "@expo/vector-icons";
+import { useRouter } from "expo-router";
 import Screen from "../components/common/Screen";
 import Loader from "../components/common/Loader";
 import EmptyState from "../components/common/EmptyState";
@@ -23,6 +24,7 @@ function formatDuration(item) {
 }
 
 export default function InternshipsScreen() {
+  const router = useRouter();
   const [savedIds, setSavedIds] = useState([]);
   const [opportunities, setOpportunities] = useState([]);
   const [suggestions, setSuggestions] = useState([]);
@@ -224,73 +226,16 @@ export default function InternshipsScreen() {
 
               <View className="mt-5 flex-row">
                 <Button
-                  title="View Details"
-                  variant="outline"
-                  className="mr-3 flex-1"
-                  onPress={() =>
-                    Alert.alert(
-                      item.title,
-                      `Company: ${item.company_name}\nLocation: ${item.location || "Not specified"}\n\n${item.description || "No description provided."}`
-                    )
-                  }
-                />
-                <Button
-                  title={activeApplyId === internshipId ? "Close Form" : "Apply"}
-                  className="flex-1"
+                  title="View Details & Apply"
+                  className="flex-1 py-3"
                   onPress={() => {
-                    if (activeApplyId === internshipId) {
-                      resetApplicationForm();
-                      return;
-                    }
-
-                    setActiveApplyId(internshipId);
-                    setStatement("");
-                    setCvFile(null);
-                    setAcademicDocFile(null);
+                    router.push({
+                      pathname: "/internship-detail",
+                      params: { data: JSON.stringify(item) },
+                    });
                   }}
                 />
               </View>
-
-              {activeApplyId === internshipId ? (
-                <View className="mt-4 rounded-[22px] bg-slate-50 dark:bg-slate-800/80 p-4">
-                  <Text className="mb-3 text-base font-bold text-slate-800 dark:text-slate-100">Apply for this internship</Text>
-                  <InputField
-                    label="Statement"
-                    iconName="file-text"
-                    placeholder="Write a short statement for your application"
-                    value={statement}
-                    onChangeText={setStatement}
-                    className="mb-4"
-                  />
-
-                  <TouchableOpacity
-                    className="mb-3 rounded-2xl border border-dashed border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 px-4 py-4"
-                    activeOpacity={0.85}
-                    onPress={() => handlePickFile("cv")}
-                  >
-                    <Text className="text-sm font-semibold text-slate-700 dark:text-slate-200">
-                      {cvFile ? `CV: ${cvFile.name}` : "Choose CV PDF"}
-                    </Text>
-                  </TouchableOpacity>
-
-                  <TouchableOpacity
-                    className="mb-4 rounded-2xl border border-dashed border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 px-4 py-4"
-                    activeOpacity={0.85}
-                    onPress={() => handlePickFile("academic_doc")}
-                  >
-                    <Text className="text-sm font-semibold text-slate-700 dark:text-slate-200">
-                      {academicDocFile ? `Academic Document: ${academicDocFile.name}` : "Choose Academic Document PDF"}
-                    </Text>
-                  </TouchableOpacity>
-
-                  <Button
-                    title="Submit Application"
-                    onPress={() => handleSubmitApplication(internshipId)}
-                    loading={submittingId === internshipId}
-                    disabled={submittingId === internshipId}
-                  />
-                </View>
-              ) : null}
             </Card>
           );
         })}
