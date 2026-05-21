@@ -1,11 +1,11 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { ScrollView, Text, View } from "react-native";
+import { ScrollView, Text, View, TouchableOpacity } from "react-native";
 import { FontAwesome } from "@expo/vector-icons";
 import Screen from "../components/common/Screen";
 import Card from "../components/ui/Card";
 import Loader from "../components/common/Loader";
 import EmptyState from "../components/common/EmptyState";
-import { getStudentNotifications } from "../services/studentService";
+import { getStudentNotifications, markNotificationRead } from "../services/studentService";
 
 function getNotificationIcon(category, title) {
   if (category === "feedback") {
@@ -43,6 +43,19 @@ export default function NotificationsScreen() {
         setLoading(false);
       });
   }, []);
+
+  const handleMarkAsRead = async (notificationId) => {
+    try {
+      await markNotificationRead(notificationId);
+      setNotifications((current) =>
+        current.map((item) =>
+          item.notification_id === notificationId ? { ...item, is_read: 1 } : item
+        )
+      );
+    } catch (e) {
+      console.error(e);
+    }
+  };
 
   const unreadCount = useMemo(
     () => notifications.filter((item) => Number(item.is_read) === 0).length,
@@ -84,32 +97,42 @@ export default function NotificationsScreen() {
           />
         ) : (
           notifications.map((item) => (
-            <Card key={item.notification_id} className={`mb-4 border ${Number(item.is_read) ? "border-slate-100" : "border-blue-100"}`}>
-              <View className="flex-row items-start">
-                <View className={`mr-3 h-12 w-12 items-center justify-center rounded-full ${Number(item.is_read) ? "bg-slate-100" : "bg-blue-50"}`}>
-                  <FontAwesome
-                    name={getNotificationIcon(item.category, item.title)}
-                    size={18}
-                    color={Number(item.is_read) ? "#64748B" : "#2563EB"}
-                  />
-                </View>
-                <View className="flex-1">
-                  <View className="flex-row items-center justify-between">
-                    <Text className="flex-1 pr-3 text-sm font-bold text-slate-800">{item.title}</Text>
-                    <Text className="text-xs text-slate-400">{formatNotificationTime(item.created_at)}</Text>
+            <TouchableOpacity
+              key={item.notification_id}
+              activeOpacity={0.8}
+              onPress={() => {
+                if (Number(item.is_read) === 0) {
+                  handleMarkAsRead(item.notification_id);
+                }
+              }}
+            >
+              <Card className={`mb-4 border ${Number(item.is_read) ? "border-slate-100" : "border-blue-100"}`}>
+                <View className="flex-row items-start">
+                  <View className={`mr-3 h-12 w-12 items-center justify-center rounded-full ${Number(item.is_read) ? "bg-slate-100" : "bg-blue-50"}`}>
+                    <FontAwesome
+                      name={getNotificationIcon(item.category, item.title)}
+                      size={18}
+                      color={Number(item.is_read) ? "#64748B" : "#2563EB"}
+                    />
                   </View>
-                  <Text className="mt-1 text-xs font-semibold uppercase tracking-[1.2px] text-violet-500">
-                    {item.category || "General"}
-                  </Text>
-                  <Text className="mt-2 text-sm leading-6 text-slate-500">{item.body}</Text>
-                  {Number(item.is_read) === 0 ? (
-                    <View className="mt-3 self-start rounded-full bg-blue-50 px-3 py-1">
-                      <Text className="text-xs font-semibold text-blue-700">Unread</Text>
+                  <View className="flex-1">
+                    <View className="flex-row items-center justify-between">
+                      <Text className="flex-1 pr-3 text-sm font-bold text-slate-800">{item.title}</Text>
+                      <Text className="text-xs text-slate-400">{formatNotificationTime(item.created_at)}</Text>
                     </View>
-                  ) : null}
+                    <Text className="mt-1 text-xs font-semibold uppercase tracking-[1.2px] text-violet-500">
+                      {item.category || "General"}
+                    </Text>
+                    <Text className="mt-2 text-sm leading-6 text-slate-500">{item.body || item.message}</Text>
+                    {Number(item.is_read) === 0 ? (
+                      <View className="mt-3 self-start rounded-full bg-blue-50 px-3 py-1">
+                        <Text className="text-xs font-semibold text-blue-700">Unread</Text>
+                      </View>
+                    ) : null}
+                  </View>
                 </View>
-              </View>
-            </Card>
+              </Card>
+            </TouchableOpacity>
           ))
         )}
       </ScrollView>

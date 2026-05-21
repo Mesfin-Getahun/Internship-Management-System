@@ -213,8 +213,8 @@ export default function HomeScreen() {
         <Header studentName={studentName} currentTrack={currentTrack} statusLabel={statusLabel} />
 
         {error ? (
-          <Card className="mb-5 border border-rose-200 bg-rose-50">
-            <Text className="text-sm font-medium text-rose-600">{error}</Text>
+          <Card className="mb-5 border border-rose-200 bg-rose-50 dark:border-rose-900/30 dark:bg-rose-900/30">
+            <Text className="text-sm font-medium text-rose-600 dark:text-rose-300">{error}</Text>
           </Card>
         ) : null}
 
@@ -231,25 +231,25 @@ export default function HomeScreen() {
 
         {activeInternship ? (
           <Card className="mb-5">
-            <Text className="mb-3 text-lg font-bold text-slate-800">Current Internship Details</Text>
+            <Text className="mb-3 text-lg font-bold text-slate-800 dark:text-slate-100">Current Internship Details</Text>
             <View className="flex-row flex-wrap justify-between">
-              <View className="mb-3 w-[48%] rounded-[22px] bg-slate-50 p-4">
-                <Text className="text-xs font-semibold uppercase tracking-[1.2px] text-slate-400">Company</Text>
-                <Text className="mt-2 text-base font-bold text-slate-800">{activeInternship.company_name}</Text>
+              <View className="mb-3 w-[48%] rounded-[22px] bg-slate-50 dark:bg-slate-800/80 p-4">
+                <Text className="text-xs font-semibold uppercase tracking-[1.2px] text-slate-400 dark:text-slate-400">Company</Text>
+                <Text className="mt-2 text-base font-bold text-slate-800 dark:text-slate-100">{activeInternship.company_name}</Text>
               </View>
-              <View className="mb-3 w-[48%] rounded-[22px] bg-slate-50 p-4">
-                <Text className="text-xs font-semibold uppercase tracking-[1.2px] text-slate-400">Location</Text>
-                <Text className="mt-2 text-base font-bold text-slate-800">{activeInternship.location || "Not set"}</Text>
+              <View className="mb-3 w-[48%] rounded-[22px] bg-slate-50 dark:bg-slate-800/80 p-4">
+                <Text className="text-xs font-semibold uppercase tracking-[1.2px] text-slate-400 dark:text-slate-400">Location</Text>
+                <Text className="mt-2 text-base font-bold text-slate-800 dark:text-slate-100">{activeInternship.location || "Not set"}</Text>
               </View>
-              <View className="w-[48%] rounded-[22px] bg-slate-50 p-4">
-                <Text className="text-xs font-semibold uppercase tracking-[1.2px] text-slate-400">Company Mentor</Text>
-                <Text className="mt-2 text-base font-bold text-slate-800">
+              <View className="w-[48%] rounded-[22px] bg-slate-50 dark:bg-slate-800/80 p-4">
+                <Text className="text-xs font-semibold uppercase tracking-[1.2px] text-slate-400 dark:text-slate-400">Company Mentor</Text>
+                <Text className="mt-2 text-base font-bold text-slate-800 dark:text-slate-100">
                   {activeInternship.company_mentor_name || "Not assigned"}
                 </Text>
               </View>
-              <View className="w-[48%] rounded-[22px] bg-slate-50 p-4">
-                <Text className="text-xs font-semibold uppercase tracking-[1.2px] text-slate-400">University Mentor</Text>
-                <Text className="mt-2 text-base font-bold text-slate-800">
+              <View className="w-[48%] rounded-[22px] bg-slate-50 dark:bg-slate-800/80 p-4">
+                <Text className="text-xs font-semibold uppercase tracking-[1.2px] text-slate-400 dark:text-slate-400">University Mentor</Text>
+                <Text className="mt-2 text-base font-bold text-slate-800 dark:text-slate-100">
                   {activeInternship.university_mentor_name || "Not assigned"}
                 </Text>
               </View>
@@ -273,27 +273,27 @@ export default function HomeScreen() {
           />
         ) : (
           <Card className="mb-5">
-            <Text className="mb-2 text-lg font-bold text-slate-800">Latest Feedback</Text>
-            <Text className="text-sm leading-6 text-slate-500">
+            <Text className="mb-2 text-lg font-bold text-slate-800 dark:text-slate-100">Latest Feedback</Text>
+            <Text className="text-sm leading-6 text-slate-500 dark:text-slate-300">
               No mentor feedback has been posted yet. New feedback will show up here once it is submitted.
             </Text>
           </Card>
         )}
 
         <Card className="mb-5">
-          <Text className="mb-3 text-lg font-bold text-slate-800">Recent Applications</Text>
+          <Text className="mb-3 text-lg font-bold text-slate-800 dark:text-slate-100">Recent Applications</Text>
           {data?.applications?.length ? (
             data.applications.slice(0, 3).map((application) => (
               <View
                 key={application.application_id}
-                className="mb-3 rounded-[22px] bg-slate-50 p-4"
+                className="mb-3 rounded-[22px] bg-slate-50 dark:bg-slate-800/80 p-4"
               >
                 <View className="mb-2 flex-row items-center justify-between">
-                  <Text className="mr-3 flex-1 text-base font-bold text-slate-800">{application.title}</Text>
+                  <Text className="mr-3 flex-1 text-base font-bold text-slate-800 dark:text-slate-100">{application.title}</Text>
                   <Badge status={formatStatusLabel(application.status)} />
                 </View>
-                <Text className="text-sm text-slate-500">{application.company_name}</Text>
-                <Text className="mt-2 text-xs text-slate-400">Applied on {application.applied_date}</Text>
+                <Text className="text-sm text-slate-500 dark:text-slate-300">{application.company_name}</Text>
+                <Text className="mt-2 text-xs text-slate-400 dark:text-slate-400">Applied on {application.applied_date}</Text>
                 {application.status?.toLowerCase() === "pending" ? (
                   <View className="mt-3">
                     <Button
@@ -308,40 +308,40 @@ export default function HomeScreen() {
               </View>
             ))
           ) : (
-            <Text className="text-sm leading-6 text-slate-500">
+            <Text className="text-sm leading-6 text-slate-500 dark:text-slate-300">
               You have not submitted any internship applications yet.
             </Text>
           )}
         </Card>
 
         <Card className="mb-5">
-          <Text className="mb-3 text-lg font-bold text-slate-800">Payment Application</Text>
+          <Text className="mb-3 text-lg font-bold text-slate-800 dark:text-slate-100">Payment Application</Text>
           {payment ? (
-            <View className="rounded-[22px] bg-slate-50 p-4">
+            <View className="rounded-[22px] bg-slate-50 dark:bg-slate-800/80 p-4">
               <View className="mb-3 flex-row items-center justify-between">
-                <Text className="text-base font-bold text-slate-800">{payment.bank_name || "Bank details submitted"}</Text>
+                <Text className="text-base font-bold text-slate-800 dark:text-slate-100">{payment.bank_name || "Bank details submitted"}</Text>
                 <Badge status={payment.status || "Pending"} />
               </View>
-              <Text className="text-sm text-slate-500">{payment.account_holder || "Account holder not available"}</Text>
-              <Text className="mt-2 text-xs text-slate-400">
+              <Text className="text-sm text-slate-500 dark:text-slate-300">{payment.account_holder || "Account holder not available"}</Text>
+              <Text className="mt-2 text-xs text-slate-400 dark:text-slate-400">
                 Account: {payment.account_number || "Not available"}
               </Text>
             </View>
           ) : (
-            <Text className="text-sm leading-6 text-slate-500">
+            <Text className="text-sm leading-6 text-slate-500 dark:text-slate-300">
               No payment application has been submitted yet.
             </Text>
           )}
 
           {data?.paymentFeatureAvailable === false ? (
-            <View className="mt-4 rounded-[22px] border border-amber-200 bg-amber-50 p-4">
-              <Text className="text-sm font-medium text-amber-700">
+            <View className="mt-4 rounded-[22px] border border-amber-200 bg-amber-50 dark:border-amber-900/50 dark:bg-amber-900/20 p-4">
+              <Text className="text-sm font-medium text-amber-700 dark:text-amber-300">
                 Payment application is currently unavailable because the backend payment table is not set up yet.
               </Text>
             </View>
           ) : (
             <View className="mt-4">
-              <Text className="mb-3 text-sm leading-6 text-slate-500">
+              <Text className="mb-3 text-sm leading-6 text-slate-500 dark:text-slate-300">
                 Fill this form and submit your signed acceptance letter so the faculty side can review your payment application.
               </Text>
 
@@ -371,8 +371,8 @@ export default function HomeScreen() {
                 className="mb-4"
               />
 
-              <View className="mb-4 rounded-[22px] bg-slate-50 p-4">
-                <Text className="mb-3 text-sm font-semibold text-slate-700">
+              <View className="mb-4 rounded-[22px] bg-slate-50 dark:bg-slate-800/80 p-4">
+                <Text className="mb-3 text-sm font-semibold text-slate-700 dark:text-slate-200">
                   {acceptanceLetterFile
                     ? `Acceptance Letter: ${acceptanceLetterFile.name}`
                     : "Signed acceptance letter PDF is required"}

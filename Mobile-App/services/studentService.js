@@ -51,7 +51,14 @@ export function getStudentFeedbacks() {
 }
 
 export function getStudentNotifications() {
-  return apiRequest("/api/student/notifications", {
+  return apiRequest("/api/notifications", {
+    requiresAuth: true,
+  });
+}
+
+export function markNotificationRead(notificationId) {
+  return apiRequest(`/api/notifications/${notificationId}/read`, {
+    method: "PATCH",
     requiresAuth: true,
   });
 }
