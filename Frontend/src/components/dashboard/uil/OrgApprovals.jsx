@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useAuth } from '../../../AuthContext';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faTimes, faEye, faSpinner } from '@fortawesome/free-solid-svg-icons';
+import { faTimes, faEye, faSpinner, faDownload } from '@fortawesome/free-solid-svg-icons';
 
 const OrgDetailModal = ({ org, onClose, onApprove, onReject, processing }) => {
     if (!org) return null;
@@ -118,6 +118,7 @@ const OrgApprovals = () => {
   const [selectedOrg, setSelectedOrg] = useState(null);
   const [loading, setLoading] = useState(true);
   const [processing, setProcessing] = useState(false);
+  const [exporting, setExporting] = useState(false);
   const [error, setError] = useState('');
   const { user } = useAuth();
 
@@ -200,6 +201,43 @@ const OrgApprovals = () => {
     }
   };
 
+  const handleExportCompanies = async () => {
+    if (!user?.token) {
+      setError('UIL session token is missing. Please sign in again.');
+      return;
+    }
+
+    try {
+      setExporting(true);
+      setError('');
+      const res = await axios.get(
+        `${import.meta.env.VITE_BACKEND_URL}/api/UIL/companies/export.csv`,
+        {
+          headers: { Authorization: `Bearer ${user.token}` },
+          responseType: 'blob',
+        },
+      );
+
+      const contentDisposition = res.headers['content-disposition'] || '';
+      const fileNameMatch = contentDisposition.match(/filename="?([^"]+)"?/i);
+      const fileName = fileNameMatch?.[1] || 'uil-companies.csv';
+      const blob = new Blob([res.data], { type: 'text/csv;charset=utf-8;' });
+      const downloadUrl = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = downloadUrl;
+      link.setAttribute('download', fileName);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(downloadUrl);
+    } catch (err) {
+      console.error('Failed to export companies', err);
+      setError(err.response?.data?.message || 'Failed to export companies.');
+    } finally {
+      setExporting(false);
+    }
+  };
+
   return (
     <div className="animate-fade-in space-y-6">
       <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
@@ -207,29 +245,40 @@ const OrgApprovals = () => {
           <h2 className="text-2xl font-black text-slate-800 tracking-tight">Organization Requests</h2>
           <p className="text-slate-500 text-sm mt-1">Review pending registrations and inspect approved industry partners.</p>
         </div>
-        <div className="flex gap-2 bg-slate-100 p-1.5 rounded-xl border border-slate-200">
+        <div className="flex flex-wrap gap-3">
           <button
             type="button"
-            onClick={() => setActiveTab('pending')}
-            className={`px-4 py-2 text-xs font-black uppercase tracking-widest rounded-lg transition-all ${
-              activeTab === 'pending'
-                ? 'bg-indigo-600 text-white'
-                : 'text-slate-500 hover:bg-white'
-            }`}
+            onClick={handleExportCompanies}
+            disabled={exporting}
+            className="inline-flex items-center gap-2 rounded-xl bg-slate-800 px-4 py-2.5 text-xs font-black uppercase tracking-widest text-white transition-all hover:bg-slate-700 disabled:opacity-60"
           >
-            Pending
+            <FontAwesomeIcon icon={exporting ? faSpinner : faDownload} spin={exporting} />
+            Export CSV
           </button>
-          <button
-            type="button"
-            onClick={() => setActiveTab('approved')}
-            className={`px-4 py-2 text-xs font-black uppercase tracking-widest rounded-lg transition-all ${
-              activeTab === 'approved'
-                ? 'bg-emerald-600 text-white'
-                : 'text-slate-500 hover:bg-white'
-            }`}
-          >
-            Approved
-          </button>
+          <div className="flex gap-2 bg-slate-100 p-1.5 rounded-xl border border-slate-200">
+            <button
+              type="button"
+              onClick={() => setActiveTab('pending')}
+              className={`px-4 py-2 text-xs font-black uppercase tracking-widest rounded-lg transition-all ${
+                activeTab === 'pending'
+                  ? 'bg-indigo-600 text-white'
+                  : 'text-slate-500 hover:bg-white'
+              }`}
+            >
+              Pending
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab('approved')}
+              className={`px-4 py-2 text-xs font-black uppercase tracking-widest rounded-lg transition-all ${
+                activeTab === 'approved'
+                  ? 'bg-emerald-600 text-white'
+                  : 'text-slate-500 hover:bg-white'
+              }`}
+            >
+              Approved
+            </button>
+          </div>
         </div>
       </header>
 

@@ -11,6 +11,7 @@ import InternshipApprovals from '../../components/dashboard/uil/InternshipApprov
 import FulfillmentReports from '../../components/dashboard/uil/FulfillmentReports.jsx';
 import UilRecommendationLetter from '../../components/dashboard/uil/UilRecommendationLetter.jsx';
 import CompanyInvitation from '../../components/dashboard/uil/CompanyInvitation.jsx';
+import DashboardChangePassword from '../../components/dashboard/common/DashboardChangePassword.jsx';
 
 const PlaceholderScreen = ({ title, description }) => (
   <div className="p-6 sm:p-12 lg:p-20 text-center animate-fade-in bg-white rounded-3xl border border-slate-100 shadow-sm">
@@ -37,6 +38,7 @@ const UilDashboard = () => {
     'internship-approvals': 'Internship Management',
     'reports': 'Fulfillment Reports',
     'recommendation': 'Recommendation Letter',
+    'change-password': 'Change Password',
     'notifications': 'Communications Hub',
     'settings': 'Administrative Settings'
   };
@@ -64,6 +66,7 @@ const UilDashboard = () => {
               <Route path="monitoring" element={<Navigate to="../internship-approvals" replace />} />
               <Route path="reports" element={<FulfillmentReports />} />
               <Route path="recommendation" element={<UilRecommendationLetter />} />
+              <Route path="change-password" element={<DashboardChangePassword />} />
               <Route 
                 path="notifications" 
                 element={<PlaceholderScreen title="Communications Center" description="Send broadcast announcements to industrial partners or focused messages to university faculty deans." />} 

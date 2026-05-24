@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useAuth } from '../../../AuthContext';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faTimes, faEye, faSpinner, faCheckCircle, faTimesCircle, faCheckSquare } from '@fortawesome/free-solid-svg-icons';
+import { faTimes, faEye, faSpinner, faCheckCircle, faTimesCircle, faCheckSquare, faDownload } from '@fortawesome/free-solid-svg-icons';
 
 const InternshipDetailModal = ({ internship, onClose, onApprove, onReject, processing }) => {
     if (!internship) return null;
@@ -92,6 +92,7 @@ const InternshipApprovals = () => {
   const [selectedInternship, setSelectedInternship] = useState(null);
   const [loading, setLoading] = useState(true);
   const [processing, setProcessing] = useState(false);
+  const [exporting, setExporting] = useState(false);
   const [error, setError] = useState('');
   const { user } = useAuth();
 
@@ -174,6 +175,43 @@ const InternshipApprovals = () => {
     }
   };
 
+  const handleExportInternships = async () => {
+    if (!user?.token) {
+      setError('UIL session token is missing. Please sign in again.');
+      return;
+    }
+
+    try {
+      setExporting(true);
+      setError('');
+      const res = await axios.get(
+        `${import.meta.env.VITE_BACKEND_URL}/api/UIL/internships/export.csv`,
+        {
+          headers: { Authorization: `Bearer ${user.token}` },
+          responseType: 'blob',
+        },
+      );
+
+      const contentDisposition = res.headers['content-disposition'] || '';
+      const fileNameMatch = contentDisposition.match(/filename="?([^"]+)"?/i);
+      const fileName = fileNameMatch?.[1] || 'uil-internships.csv';
+      const blob = new Blob([res.data], { type: 'text/csv;charset=utf-8;' });
+      const downloadUrl = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = downloadUrl;
+      link.setAttribute('download', fileName);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(downloadUrl);
+    } catch (err) {
+      console.error('Failed to export internships', err);
+      setError(err.response?.data?.message || 'Failed to export internships.');
+    } finally {
+      setExporting(false);
+    }
+  };
+
   const filteredInternships = internships.filter((internship) => {
     const query = search.trim().toLowerCase();
     if (!query) return true;
@@ -206,6 +244,15 @@ const InternshipApprovals = () => {
           <p className="text-slate-500 text-sm mt-1">Review pending requests and monitor approved internship opportunities in one place.</p>
         </div>
         <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
+        <button
+          type="button"
+          onClick={handleExportInternships}
+          disabled={exporting}
+          className="inline-flex items-center justify-center gap-2 rounded-xl bg-slate-800 px-4 py-2 text-xs font-black uppercase tracking-widest text-white transition-all hover:bg-slate-700 disabled:opacity-60"
+        >
+          <FontAwesomeIcon icon={exporting ? faSpinner : faDownload} spin={exporting} />
+          Export CSV
+        </button>
         <input
           type="text"
           placeholder="Search title, company, location, status..."

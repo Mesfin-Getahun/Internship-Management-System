@@ -12,6 +12,7 @@ import {
   faFileUpload,
   faBriefcase,
   faPlus,
+  faKey,
 } from "@fortawesome/free-solid-svg-icons";
 
 const UilSidebar = ({ activeTab, isOpen = false, onClose }) => {
@@ -38,6 +39,7 @@ const UilSidebar = ({ activeTab, isOpen = false, onClose }) => {
       label: "Recommendation Letter",
       icon: faFileUpload,
     },
+    { id: "change-password", label: "Change Password", icon: faKey },
     // { id: 'notifications', label: 'Notifications', icon: faBell },
     // { id: "settings", label: "Settings", icon: faCog },
   ];

@@ -10,6 +10,7 @@ import {
   faHistory,
   faSignOutAlt,
   faChartLine,
+  faKey,
 } from "@fortawesome/free-solid-svg-icons";
 import { useAuth } from "../../../AuthContext";
 
@@ -30,6 +31,7 @@ const AdminSidebar = ({ activeTab, isOpen = false, onClose }) => {
     { id: "data-backup", label: "Data & Backup", icon: faDatabase },
     { id: "logs", label: "Audit Logs", icon: faHistory },
     { id: "monitoring", label: "Platform Monitoring", icon: faChartLine },
+    { id: "change-password", label: "Change Password", icon: faKey },
   ];
 
   return (

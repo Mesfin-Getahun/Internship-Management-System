@@ -76,7 +76,7 @@ changeRouter.post("/", async (req, res) => {
     const passwordMatches = await bcrypt.compare(currentPassword, rows[0].password);
 
     if (!passwordMatches) {
-      return res.status(401).json({
+      return res.status(400).json({
         success: false,
         message: "Current password is incorrect",
       });

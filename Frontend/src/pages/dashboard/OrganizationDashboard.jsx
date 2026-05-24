@@ -13,6 +13,7 @@ import OrgPostInternship from '../../components/dashboard/org/OrgPostInternship.
 
 import AssignedStudents from '../../components/dashboard/org/AssignedStudentsLive.jsx';
 import CompanyMentors from '../../components/dashboard/org/CompanyMentors.jsx';
+import DashboardChangePassword from '../../components/dashboard/common/DashboardChangePassword.jsx';
 
 const OrganizationDashboard = () => {
   const location = useLocation();
@@ -40,6 +41,7 @@ const OrganizationDashboard = () => {
             <Route path="company-mentors" element={<CompanyMentors />} />
             <Route path="assigned-students" element={<AssignedStudents />} />
             <Route path="profile" element={<OrgProfile />} />
+            <Route path="change-password" element={<DashboardChangePassword />} />
           
             <Route path="*" element={<Navigate to="overview" replace />} />
           </Routes>

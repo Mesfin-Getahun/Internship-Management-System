@@ -19,6 +19,39 @@ const getEmailFailurePayload = () => ({
     "Status was updated, but the notification email could not be sent.",
 });
 
+const escapeCsvValue = (value) => {
+  if (value === null || value === undefined) {
+    return "";
+  }
+
+  const normalized = String(value).replace(/\r?\n|\r/g, " ");
+  const formulaSafe = /^[=+\-@]/.test(normalized)
+    ? `'${normalized}`
+    : normalized;
+
+  if (/[",]/.test(formulaSafe)) {
+    return `"${formulaSafe.replace(/"/g, '""')}"`;
+  }
+
+  return formulaSafe;
+};
+
+const buildCsvContent = (rows) => {
+  if (!Array.isArray(rows) || rows.length === 0) {
+    return "No data available\n";
+  }
+
+  const headers = Object.keys(rows[0]);
+  const lines = [
+    headers.map(escapeCsvValue).join(","),
+    ...rows.map((row) =>
+      headers.map((header) => escapeCsvValue(row[header])).join(",")
+    ),
+  ];
+
+  return lines.join("\n");
+};
+
 const createInviteToken = (payload) =>
   jwt.sign({ ...payload, purpose: "company_invite" }, process.env.JWT_SECRET, {
     expiresIn: "7d",
@@ -272,6 +305,66 @@ const pendingInternships = async (req, res) => {
   }
 };
 
+const exportInternshipsCsv = async (req, res) => {
+  try {
+    const [internships] = await db.query(`
+      SELECT
+        i.internship_id,
+        i.title,
+        i.description,
+        COALESCE(i.status, 'pending') AS status,
+        i.department AS target_department,
+        i.skills AS requirements,
+        i.duration,
+        DATE_FORMAT(i.start_date, '%Y-%m-%d') AS start_date,
+        DATE_FORMAT(i.end_date, '%Y-%m-%d') AS end_date,
+        COALESCE(i.location, c.location) AS location,
+        c.company_id,
+        c.company_name,
+        c.company_type,
+        c.industry,
+        c.email AS company_email,
+        c.phone_number AS company_phone,
+        c.status AS company_status,
+        (
+          SELECT COUNT(*)
+          FROM application a
+          WHERE a.internship_id = i.internship_id
+        ) AS application_count,
+        (
+          SELECT COUNT(*)
+          FROM student_internship si
+          WHERE si.internship_id = i.internship_id
+        ) AS placement_count
+      FROM internship i
+      JOIN company c ON i.company_id = c.company_id
+      ORDER BY COALESCE(i.status, 'pending'), c.company_name, i.title
+    `);
+
+    const csvContent = buildCsvContent(internships);
+    const timestamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-");
+    const fileName = `uil-internships-${timestamp}.csv`;
+
+    if (req.user?.UIL_id) {
+      await createLog(
+        req.user.UIL_id,
+        "INTERNSHIP_CSV_EXPORTED",
+        "UIL exported all internships as CSV",
+      ).catch(() => null);
+    }
+
+    res.setHeader("Content-Type", "text/csv; charset=utf-8");
+    res.setHeader("Content-Disposition", `attachment; filename="${fileName}"`);
+    res.status(200).send(`\uFEFF${csvContent}`);
+  } catch (error) {
+    console.error("Export internships CSV error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to export internships CSV",
+    });
+  }
+};
+
 const approveInternship = async (req, res) => {
   try {
     const { internship_id } = req.params;
@@ -433,6 +526,53 @@ const getActiveCompanies = async (req, res) => {
     res.status(500).json({
       success: false,
       message: "Failed to fetch active companies",
+    });
+  }
+};
+
+const exportCompaniesCsv = async (req, res) => {
+  try {
+    const [companies] = await db.query(`
+      SELECT
+        company_id,
+        company_name,
+        company_type,
+        industry,
+        website,
+        email,
+        phone_number,
+        region,
+        city,
+        location,
+        status,
+        DATE_FORMAT(created_at, '%Y-%m-%d %H:%i:%s') AS created_at,
+        CASE WHEN agreed = 1 THEN 'yes' ELSE 'no' END AS agreement_confirmed,
+        profile_pic AS profile_picture_url,
+        license_url AS license_document_url
+      FROM company
+      ORDER BY status, company_name
+    `);
+
+    const csvContent = buildCsvContent(companies);
+    const timestamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-");
+    const fileName = `uil-companies-${timestamp}.csv`;
+
+    if (req.user?.UIL_id) {
+      await createLog(
+        req.user.UIL_id,
+        "COMPANY_CSV_EXPORTED",
+        "UIL exported all companies as CSV",
+      ).catch(() => null);
+    }
+
+    res.setHeader("Content-Type", "text/csv; charset=utf-8");
+    res.setHeader("Content-Disposition", `attachment; filename="${fileName}"`);
+    res.status(200).send(`\uFEFF${csvContent}`);
+  } catch (error) {
+    console.error("Export companies CSV error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to export companies CSV",
     });
   }
 };
@@ -967,8 +1107,10 @@ export {
   approveInternship,
   rejectInternship,
   pendingInternships,
+  exportInternshipsCsv,
   companyRequest,
   getActiveCompanies,
+  exportCompaniesCsv,
   fulfillmentReports,
   inviteCompany,
   verifyCompanyInvite,

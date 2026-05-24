@@ -6,8 +6,10 @@ import {
   rejectInternship,
   approveInternship,
   pendingInternships,
+  exportInternshipsCsv,
   companyRequest,
   getActiveCompanies,
+  exportCompaniesCsv,
   fulfillmentReports,
   inviteCompany,
   verifyCompanyInvite,
@@ -43,6 +45,7 @@ const UILroute = express.Router();
  *         description: Failed to fetch internships
  */
 UILroute.get("/internships", authUIL, allInternships);
+UILroute.get("/internships/export.csv", authUIL, exportInternshipsCsv);
 
 /**
  * @swagger
@@ -190,6 +193,7 @@ UILroute.put("/rejectCompany/:company_id", authUIL, rejectCompany);
  *         description: Failed to fetch active companies
  */
 UILroute.get("/companies/active", authUIL, getActiveCompanies);
+UILroute.get("/companies/export.csv", authUIL, exportCompaniesCsv);
 UILroute.get("/fulfillmentReports", authUIL, fulfillmentReports);
 UILroute.get("/recommendation-letter", authUIL, getRecommendationLetter);
 UILroute.post(

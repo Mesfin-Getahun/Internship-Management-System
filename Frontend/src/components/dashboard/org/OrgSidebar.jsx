@@ -1,7 +1,7 @@
 import React from "react";
 import { NavLink } from "react-router-dom";
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faTableCellsLarge, faBriefcase, faFileAlt, faAward, faCog, faSignOutAlt, faUsers, faUserTie } from '@fortawesome/free-solid-svg-icons';;
+import { faTableCellsLarge, faBriefcase, faFileAlt, faAward, faCog, faSignOutAlt, faUsers, faUserTie, faKey } from '@fortawesome/free-solid-svg-icons';;
 import { useAuth } from "../../../AuthContext";
 
 const base =
@@ -22,6 +22,7 @@ const OrgSidebar = ({ isOpen = false, onClose }) => {
       icon: faUsers,
     },
     { to: "profile", label: "Profile", icon: faCog },
+    { to: "change-password", label: "Change Password", icon: faKey },
   ];
 
   return (

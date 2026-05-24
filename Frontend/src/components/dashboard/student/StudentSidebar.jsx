@@ -14,6 +14,7 @@ import {
   faCodeBranch,
   faSignOutAlt,
   faFileDownload,
+  faKey,
 } from "@fortawesome/free-solid-svg-icons";
 import { useAuth } from "../../../AuthContext";
 
@@ -67,6 +68,7 @@ const StudentSidebar = ({ activeTab, isOpen = false, onClose }) => {
       disabled: !isRecommendationAvailable,
     },
     { id: "profile", label: "My Profile", icon: faUser },
+    { id: "change-password", label: "Change Password", icon: faKey },
   ];
 
   const SidebarLink = ({ item, activeTab }) => (

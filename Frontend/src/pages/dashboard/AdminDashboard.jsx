@@ -10,6 +10,7 @@ import RolesPermissions from "../../components/dashboard/admin/RolesPermissions.
 import AuditLogs from "../../components/dashboard/admin/AuditLogs.jsx";
 import PlatformMonitoring from "../../components/dashboard/admin/PlatformMonitoring.jsx";
 import DataBackup from "../../components/dashboard/admin/DataBackup.jsx";
+import DashboardChangePassword from "../../components/dashboard/common/DashboardChangePassword.jsx";
 
 const AdminDashboard = () => {
   const location = useLocation();
@@ -22,6 +23,7 @@ const AdminDashboard = () => {
     roles: "Roles & Permissions",
     logs: "Audit Logs",
     monitoring: "Platform Monitoring",
+    "change-password": "Change Password",
     "data-backup": "Data & Backup",
   };
 
@@ -45,6 +47,7 @@ const AdminDashboard = () => {
             <Route path="roles" element={<RolesPermissions />} />
             <Route path="logs" element={<AuditLogs />} />
             <Route path="monitoring" element={<PlatformMonitoring />} />
+            <Route path="change-password" element={<DashboardChangePassword />} />
             <Route path="data-backup" element={<DataBackup />} />
             <Route path="*" element={<Navigate to="overview" replace />} />
           </Routes>

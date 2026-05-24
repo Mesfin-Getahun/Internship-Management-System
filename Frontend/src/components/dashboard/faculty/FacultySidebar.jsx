@@ -11,6 +11,7 @@ import {
   faFileAlt,
   faUser,
   faSignOutAlt,
+  faKey,
 } from "@fortawesome/free-solid-svg-icons";
 
 const FacultySidebar = ({ activeTab, isOpen = false, onClose }) => {
@@ -22,6 +23,7 @@ const FacultySidebar = ({ activeTab, isOpen = false, onClose }) => {
     { id: "org-evaluations", label: "Org Evaluations", icon: faFileAlt },
     { id: "reports", label: "Reports & Stats", icon: faChartBar },
     { id: "stipend-management", label: "Stipend Management", icon: faFileAlt },
+    { id: "change-password", label: "Change Password", icon: faKey },
     // { id: 'profile', label: 'Faculty Profile', icon: faUser }
   ];
 

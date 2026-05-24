@@ -16,6 +16,7 @@ import FeedbackAndEvaluation from "../../components/dashboard/student/FeedbackAn
 import InternshipStatus from "../../components/dashboard/student/InternshipStatus.jsx";
 import ApplicationPage from "../../components/dashboard/student/ApplicationPage.jsx";
 import StudentRecommendationLetter from "../../components/dashboard/student/StudentRecommendationLetter.jsx";
+import DashboardChangePassword from "../../components/dashboard/common/DashboardChangePassword.jsx";
 
 const PlaceholderScreen = ({ title, description }) => (
   <div className="p-6 sm:p-12 lg:p-20 text-center animate-fade-in bg-white dark:bg-slate-900 rounded-3xl border border-slate-100 dark:border-slate-800 shadow-sm">
@@ -68,6 +69,7 @@ const StudentDashboard = () => {
               path="recommendation"
               element={<StudentRecommendationLetter />}
             />
+            <Route path="change-password" element={<DashboardChangePassword />} />
             <Route path="apply/:id" element={<ApplicationPage />} />
             <Route path="*" element={<Navigate to="overview" replace />} />
           </Routes>
