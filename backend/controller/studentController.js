@@ -68,6 +68,111 @@ const normalizeDepartment = (department = "") =>
 const requiredInternshipMonths = (department) =>
   TWO_MONTH_DEPARTMENTS.has(normalizeDepartment(department)) ? 2 : 4;
 
+const splitTerms = (value) => {
+  if (!value) return [];
+
+  if (Array.isArray(value)) {
+    return value.flatMap(splitTerms);
+  }
+
+  if (typeof value === "object") {
+    return Object.values(value).flatMap(splitTerms);
+  }
+
+  const raw = String(value).trim();
+  if (!raw) return [];
+
+  try {
+    const parsed = JSON.parse(raw);
+    if (Array.isArray(parsed) || typeof parsed === "object") {
+      return splitTerms(parsed);
+    }
+  } catch {
+    // Plain comma-separated text is handled below.
+  }
+
+  return raw
+    .split(/[,;|/]+/)
+    .map((term) => term.trim().toLowerCase().replace(/\s+/g, " "))
+    .filter(Boolean);
+};
+
+const uniqueTerms = (terms) => Array.from(new Set(terms.filter(Boolean)));
+
+const departmentProfileTerms = (department) => {
+  const normalized = normalizeDepartment(department);
+
+  if (TWO_MONTH_DEPARTMENTS.has(normalized)) {
+    return [
+      "software",
+      "web",
+      "developer",
+      "development",
+      "programming",
+      "database",
+      "network",
+      "cyber",
+      "technology",
+      "system",
+    ];
+  }
+
+  return [];
+};
+
+const getStudentProfileTerms = (student = {}) =>
+  uniqueTerms([
+    normalizeDepartment(student.department),
+    ...(student.faculty ? [normalizeDepartment(student.faculty)] : []),
+    ...departmentProfileTerms(student.department),
+    ...splitTerms(student.skills),
+    ...splitTerms(student.technical_skills),
+    ...splitTerms(student.soft_skills),
+    ...splitTerms(student.languages),
+  ]);
+
+const internshipMatchesStudentProfile = (internship = {}, student = {}) => {
+  const studentDepartment = normalizeDepartment(student.department);
+  const internshipDepartment = normalizeDepartment(internship.department);
+  const profileTerms = getStudentProfileTerms(student);
+  const internshipTerms = uniqueTerms([
+    internshipDepartment,
+    ...splitTerms(internship.skills),
+    ...splitTerms(internship.requirements),
+    ...splitTerms(internship.title),
+    ...splitTerms(internship.description),
+  ]);
+
+  const targetDepartmentMatched =
+    Boolean(studentDepartment && internshipDepartment) &&
+    (studentDepartment === internshipDepartment ||
+      studentDepartment.includes(internshipDepartment) ||
+      internshipDepartment.includes(studentDepartment));
+
+  const matchedSkills = profileTerms.filter((term) =>
+    internshipTerms.some(
+      (internshipTerm) =>
+        internshipTerm === term ||
+        internshipTerm.includes(term) ||
+        term.includes(internshipTerm),
+    ),
+  );
+
+  const isGeneralPost = !internshipDepartment;
+  const isRelated = targetDepartmentMatched || matchedSkills.length > 0;
+
+  return {
+    is_profile_related: isRelated,
+    target_department_matched: targetDepartmentMatched,
+    is_general_post: isGeneralPost,
+    matched_profile_terms: matchedSkills,
+    match_score:
+      (targetDepartmentMatched ? 5 : 0) +
+      matchedSkills.length * 2 +
+      (isGeneralPost ? 1 : 0),
+  };
+};
+
 const durationMonthsFromDates = (startDate, endDate) => {
   if (!startDate || !endDate) return null;
 
@@ -198,7 +303,11 @@ const fetchInternships = async (req, res) => {
     const student_id = req.user.student_id;
 
     const [[student]] = await db.query(
-      "SELECT department FROM student WHERE student_id = ?",
+      `
+      SELECT department, faculty, skills, technical_skills, soft_skills, languages
+      FROM student
+      WHERE student_id = ?
+      `,
       [student_id],
     );
 
@@ -211,14 +320,16 @@ const fetchInternships = async (req, res) => {
 
     const [internships] = await db.query(query);
     const currentInternshipLock = await getStudentCurrentInternshipLock(student_id);
-    const internshipsWithEligibility = internships.map((internship) =>
-      ({
+    const internshipsWithEligibility = internships
+      .map((internship) => ({
         ...withDurationEligibility(internship, student?.department),
+        ...internshipMatchesStudentProfile(internship, student),
         application_locked: Boolean(currentInternshipLock),
         current_internship_title: currentInternshipLock?.internship_title || null,
         current_internship_company: currentInternshipLock?.company_name || null,
-      }),
-    );
+      }))
+      .filter((internship) => internship.is_profile_related)
+      .sort((a, b) => b.match_score - a.match_score);
 
     res.status(200).json({
       success: true,
@@ -240,12 +351,13 @@ const suggestedInternships = async (req, res) => {
     const student_id = req.user.student_id;
 
     const [[student]] = await db.query(
-      "SELECT department, skills, preferred_location FROM student WHERE student_id = ?",
+      `
+      SELECT department, faculty, skills, technical_skills, soft_skills, languages, preferred_location
+      FROM student
+      WHERE student_id = ?
+      `,
       [student_id]
     );
-
-    const studentSkills =
-      student.skills?.split(",").map((s) => s.trim().toLowerCase()) || [];
 
     const [internships] = await db.query(
       `
@@ -253,20 +365,12 @@ const suggestedInternships = async (req, res) => {
       FROM internship i
       JOIN company c ON i.company_id = c.company_id
       WHERE i.status = 'approved'
-      AND i.department = ?
-      `,
-      [student.department]
+      `
     );
 
     const suggestions = internships.map((internship) => {
-      const internshipSkills =
-        internship.skills?.split(",").map((s) => s.trim().toLowerCase()) || [];
-
-      const matchedSkills = studentSkills.filter((skill) =>
-        internshipSkills.includes(skill)
-      );
-
-      let score = matchedSkills.length * 2;
+      const relevance = internshipMatchesStudentProfile(internship, student);
+      let score = relevance.match_score;
 
       if (
         student.preferred_location &&
@@ -277,14 +381,15 @@ const suggestedInternships = async (req, res) => {
 
       return {
         ...withDurationEligibility(internship, student.department),
+        ...relevance,
         internship_id: internship.internship_id,
         title: internship.title,
         company: internship.company_name,
         location: internship.location,
-        matched_skills: matchedSkills,
+        matched_skills: relevance.matched_profile_terms,
         match_score: score,
       };
-    });
+    }).filter((internship) => internship.is_profile_related);
 
     suggestions.sort((a, b) => b.match_score - a.match_score);
 
@@ -328,10 +433,18 @@ const applyInternships = async (req, res) => {
     const [[eligibility]] = await db.query(
       `
       SELECT
-        s.department,
+        s.department AS student_department,
+        s.faculty,
+        s.skills,
+        s.technical_skills,
+        s.soft_skills,
+        s.languages,
         i.internship_id,
         i.company_id,
         i.title,
+        i.description,
+        i.department AS internship_department,
+        i.skills AS internship_skills,
         i.start_date,
         i.end_date,
         i.duration
@@ -348,6 +461,23 @@ const applyInternships = async (req, res) => {
       return res.status(404).json({
         success: false,
         message: "Internship not found or not approved",
+      });
+    }
+
+    const relevance = internshipMatchesStudentProfile(
+      {
+        ...eligibility,
+        skills: eligibility.internship_skills,
+        department: eligibility.internship_department,
+      },
+      { ...eligibility, department: eligibility.student_department },
+    );
+
+    if (!relevance.is_profile_related) {
+      return res.status(403).json({
+        success: false,
+        message: "This internship is not related to your department or profile skills.",
+        relevance,
       });
     }
 
@@ -380,7 +510,7 @@ const applyInternships = async (req, res) => {
       });
     }
 
-    const requiredMonths = requiredInternshipMonths(eligibility.department);
+    const requiredMonths = requiredInternshipMonths(eligibility.student_department);
     const durationMonths = durationMonthsForInternship(eligibility);
 
     if (durationMonths === null || durationMonths < requiredMonths) {

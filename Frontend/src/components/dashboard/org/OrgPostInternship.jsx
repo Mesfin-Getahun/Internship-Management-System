@@ -18,6 +18,7 @@ const OrgPostInternship = () => {
     title: '',
     description: '',
     requirements: '',
+    department: '',
     location: '',
     start_date: '',
     end_date: '',
@@ -46,6 +47,7 @@ const OrgPostInternship = () => {
                   title: target.title || '',
                   description: target.description || '',
                   requirements: target.requirements || '',
+                  department: target.department || '',
                   location: target.location || '',
                   start_date: target.start_date ? String(target.start_date).slice(0, 10) : '',
                   end_date: target.end_date ? String(target.end_date).slice(0, 10) : '',
@@ -148,6 +150,12 @@ const OrgPostInternship = () => {
             <div className="md:col-span-2 space-y-2">
               <label className="block text-slate-700 dark:text-slate-300 font-bold text-xs uppercase tracking-widest">Requirements</label>
               <textarea name="requirements" value={formData.requirements} onChange={handleInputChange} rows="3" placeholder="Expected skills, programming languages, previous coursework..." className="w-full px-5 py-4 rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none transition-all leading-relaxed"></textarea>
+            </div>
+
+            <div className="md:col-span-2 space-y-2">
+              <label className="block text-slate-700 dark:text-slate-300 font-bold text-xs uppercase tracking-widest">Target Department</label>
+              <input name="department" value={formData.department} onChange={handleInputChange} type="text" placeholder="e.g. Computer Science, Information Technology, Software Engineering" className="w-full px-5 py-4 rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all font-semibold" />
+              <p className="text-xs text-slate-500 dark:text-slate-400">Leave blank only if the vacancy is open to any department with matching skills.</p>
             </div>
 
             <div className="space-y-2">

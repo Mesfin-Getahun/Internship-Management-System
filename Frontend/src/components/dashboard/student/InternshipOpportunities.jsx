@@ -136,6 +136,23 @@ const InternshipOpportunities = () => {
                 Duration: {formatDuration(opp.duration_months || opp.duration)} | Required: {opp.required_minimum_months || 4} months
               </p>
 
+              <div className="mb-4 flex flex-wrap gap-2">
+                <span className={`rounded-lg px-3 py-1 text-[10px] font-black uppercase tracking-widest ${
+                  opp.target_department_matched
+                    ? 'bg-emerald-100 text-emerald-700'
+                    : Array.isArray(opp.matched_profile_terms) && opp.matched_profile_terms.length > 0
+                      ? 'bg-sky-100 text-sky-700'
+                      : 'bg-slate-100 text-slate-600'
+                }`}>
+                  {opp.target_department_matched ? 'Department Match' : Array.isArray(opp.matched_profile_terms) && opp.matched_profile_terms.length > 0 ? 'Profile Match' : 'General Post'}
+                </span>
+                {Array.isArray(opp.matched_profile_terms) && opp.matched_profile_terms.length > 0 && (
+                  <span className="rounded-lg bg-indigo-50 px-3 py-1 text-[10px] font-black uppercase tracking-widest text-indigo-700">
+                    {opp.matched_profile_terms.slice(0, 2).join(', ')}
+                  </span>
+                )}
+              </div>
+
               {opp.application_locked && (
                 <p className="mb-4 text-xs font-bold text-amber-600">
                   Applications locked: you already have a current internship.
@@ -189,6 +206,10 @@ const InternshipOpportunities = () => {
                 <div className="space-y-1">
                   <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest">Required Skills</p>
                   <p className="text-sm font-bold text-slate-700 dark:text-slate-300">{selectedInternship.skills || 'None explicitly specified'}</p>
+                </div>
+                <div className="space-y-1">
+                  <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest">Target Department</p>
+                  <p className="text-sm font-bold text-slate-700 dark:text-slate-300">{selectedInternship.department || 'General / skill-based'}</p>
                 </div>
                 <div className="space-y-1">
                   <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest">Duration</p>

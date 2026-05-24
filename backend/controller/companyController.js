@@ -73,6 +73,7 @@ const postInternship = async (req, res) => {
       skill,
       skills,
       requirements,
+      department,
       location,
     } = req.body;
 
@@ -94,8 +95,8 @@ const postInternship = async (req, res) => {
     // Insert into database
     const query = `
       INSERT INTO internship 
-      (title, description, image, start_date, end_date, skills, location, company_id, status)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+      (title, description, image, start_date, end_date, skills, department, location, company_id, status)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `;
 
     const [result] = await db.query(query, [
@@ -105,6 +106,7 @@ const postInternship = async (req, res) => {
       start_date || null,
       end_date || null,
       requirements || skills || skill || null,
+      department || null,
       location || null,
       company_id,
       "pending",
@@ -199,6 +201,7 @@ const updateInternship = async (req, res) => {
       skill,
       skills,
       requirements,
+      department,
       location,
     } = req.body;
 
@@ -251,7 +254,7 @@ const updateInternship = async (req, res) => {
     // Update internship
     const query = `
       UPDATE internship
-      SET title = ?, description = ?, image = ?, start_date = ?, end_date = ?, skills = ?, location = ?
+      SET title = ?, description = ?, image = ?, start_date = ?, end_date = ?, skills = ?, department = ?, location = ?
       WHERE internship_id = ?
     `;
 
@@ -262,6 +265,7 @@ const updateInternship = async (req, res) => {
       nextStartDate,
       nextEndDate,
       requirements || skills || skill || existing[0].skills,
+      department || existing[0].department,
       location || existing[0].location,
       internship_id,
     ]);
@@ -1270,6 +1274,7 @@ const activeInternships = async (req, res) => {
         i.end_date,
         i.skills,
         i.skills AS requirements,
+        i.department,
         i.location,
         i.status,
 

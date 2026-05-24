@@ -173,6 +173,12 @@ const OrgVacancies = () => {
                         </div>
                      )}
                      <div>
+                       <h4 className="text-[10px] uppercase font-black tracking-widest text-slate-400 mb-1">Target Department</h4>
+                       <p className="text-slate-600 dark:text-slate-300 text-sm leading-relaxed">
+                         {internship.department || 'General / skill-based'}
+                       </p>
+                     </div>
+                     <div>
                        <span className="inline-block px-3 py-1 bg-slate-100 text-slate-600 rounded-lg text-[10px] font-black uppercase tracking-widest border border-slate-200">
                           Deadline: {internship.end_date ? new Date(internship.end_date).toLocaleDateString() : 'N/A'}
                        </span>
