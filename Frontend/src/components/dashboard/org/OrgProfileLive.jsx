@@ -84,7 +84,7 @@ const OrgProfileLive = () => {
 
   const handleDeleteAccount = async () => {
     const confirmed = window.confirm(
-      'Deactivate this company account? You can only do this when no students are currently attending internship at your company.',
+      'Delete this company account? You can only do this when no students are currently attending internship at your company. Historical records will stay available as evidence.',
     );
 
     if (!confirmed) return;
@@ -95,7 +95,7 @@ const OrgProfileLive = () => {
         `${import.meta.env.VITE_BACKEND_URL}/api/company/account`,
         { headers: { Authorization: `Bearer ${user?.token}` } },
       );
-      toast.success('Company account deactivated. Historical records remain available to the university.');
+      toast.success('Company account deleted. Historical records remain available to the university.');
       logout();
     } catch (err) {
       console.error(err);
@@ -207,7 +207,7 @@ const OrgProfileLive = () => {
           <div className="bg-white dark:bg-slate-900 rounded-3xl border border-red-100 dark:border-red-900/40 p-8 shadow-sm">
             <h4 className="font-bold text-slate-800 dark:text-white mb-3">Account</h4>
             <p className="text-xs leading-relaxed text-slate-500 dark:text-slate-400 mb-5">
-              Deactivation is allowed only when no students are currently attending internship here.
+              Account deletion is allowed only when no students are currently attending internship here.
             </p>
             <button
               type="button"
@@ -216,7 +216,7 @@ const OrgProfileLive = () => {
               className="w-full inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-red-600 text-white font-black hover:bg-red-700 disabled:opacity-60"
             >
               <FontAwesomeIcon icon={deleting ? faSpinner : faTrash} spin={deleting} />
-              {deleting ? 'Checking...' : 'Deactivate Account'}
+              {deleting ? 'Checking...' : 'Delete Account'}
             </button>
           </div>
         </div>
