@@ -2,6 +2,39 @@ import db from "../config/mysql.js";
 import bcrypt from "bcryptjs";
 import * as xlsx from "xlsx";
 
+const escapeCsvValue = (value) => {
+  if (value === null || value === undefined) {
+    return "";
+  }
+
+  const normalized = String(value).replace(/\r?\n|\r/g, " ");
+  const formulaSafe = /^[=+\-@]/.test(normalized)
+    ? `'${normalized}`
+    : normalized;
+
+  if (/[",]/.test(formulaSafe)) {
+    return `"${formulaSafe.replace(/"/g, '""')}"`;
+  }
+
+  return formulaSafe;
+};
+
+const buildCsvContent = (rows) => {
+  if (!Array.isArray(rows) || rows.length === 0) {
+    return "No data available\n";
+  }
+
+  const headers = Object.keys(rows[0]);
+  const lines = [
+    headers.map(escapeCsvValue).join(","),
+    ...rows.map((row) =>
+      headers.map((header) => escapeCsvValue(row[header])).join(",")
+    ),
+  ];
+
+  return lines.join("\n");
+};
+
 const assignMentor = async (req, res) => {
   try {
     const { student_id, mentor_id } = req.body;
@@ -141,17 +174,19 @@ const getStudents = async (req, res) => {
         m.full_name AS university_mentor_name,
 
         si.internship_id,
+        si.id AS student_internship_id,
         i.title AS internship_title,
         i.start_date,
         i.end_date,
         si.start_date AS placement_start_date,
+        si.end_date AS placement_end_date,
         si.status AS internship_status,
         c.company_name
 
       FROM student s
       LEFT JOIN student_internship si
         ON s.student_id = si.student_id
-        AND LOWER(si.status) IN ('in progress', 'accepted', 'active', 'completed', 'complete')
+        AND LOWER(si.status) IN ('in progress', 'accepted', 'active', 'completed', 'complete', 'rejected')
       LEFT JOIN internship i
         ON si.internship_id = i.internship_id
       LEFT JOIN company c
@@ -415,6 +450,146 @@ const getPaymentData = async (req, res) => {
   }
 };
 
+const generateStipendReportCsv = async (req, res) => {
+  try {
+    const faculty = req.user.faculty_name;
+
+    const [rows] = await db.query(
+      `
+      SELECT
+        s.student_id AS student_id,
+        s.full_name AS student_name,
+        s.email AS student_email,
+        s.department AS department,
+        c.company_name AS organization,
+        i.title AS internship_title,
+        COALESCE(si.status, 'not placed') AS internship_status,
+        p.bank_name AS bank_name,
+        p.account_holder_name AS account_holder_name,
+        p.account_number AS account_number,
+        DATE_FORMAT(p.submitted_at, '%Y-%m-%d') AS stipend_submitted_date
+      FROM payments p
+      JOIN student s ON p.student_id = s.student_id
+      LEFT JOIN student_internship si
+        ON s.student_id = si.student_id
+        AND LOWER(si.status) IN ('in progress', 'accepted', 'active', 'completed', 'complete')
+      LEFT JOIN internship i ON si.internship_id = i.internship_id
+      LEFT JOIN company c ON i.company_id = c.company_id
+      WHERE s.faculty = ?
+      ORDER BY s.department, s.full_name
+      `,
+      [faculty],
+    );
+
+    const csvContent = buildCsvContent(rows);
+    const timestamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-");
+    const safeFaculty = String(faculty || "faculty")
+      .replace(/[^a-z0-9]+/gi, "-")
+      .replace(/^-+|-+$/g, "")
+      .toLowerCase();
+    const fileName = `${safeFaculty || "faculty"}-stipend-report-${timestamp}.csv`;
+
+    res.setHeader("Content-Type", "text/csv; charset=utf-8");
+    res.setHeader("Content-Disposition", `attachment; filename="${fileName}"`);
+    res.status(200).send(`\uFEFF${csvContent}`);
+  } catch (error) {
+    console.error("Generate stipend report CSV error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to generate stipend report",
+    });
+  }
+};
+
+const updateInternshipCompletionStatus = async (req, res) => {
+  try {
+    const faculty = req.user.faculty_name;
+    const { placement_id } = req.params;
+    const { decision } = req.body;
+    const normalizedDecision = String(decision || "").toLowerCase();
+
+    if (!["approve", "reject"].includes(normalizedDecision)) {
+      return res.status(400).json({
+        success: false,
+        message: "decision must be approve or reject",
+      });
+    }
+
+    const [placements] = await db.query(
+      `
+      SELECT
+        si.id,
+        si.student_id,
+        si.internship_id,
+        si.status,
+        s.full_name AS student_name
+      FROM student_internship si
+      JOIN student s ON si.student_id = s.student_id
+      WHERE si.id = ?
+        AND s.faculty = ?
+      LIMIT 1
+      `,
+      [placement_id, faculty],
+    );
+
+    if (placements.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: "Internship placement not found under your faculty",
+      });
+    }
+
+    const placement = placements[0];
+    const currentStatus = String(placement.status || "").toLowerCase();
+
+    if (["completed", "complete"].includes(currentStatus) && normalizedDecision === "approve") {
+      return res.status(409).json({
+        success: false,
+        message: "Internship completion is already approved",
+      });
+    }
+
+    if (currentStatus === "rejected" && normalizedDecision === "reject") {
+      return res.status(409).json({
+        success: false,
+        message: "Internship completion is already rejected",
+      });
+    }
+
+    const nextStatus = normalizedDecision === "approve" ? "completed" : "rejected";
+
+    await db.query(
+      `
+      UPDATE student_internship
+      SET status = ?,
+          end_date = CASE WHEN ? = 'completed' THEN COALESCE(end_date, CURRENT_DATE()) ELSE end_date END
+      WHERE id = ?
+      `,
+      [nextStatus, nextStatus, placement_id],
+    );
+
+    res.status(200).json({
+      success: true,
+      message:
+        normalizedDecision === "approve"
+          ? "Internship completion approved successfully"
+          : "Internship completion rejected successfully",
+      placement: {
+        placement_id: placement.id,
+        student_id: placement.student_id,
+        internship_id: placement.internship_id,
+        status: nextStatus,
+      },
+    });
+  } catch (error) {
+    console.error("Update internship completion status error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to update internship completion status",
+    });
+  }
+};
+
 const getFacultyProfile = async (req, res) => {
   try {
     const faculty_id = req.user.faculty_id;
@@ -637,6 +812,8 @@ export {
   getMentors,
   facultyViewReports,
   getPaymentData,
+  generateStipendReportCsv,
+  updateInternshipCompletionStatus,
   getFacultyProfile,
   evaluation,
   uploadStudents,

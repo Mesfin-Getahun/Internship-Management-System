@@ -18,7 +18,7 @@ const FacultySidebar = ({ activeTab, isOpen = false, onClose }) => {
     { id: "overview", label: "Dashboard Overview", icon: faTableCellsLarge },
     { id: "manage-students", label: "Manage Students", icon: faUsers },
     { id: "assign-mentors", label: "Assign Mentors", icon: faUserCheck },
-    // { id: "monitor-progress", label: "Monitor Progress", icon: faChartBar },
+    { id: "monitor-progress", label: "Monitor Progress", icon: faCheckSquare },
     { id: "org-evaluations", label: "Org Evaluations", icon: faFileAlt },
     { id: "reports", label: "Reports & Stats", icon: faChartBar },
     { id: "stipend-management", label: "Stipend Management", icon: faFileAlt },

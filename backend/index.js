@@ -38,7 +38,9 @@ if (!process.env.JWT_SECRET) {
 const app = express();
 
 const allowedOrigins = new Set(
-  String(process.env.FRONTEND_URL || "http://localhost:3000,http://localhost:5173")
+  String(
+    process.env.FRONTEND_URL || "http://localhost:3000,http://localhost:5173",
+  )
     .split(",")
     .map((origin) => origin.trim())
     .filter(Boolean),
@@ -105,7 +107,10 @@ app.use((err, req, res, next) => {
     });
   }
 
-  if (err.code?.startsWith?.("LIMIT_") || err.message === "Unsupported file type") {
+  if (
+    err.code?.startsWith?.("LIMIT_") ||
+    err.message === "Unsupported file type"
+  ) {
     return res.status(400).json({
       success: false,
       message: err.message || "Invalid upload",

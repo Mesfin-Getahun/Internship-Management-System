@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
 import { useAuth } from '../../../AuthContext';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faSearch, faSpinner } from '@fortawesome/free-solid-svg-icons';
+import { faDownload, faSearch, faSpinner } from '@fortawesome/free-solid-svg-icons';
 import { getDepartmentOptions, matchesDepartment } from '../../../utils/departmentFilters';
 
 const FacultyStipendManagementLive = () => {
@@ -11,6 +11,7 @@ const FacultyStipendManagementLive = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedDepartment, setSelectedDepartment] = useState('All Departments');
   const [loading, setLoading] = useState(true);
+  const [downloading, setDownloading] = useState(false);
   const [error, setError] = useState('');
   const { user } = useAuth();
 
@@ -60,11 +61,59 @@ const FacultyStipendManagementLive = () => {
     });
   }, [payments, searchTerm, selectedDepartment]);
 
+  const handleDownloadCsv = async () => {
+    if (!user?.token) {
+      setError('Faculty session token is missing. Please sign in again.');
+      return;
+    }
+
+    try {
+      setDownloading(true);
+      setError('');
+      const res = await axios.get(
+        `${import.meta.env.VITE_BACKEND_URL}/api/faculty/stipend-report.csv`,
+        {
+          headers: { Authorization: `Bearer ${user.token}` },
+          responseType: 'blob',
+        },
+      );
+
+      const contentDisposition = res.headers['content-disposition'] || '';
+      const fileNameMatch = contentDisposition.match(/filename="?([^"]+)"?/i);
+      const fileName = fileNameMatch?.[1] || 'stipend-report.csv';
+      const blob = new Blob([res.data], { type: 'text/csv;charset=utf-8;' });
+      const downloadUrl = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = downloadUrl;
+      link.setAttribute('download', fileName);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(downloadUrl);
+    } catch (err) {
+      console.error(err);
+      setError(err.response?.data?.message || 'Failed to download stipend report.');
+    } finally {
+      setDownloading(false);
+    }
+  };
+
   return (
     <div className="animate-fade-in space-y-8 pb-12">
-      <header>
-        <h2 className="text-3xl font-bold text-slate-800 dark:text-white tracking-tight">Stipend Management</h2>
-        <p className="text-slate-500 text-sm mt-1">Payment rows are fetched from the backend payments table for students in this faculty.</p>
+      <header className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+        <div>
+          <h2 className="text-3xl font-bold text-slate-800 dark:text-white tracking-tight">Stipend Management</h2>
+          <p className="text-slate-500 text-sm mt-1">Payment rows are fetched from the backend payments table for students in this faculty.</p>
+        </div>
+        <button
+          type="button"
+          onClick={handleDownloadCsv}
+          disabled={downloading}
+          className="inline-flex items-center justify-center gap-2 rounded-xl bg-indigo-600 px-5 py-3 text-xs font-black uppercase tracking-widest text-white shadow-lg shadow-indigo-500/20 transition-all hover:bg-indigo-700 disabled:opacity-60"
+        >
+          <FontAwesomeIcon icon={downloading ? faSpinner : faDownload} spin={downloading} />
+          Download CSV
+        </button>
       </header>
 
       <div className="grid grid-cols-1 md:grid-cols-[minmax(0,1fr)_18rem] gap-4 max-w-3xl">

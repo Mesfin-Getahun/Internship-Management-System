@@ -46,36 +46,38 @@ const FacultyMonitorProgress = () => {
   const [evaluations, setEvaluations] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [message, setMessage] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [sortConfig, setSortConfig] = useState({ key: 'name', direction: 'ascending' });
+  const [actionLoadingId, setActionLoadingId] = useState('');
   const { user } = useAuth();
 
+  const fetchProgressData = async () => {
+    try {
+      setLoading(true);
+      setError('');
+      const authConfig = {
+        headers: { Authorization: `Bearer ${user?.token}` },
+      };
+
+      const [studentsRes, reportsRes, evaluationsRes] = await Promise.all([
+        axios.get(`${import.meta.env.VITE_BACKEND_URL}/api/faculty/students`, authConfig),
+        axios.get(`${import.meta.env.VITE_BACKEND_URL}/api/faculty/reports`, authConfig),
+        axios.get(`${import.meta.env.VITE_BACKEND_URL}/api/faculty/companyEvaluation`, authConfig),
+      ]);
+
+      setStudents(Array.isArray(studentsRes.data?.students) ? studentsRes.data.students : []);
+      setReports(Array.isArray(reportsRes.data?.reports) ? reportsRes.data.reports : []);
+      setEvaluations(Array.isArray(evaluationsRes.data?.evaluations) ? evaluationsRes.data.evaluations : []);
+    } catch (err) {
+      console.error(err);
+      setError(err.response?.data?.message || 'Failed to load faculty progress data.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
-    const fetchProgressData = async () => {
-      try {
-        setLoading(true);
-        setError('');
-        const authConfig = {
-          headers: { Authorization: `Bearer ${user?.token}` },
-        };
-
-        const [studentsRes, reportsRes, evaluationsRes] = await Promise.all([
-          axios.get(`${import.meta.env.VITE_BACKEND_URL}/api/faculty/students`, authConfig),
-          axios.get(`${import.meta.env.VITE_BACKEND_URL}/api/faculty/reports`, authConfig),
-          axios.get(`${import.meta.env.VITE_BACKEND_URL}/api/faculty/companyEvaluation`, authConfig),
-        ]);
-
-        setStudents(Array.isArray(studentsRes.data?.students) ? studentsRes.data.students : []);
-        setReports(Array.isArray(reportsRes.data?.reports) ? reportsRes.data.reports : []);
-        setEvaluations(Array.isArray(evaluationsRes.data?.evaluations) ? evaluationsRes.data.evaluations : []);
-      } catch (err) {
-        console.error(err);
-        setError(err.response?.data?.message || 'Failed to load faculty progress data.');
-      } finally {
-        setLoading(false);
-      }
-    };
-
     if (user?.token) {
       fetchProgressData();
     } else {
@@ -122,24 +124,30 @@ const FacultyMonitorProgress = () => {
       const reportStatus = String(report?.status || '').toLowerCase();
       const completedByDate = !progressState.dormant && progressState.label === 'Completed';
       const completedByStatus = ['completed', 'complete'].includes(internshipStatus);
+      const completionRejected = internshipStatus === 'rejected';
 
-      if (internshipStatus === 'rejected') {
+      if (completionRejected) {
         status = 'Rejected';
+        progress = Math.min(progress, 99);
+      } else if (completedByStatus) {
+        status = 'Approved';
+        progress = 100;
+      } else if (!progressState.dormant && report?.file_url && evaluation?.evaluation_id) {
+        status = 'Pending Approval';
       } else if (
         !progressState.dormant &&
         (['signed', 'approved', 'faculty_submitted'].includes(reportStatus) || report?.faculty_submitted_at)
       ) {
         status = 'Approved';
-      } else if (!progressState.dormant && report?.file_url && evaluation?.evaluation_id) {
-        status = 'Pending Approval';
       }
-      if (completedByDate || completedByStatus) {
-        status = 'Completed';
+      if (completedByDate && !completedByStatus && !completionRejected) {
+        status = 'Pending Approval';
         progress = 100;
       }
 
       return {
         id: student.student_id,
+        placementId: student.student_internship_id,
         name: student.full_name || 'Student',
         company: student.company_name || 'No company assigned',
         mentor: student.university_mentor_name || 'Not Assigned',
@@ -147,6 +155,7 @@ const FacultyMonitorProgress = () => {
         attendance,
         evaluation: evaluationStatus,
         status,
+        canReviewCompletion: status === 'Pending Approval' && Boolean(student.student_internship_id),
         progressMessage: progressState.message,
       };
     });
@@ -197,6 +206,32 @@ const FacultyMonitorProgress = () => {
       : <FontAwesomeIcon icon={faChevronDown} size={16} />;
   };
 
+  const handleCompletionDecision = async (student, decision) => {
+    if (!user?.token || !student.placementId) return;
+
+    try {
+      setActionLoadingId(`${student.placementId}-${decision}`);
+      setError('');
+      setMessage('');
+      await axios.put(
+        `${import.meta.env.VITE_BACKEND_URL}/api/faculty/internship-completion/${encodeURIComponent(student.placementId)}`,
+        { decision },
+        { headers: { Authorization: `Bearer ${user.token}` } },
+      );
+      setMessage(
+        decision === 'approve'
+          ? `${student.name}'s internship completion was approved.`
+          : `${student.name}'s internship completion was rejected.`,
+      );
+      await fetchProgressData();
+    } catch (err) {
+      console.error(err);
+      setError(err.response?.data?.message || 'Failed to update internship completion.');
+    } finally {
+      setActionLoadingId('');
+    }
+  };
+
   return (
     <div className="animate-fade-in space-y-8 pb-12">
       <header>
@@ -216,6 +251,11 @@ const FacultyMonitorProgress = () => {
               className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg py-3 pl-10 pr-4 text-slate-800 dark:text-white focus:ring-2 focus:ring-emerald-500"
             />
           </div>
+          {message && (
+            <div className="mt-4 rounded-xl bg-emerald-50 px-4 py-3 text-sm font-bold text-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-300">
+              {message}
+            </div>
+          )}
         </div>
 
         {loading ? (
@@ -239,6 +279,7 @@ const FacultyMonitorProgress = () => {
                       </div>
                     </th>
                   ))}
+                  <th scope="col" className="px-6 py-3 text-right">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
@@ -264,6 +305,34 @@ const FacultyMonitorProgress = () => {
                           {Icon ? <FontAwesomeIcon icon={Icon} size="sm" /> : null}
                           {student.status}
                         </span>
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className="flex justify-end gap-2">
+                          <button
+                            type="button"
+                            onClick={() => handleCompletionDecision(student, 'approve')}
+                            disabled={!student.canReviewCompletion || Boolean(actionLoadingId)}
+                            className="inline-flex items-center gap-2 rounded-lg bg-emerald-50 px-3 py-2 text-[10px] font-black uppercase tracking-widest text-emerald-700 transition-all hover:bg-emerald-100 disabled:opacity-40 dark:bg-emerald-900/20 dark:text-emerald-300"
+                          >
+                            <FontAwesomeIcon
+                              icon={actionLoadingId === `${student.placementId}-approve` ? faSpinner : faCheckCircle}
+                              spin={actionLoadingId === `${student.placementId}-approve`}
+                            />
+                            Approve
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleCompletionDecision(student, 'reject')}
+                            disabled={!student.canReviewCompletion || Boolean(actionLoadingId)}
+                            className="inline-flex items-center gap-2 rounded-lg bg-rose-50 px-3 py-2 text-[10px] font-black uppercase tracking-widest text-rose-700 transition-all hover:bg-rose-100 disabled:opacity-40 dark:bg-rose-900/20 dark:text-rose-300"
+                          >
+                            <FontAwesomeIcon
+                              icon={actionLoadingId === `${student.placementId}-reject` ? faSpinner : faTimesCircle}
+                              spin={actionLoadingId === `${student.placementId}-reject`}
+                            />
+                            Reject
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   );

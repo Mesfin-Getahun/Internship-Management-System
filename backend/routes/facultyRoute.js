@@ -7,9 +7,11 @@ import {
   getStudents,
   getMentors,
   getPaymentData,
+  generateStipendReportCsv,
   getFacultyProfile,
   facultyViewReports,
   evaluation,
+  updateInternshipCompletionStatus,
   uploadStudents,
 } from "../controller/facultyController.js";
 import { authFaculty } from "../middleware/auth.js";
@@ -177,6 +179,12 @@ facultyRoute.put("/changeMentor/:id", authFaculty, changeMentor);
  */
 facultyRoute.get("/reports", authFaculty, facultyViewReports);
 facultyRoute.get("/payments", authFaculty, getPaymentData);
+facultyRoute.get("/stipend-report.csv", authFaculty, generateStipendReportCsv);
+facultyRoute.put(
+  "/internship-completion/:placement_id",
+  authFaculty,
+  updateInternshipCompletionStatus,
+);
 facultyRoute.get("/profile", authFaculty, getFacultyProfile);
 facultyRoute.post(
   "/uploadStudents",
