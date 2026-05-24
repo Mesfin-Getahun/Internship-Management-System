@@ -265,6 +265,7 @@ const getStudentCurrentInternshipLock = async (studentId) => {
       LEFT JOIN company c
         ON si.company_id = c.company_id
       WHERE si.student_id = ?
+        AND si.cohort_status = 'current'
         AND LOWER(si.status) IN (?, ?, ?)
 
       UNION ALL
@@ -642,6 +643,7 @@ const cancelCurrentInternship = async (req, res) => {
       WHERE si.id = ?
         AND si.student_id = ?
         AND LOWER(si.status) IN ('in progress', 'accepted', 'active')
+        AND si.cohort_status = 'current'
       LIMIT 1
       FOR UPDATE
       `,
@@ -950,6 +952,7 @@ const myInternship = async (req, res) => {
         ON s.assigned_mentor = m.mentor_id
       WHERE si.student_id = ?
         AND LOWER(si.status) IN ('in progress', 'accepted', 'active')
+        AND si.cohort_status = 'current'
       ORDER BY
         CASE
           WHEN LOWER(si.status) IN ('in progress', 'active') THEN 0
@@ -1029,6 +1032,7 @@ const uploadInternshipReport = async (req, res) => {
       WHERE si.student_id = ?
         AND si.internship_id = ?
         AND LOWER(si.status) IN ('in progress', 'accepted', 'active')
+        AND si.cohort_status = 'current'
       LIMIT 1
       `,
       [student_id, internship_id],

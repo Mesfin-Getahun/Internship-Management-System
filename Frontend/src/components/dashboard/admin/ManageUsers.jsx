@@ -7,30 +7,34 @@ const ManageUsers = () => {
   const [users, setUsers] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [roleFilter, setRoleFilter] = useState('all');
+  const [deactivatingId, setDeactivatingId] = useState('');
+
+  const authConfig = useMemo(
+    () => user?.token ? { headers: { Authorization: `Bearer ${user.token}` } } : null,
+    [user?.token],
+  );
+
+  const fetchUsers = async () => {
+    if (!authConfig) return;
+
+    try {
+      const res = await axios.get(`${import.meta.env.VITE_BACKEND_URL}/api/admin/users`, authConfig);
+      const allUsers = Array.isArray(res.data?.users) ? res.data.users : [];
+      const managedRoles = ['mentor', 'faculty', 'company_mentor', 'company', 'uil'];
+      const filteredUsers = allUsers.filter(u => managedRoles.includes(String(u.role || '').toLowerCase()));
+      setUsers(filteredUsers);
+    } catch (error) {
+      console.error('Failed to load admin users.', error);
+    }
+  };
 
   useEffect(() => {
-    const fetchUsers = async () => {
-      try {
-        const res = await axios.get(`${import.meta.env.VITE_BACKEND_URL}/api/admin/users`, {
-          headers: { Authorization: `Bearer ${user?.token}` },
-        });
-        const allUsers = Array.isArray(res.data?.users) ? res.data.users : [];
-        const managedRoles = ['mentor', 'faculty mentor', 'faculty', 'uil'];
-        const filteredUsers = allUsers.filter(u => managedRoles.includes(String(u.role || '').toLowerCase()));
-        setUsers(filteredUsers);
-      } catch (error) {
-        console.error('Failed to load admin users.', error);
-      }
-    };
-
-    if (user?.token) {
-      fetchUsers();
-    }
-  }, [user?.token]);
+    fetchUsers();
+  }, [authConfig]);
 
   const roleOptions = useMemo(() => {
     const discoveredRoles = [...new Set(users.map((item) => String(item.role || '').toLowerCase()).filter(Boolean))];
-    const orderedRoles = ['mentor', 'faculty mentor', 'faculty', 'uil'];
+    const orderedRoles = ['mentor', 'faculty', 'company_mentor', 'company', 'uil'];
 
     return ['all', ...orderedRoles.filter((role) => discoveredRoles.includes(role)), ...discoveredRoles.filter((role) => !orderedRoles.includes(role))];
   }, [users]);
@@ -57,6 +61,36 @@ const ManageUsers = () => {
       return matchesRole && matchesSearch;
     });
   }, [roleFilter, searchTerm, users]);
+
+  const canDeactivate = (item) => {
+    const role = String(item.role || '').toLowerCase();
+    const status = String(item.status || '').toLowerCase();
+    return ['mentor', 'faculty', 'company_mentor', 'company'].includes(role) && status === 'active';
+  };
+
+  const deactivateUser = async (item) => {
+    if (!authConfig || !canDeactivate(item)) return;
+
+    const confirmed = window.confirm(
+      `Deactivate ${item.full_name || item.id}? Historical records linked to this account will remain available.`,
+    );
+
+    if (!confirmed) return;
+
+    try {
+      const key = `${item.role}-${item.id}`;
+      setDeactivatingId(key);
+      await axios.delete(
+        `${import.meta.env.VITE_BACKEND_URL}/api/admin/users/${encodeURIComponent(item.role)}/${encodeURIComponent(item.id)}`,
+        authConfig,
+      );
+      await fetchUsers();
+    } catch (error) {
+      console.error('Failed to deactivate account.', error);
+    } finally {
+      setDeactivatingId('');
+    }
+  };
 
   return (
     <div className="animate-fade-in space-y-6 pb-12">
@@ -113,8 +147,14 @@ const ManageUsers = () => {
             </thead>
             <tbody className="divide-y divide-slate-50">
               {filteredUsers.length > 0 ? (
-                filteredUsers.map((u, i) => (
-                  <tr key={i} className="hover:bg-slate-50/50 transition-colors group">
+                filteredUsers.map((u, i) => {
+                  const userKey = `${u.role}-${u.id}`;
+                  const isDeactivating = deactivatingId === userKey;
+                  const active = String(u.status || '').toLowerCase() === 'active';
+                  const deactivationAllowed = canDeactivate(u);
+
+                  return (
+                  <tr key={userKey || i} className="hover:bg-slate-50/50 transition-colors group">
                     <td className="p-5">
                       <div className="font-bold text-slate-800 group-hover:text-indigo-600 transition-colors">{u.full_name}</div>
                       <div className="text-[11px] text-slate-400 font-medium">{u.email}</div>
@@ -125,18 +165,26 @@ const ManageUsers = () => {
                     <td className="p-5 text-slate-500 font-bold uppercase tracking-tighter text-[11px]">{u.faculty || u.department || 'N/A'}</td>
                     <td className="p-5 text-center">
                       <div className="flex flex-col items-center gap-1">
-                        <span className={`w-2 h-2 rounded-full ${String(u.status || '').toLowerCase() === 'active' ? 'bg-green-500' : 'bg-slate-300'}`}></span>
+                        <span className={`w-2 h-2 rounded-full ${active ? 'bg-green-500' : 'bg-slate-300'}`}></span>
                         <span className="text-[9px] text-slate-400 font-bold uppercase">{u.status || 'Unknown'}</span>
                       </div>
                     </td>
                     <td className="p-5 text-right">
                        <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                           <button className="px-3 py-1.5 bg-slate-900 text-white rounded-lg text-[10px] font-black uppercase tracking-widest hover:bg-slate-800 transition-all">ID: {u.id}</button>
-                          <button className="px-3 py-1.5 bg-white border border-slate-200 text-slate-600 rounded-lg text-[10px] font-black uppercase tracking-widest hover:bg-slate-50 transition-all">{u.role}</button>
+                          <button
+                            type="button"
+                            onClick={() => deactivateUser(u)}
+                            disabled={!deactivationAllowed || isDeactivating}
+                            className="px-3 py-1.5 bg-white border border-slate-200 text-slate-600 rounded-lg text-[10px] font-black uppercase tracking-widest hover:bg-red-50 hover:text-red-600 transition-all disabled:opacity-40"
+                          >
+                            {isDeactivating ? 'Deactivating' : deactivationAllowed ? 'Deactivate' : u.role}
+                          </button>
                        </div>
                     </td>
                   </tr>
-                ))
+                  );
+                })
               ) : (
                 <tr>
                   <td colSpan="5" className="p-8 text-center text-sm font-medium text-slate-500">

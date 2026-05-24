@@ -3,6 +3,12 @@ import db from "../config/mysql.js";
 
 const normalizeRole = (role) => String(role || "").trim().toLowerCase();
 
+const isInactiveAccount = (record) =>
+  String(record?.account_status || "active").toLowerCase() === "inactive";
+
+const rejectInactiveAccount = (res, message = "This account has been deactivated") =>
+  res.status(403).json({ success: false, message });
+
 const hasExpectedRole = (decoded, expectedRole) => {
   const role = normalizeRole(decoded?.role);
   return role === normalizeRole(expectedRole);
@@ -43,6 +49,9 @@ const authStudent = async (req, res, next) => {
       return res
         .status(404)
         .json({ success: false, message: "User not found" });
+    }
+    if (isInactiveAccount(user)) {
+      return rejectInactiveAccount(res);
     }
     req.user = user; // Attach the user
     next();
@@ -89,6 +98,9 @@ const authMentor = async (req, res, next) => {
         .status(404)
         .json({ success: false, message: "User not found" });
     }
+    if (isInactiveAccount(user)) {
+      return rejectInactiveAccount(res);
+    }
     req.user = user; // Attach the user
     next();
   } catch (error) {
@@ -134,6 +146,9 @@ const authCompany = async (req, res, next) => {
       return res
         .status(404)
         .json({ success: false, message: "User not found" });
+    }
+    if (isInactiveAccount(user)) {
+      return rejectInactiveAccount(res, "This company account has been deactivated");
     }
     req.user = user; // Attach the user
     next();
@@ -216,6 +231,9 @@ const authAdmin = async (req, res, next) => {
         .status(404)
         .json({ success: false, message: "User not found" });
     }
+    if (isInactiveAccount(user)) {
+      return rejectInactiveAccount(res);
+    }
     req.user = user; // Attach the user
     next();
   } catch (error) {
@@ -287,6 +305,9 @@ const authUIL = async (req, res, next) => {
         .status(404)
         .json({ success: false, message: "UIL user not found" });
     }
+    if (isInactiveAccount(user)) {
+      return rejectInactiveAccount(res);
+    }
     req.user = user; // Attach the user
     next();
   } catch (error) {
@@ -332,6 +353,9 @@ const authFaculty = async (req, res, next) => {
       return res
         .status(404)
         .json({ success: false, message: "User not found" });
+    }
+    if (isInactiveAccount(user)) {
+      return rejectInactiveAccount(res);
     }
     req.user = user; // Attach the user
     next();
@@ -379,6 +403,9 @@ const authCompanyMentor = async (req, res, next) => {
       return res
         .status(404)
         .json({ success: false, message: "User not found" });
+    }
+    if (isInactiveAccount(user)) {
+      return rejectInactiveAccount(res);
     }
     req.user = user; // Attach the user
     next();

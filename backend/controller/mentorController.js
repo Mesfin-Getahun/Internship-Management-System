@@ -25,6 +25,7 @@ const fetchStudents = async (req, res) => {
       LEFT JOIN student_internship si
         ON s.student_id = si.student_id
         AND LOWER(si.status) IN ('in progress', 'accepted', 'active', 'completed', 'complete')
+        AND si.cohort_status = 'current'
       LEFT JOIN internship i
         ON si.internship_id = i.internship_id
       LEFT JOIN company c
@@ -80,6 +81,7 @@ const getMentorProfile = async (req, res) => {
       FROM student s
       LEFT JOIN student_internship si
         ON s.student_id = si.student_id
+        AND si.cohort_status = 'current'
       LEFT JOIN internship i
         ON si.internship_id = i.internship_id
       WHERE s.assigned_mentor = ?
@@ -445,7 +447,9 @@ const provideFeedback = async (req, res) => {
       SELECT s.student_id, si.internship_id
       FROM student s
       LEFT JOIN student_internship si
-        ON s.student_id = si.student_id AND si.status = 'in progress'
+        ON s.student_id = si.student_id
+        AND si.status = 'in progress'
+        AND si.cohort_status = 'current'
       WHERE s.student_id = ? AND s.assigned_mentor = ?
       `,
       [student_id, mentor_id],

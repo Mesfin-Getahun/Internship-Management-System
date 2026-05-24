@@ -36,6 +36,9 @@ const AssignedStudentsLive = () => {
       const mentors = Array.isArray(mentorsRes.data?.mentors)
         ? mentorsRes.data.mentors
         : [];
+      const activeMentors = mentors.filter(
+        (mentor) => String(mentor.account_status || 'active').toLowerCase() === 'active',
+      );
 
       const activePlacements = applications.filter((application) => {
         const status = String(application.status || '').toLowerCase();
@@ -43,7 +46,7 @@ const AssignedStudentsLive = () => {
       });
 
       setStudents(activePlacements);
-      setCompanyMentors(mentors);
+      setCompanyMentors(activeMentors);
     } catch (err) {
       console.error(err);
       toast.error(err.response?.data?.message || 'Failed to load assigned students.');

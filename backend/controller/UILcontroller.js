@@ -5,6 +5,11 @@ import { sendEmail } from "../utils/sendEmail.js";
 import { uploadToCloudinary } from "../utils/cloudinaryUpload.js";
 import createLog from "../utils/createLog.js";
 import { escapeHtml } from "../utils/security.js";
+import {
+  buildAcademicYearWindow,
+  getCurrentAcademicYear,
+  listAcademicYears,
+} from "../utils/academicYear.js";
 
 const RECOMMENDATION_SETTING_KEYS = [
   "recommendation_letter_url",
@@ -472,9 +477,11 @@ const companyRequest = async (req, res) => {
         profile_pic AS company_profile_pic,
         license_url,
         license_url AS company_license_url,
-        status
+        status,
+        account_status
       FROM company
       WHERE status = 'pending'
+        AND account_status = 'active'
       ORDER BY company_name ASC
     `);
 
@@ -510,9 +517,11 @@ const getActiveCompanies = async (req, res) => {
         profile_pic AS company_profile_pic,
         license_url,
         license_url AS company_license_url,
-        status
+        status,
+        account_status
       FROM company
       WHERE status = 'approved'
+        AND account_status = 'active'
       ORDER BY company_name ASC
     `);
 
@@ -545,6 +554,7 @@ const exportCompaniesCsv = async (req, res) => {
         city,
         location,
         status,
+        account_status,
         DATE_FORMAT(created_at, '%Y-%m-%d %H:%i:%s') AS created_at,
         CASE WHEN agreed = 1 THEN 'yes' ELSE 'no' END AS agreement_confirmed,
         profile_pic AS profile_picture_url,
@@ -577,8 +587,219 @@ const exportCompaniesCsv = async (req, res) => {
   }
 };
 
+const getAcademicYears = async (req, res) => {
+  try {
+    await getCurrentAcademicYear();
+    const years = await listAcademicYears();
+
+    res.status(200).json({
+      success: true,
+      count: years.length,
+      years,
+    });
+  } catch (error) {
+    console.error("Fetch academic years error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to fetch academic years",
+    });
+  }
+};
+
+const createAcademicYear = async (req, res) => {
+  try {
+    const fallback = buildAcademicYearWindow();
+    const label = String(req.body?.label || fallback.label).trim();
+    const startDate = req.body?.start_date || fallback.startDate;
+    const endDate = req.body?.end_date || fallback.endDate;
+
+    if (!label) {
+      return res.status(400).json({
+        success: false,
+        message: "Academic year label is required",
+      });
+    }
+
+    const [currentRows] = await db.query(
+      "SELECT academic_year_id, label FROM academic_year WHERE status = 'current' LIMIT 1",
+    );
+
+    if (currentRows.length > 0) {
+      return res.status(409).json({
+        success: false,
+        message: `Academic year ${currentRows[0].label} is already current. Close it before starting another year.`,
+        current_year: currentRows[0],
+      });
+    }
+
+    const [result] = await db.query(
+      `
+      INSERT INTO academic_year (label, start_date, end_date, status)
+      VALUES (?, ?, ?, 'current')
+      `,
+      [label, startDate, endDate],
+    );
+
+    if (req.user?.UIL_id) {
+      await createLog(
+        req.user.UIL_id,
+        "ACADEMIC_YEAR_CREATED",
+        `UIL created academic year ${label}`,
+      ).catch(() => null);
+    }
+
+    res.status(201).json({
+      success: true,
+      message: "Academic year created successfully",
+      academic_year_id: result.insertId,
+    });
+  } catch (error) {
+    console.error("Create academic year error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to create academic year",
+    });
+  }
+};
+
+const getNextAcademicYearWindow = (currentYear) => {
+  const label = String(currentYear?.label || "");
+  const match = label.match(/^(\d{4})\/(\d{4})$/);
+
+  if (match) {
+    const nextStart = Number(match[2]);
+    const nextEnd = nextStart + 1;
+    return {
+      label: `${nextStart}/${nextEnd}`,
+      startDate: `${nextStart}-09-01`,
+      endDate: `${nextEnd}-08-31`,
+    };
+  }
+
+  return buildAcademicYearWindow(new Date(Date.now() + 366 * 24 * 60 * 60 * 1000));
+};
+
+const closeCurrentAcademicYear = async (req, res) => {
+  const connection = await db.getConnection();
+
+  try {
+    await connection.beginTransaction();
+    const currentYear = await getCurrentAcademicYear(connection);
+
+    const [[blockers]] = await connection.query(
+      `
+      SELECT COUNT(*) AS total
+      FROM student_internship si
+      WHERE si.academic_year_id = ?
+        AND si.cohort_status = 'current'
+        AND (
+          NOT EXISTS (
+            SELECT 1
+            FROM internship_report r
+            WHERE r.student_id = si.student_id
+              AND r.internship_id = si.internship_id
+              AND (r.faculty_submitted_at IS NOT NULL OR r.status = 'faculty_submitted')
+          )
+          OR NOT EXISTS (
+            SELECT 1
+            FROM internship_evaluation ie
+            WHERE ie.student_id = si.student_id
+              AND ie.internship_id = si.internship_id
+          )
+        )
+      `,
+      [currentYear.academic_year_id],
+    );
+
+    if (Number(blockers?.total || 0) > 0) {
+      await connection.rollback();
+      return res.status(409).json({
+        success: false,
+        message:
+          "Cannot close the academic year until every current placement has a faculty-submitted report and organization evaluation.",
+        pending_placements: Number(blockers.total || 0),
+      });
+    }
+
+    await connection.query(
+      `
+      UPDATE student_internship
+      SET status = 'completed',
+          cohort_status = 'archived',
+          end_date = COALESCE(end_date, CURRENT_DATE())
+      WHERE academic_year_id = ?
+        AND cohort_status = 'current'
+      `,
+      [currentYear.academic_year_id],
+    );
+
+    await connection.query(
+      `
+      UPDATE academic_year
+      SET status = 'archived',
+          archived_at = NOW()
+      WHERE academic_year_id = ?
+      `,
+      [currentYear.academic_year_id],
+    );
+
+    const nextFallback = getNextAcademicYearWindow(currentYear);
+    const nextLabel = String(req.body?.next_label || nextFallback.label).trim();
+    const nextStartDate = req.body?.next_start_date || nextFallback.startDate;
+    const nextEndDate = req.body?.next_end_date || nextFallback.endDate;
+
+    await connection.query(
+      `
+      INSERT INTO academic_year (label, start_date, end_date, status)
+      VALUES (?, ?, ?, 'current')
+      ON DUPLICATE KEY UPDATE status = 'current', archived_at = NULL
+      `,
+      [nextLabel, nextStartDate, nextEndDate],
+    );
+
+    await connection.commit();
+
+    if (req.user?.UIL_id) {
+      await createLog(
+        req.user.UIL_id,
+        "ACADEMIC_YEAR_CLOSED",
+        `UIL archived academic year ${currentYear.label} and opened ${nextLabel}`,
+      ).catch(() => null);
+    }
+
+    res.status(200).json({
+      success: true,
+      message: `Academic year ${currentYear.label} archived. ${nextLabel} is now current.`,
+      archived_year: currentYear.label,
+      current_year: nextLabel,
+    });
+  } catch (error) {
+    await connection.rollback();
+    console.error("Close academic year error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to close academic year",
+    });
+  } finally {
+    connection.release();
+  }
+};
+
 const fulfillmentReports = async (req, res) => {
   try {
+    const requestedYearId = req.query?.academic_year_id;
+    const currentYear = requestedYearId ? null : await getCurrentAcademicYear();
+    const queryParams = [];
+    let yearClause = "";
+
+    if (requestedYearId && requestedYearId !== "all") {
+      yearClause = " AND si.academic_year_id = ?";
+      queryParams.push(requestedYearId);
+    } else if (!requestedYearId) {
+      yearClause = " AND si.academic_year_id = ?";
+      queryParams.push(currentYear.academic_year_id);
+    }
+
     const [reports] = await db.query(
       `
       SELECT
@@ -587,9 +808,13 @@ const fulfillmentReports = async (req, res) => {
         s.full_name AS student_name,
         c.company_name,
         si.id AS placement_id,
+        si.academic_year_id,
+        si.cohort_status,
         i.internship_id,
         i.title AS internship_title,
         si.status AS placement_status,
+        ay.label AS academic_year_label,
+        ay.status AS academic_year_status,
         ie.evaluation_id,
         ie.total_mark,
         ie.assessment_pdf_url,
@@ -606,6 +831,8 @@ const fulfillmentReports = async (req, res) => {
         ON si.internship_id = i.internship_id
       LEFT JOIN company c
         ON i.company_id = c.company_id
+      LEFT JOIN academic_year ay
+        ON si.academic_year_id = ay.academic_year_id
       LEFT JOIN internship_evaluation ie
         ON s.student_id = ie.student_id
        AND si.internship_id = ie.internship_id
@@ -613,13 +840,16 @@ const fulfillmentReports = async (req, res) => {
         ON s.student_id = r.student_id
        AND si.internship_id = r.internship_id
       WHERE si.id IS NOT NULL
+        ${yearClause}
       ORDER BY s.faculty, s.full_name
       `,
+      queryParams,
     );
 
     res.status(200).json({
       success: true,
       count: reports.length,
+      academic_year: currentYear,
       reports,
     });
   } catch (error) {
@@ -949,7 +1179,7 @@ const acceptCompany = async (req, res) => {
     }
 
     await db.query(
-      "UPDATE company SET status = 'approved' WHERE company_id = ?",
+      "UPDATE company SET status = 'approved', account_status = 'active' WHERE company_id = ?",
       [company_id],
     );
 
@@ -1111,6 +1341,9 @@ export {
   companyRequest,
   getActiveCompanies,
   exportCompaniesCsv,
+  getAcademicYears,
+  createAcademicYear,
+  closeCurrentAcademicYear,
   fulfillmentReports,
   inviteCompany,
   verifyCompanyInvite,

@@ -29,6 +29,9 @@ const createPasswordSetupToken = ({ id, role }) =>
     { expiresIn: "15m" },
   );
 
+const isInactiveAccount = (record) =>
+  String(record?.account_status || "active").toLowerCase() === "inactive";
+
 router.post("/", async (req, res) => {
   const { id, email, password } = req.body;
 
@@ -65,6 +68,14 @@ router.post("/", async (req, res) => {
       const match = await bcrypt.compare(password, user.password);
 
       if (!match) return null;
+
+      if (isInactiveAccount(user)) {
+        return {
+          blocked: true,
+          status: 403,
+          message: "This account has been deactivated",
+        };
+      }
 
       if (maintenanceMode && role !== "admin") {
         return {
@@ -136,6 +147,14 @@ router.post("/", async (req, res) => {
       const match = await bcrypt.compare(password, company.password);
 
       if (!match) return null;
+
+      if (isInactiveAccount(company)) {
+        return {
+          blocked: true,
+          status: 403,
+          message: "This company account has been deactivated",
+        };
+      }
 
       if (maintenanceMode) {
         return {

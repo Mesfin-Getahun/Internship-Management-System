@@ -51,6 +51,8 @@ const fetchStudents = async (req, res) => {
       JOIN internship i ON si.internship_id = i.internship_id
       JOIN company c ON i.company_id = c.company_id
       WHERE si.company_mentor_id = ?
+        AND si.cohort_status = 'current'
+        AND LOWER(si.status) IN ('accepted', 'in progress', 'active')
     `;
 
     const [students] = await db.query(query, [company_mentor_id]);
@@ -104,6 +106,7 @@ const postEvaluation = async (req, res) => {
       WHERE si.company_mentor_id = ?
         AND si.internship_id = ?
         AND s.student_id = ?
+        AND si.cohort_status = 'current'
       LIMIT 1
       `,
       [company_mentor_id, internship_id, student_id]
@@ -259,6 +262,7 @@ const giveFeedBack = async (req, res) => {
       WHERE si.company_mentor_id = ?
         AND si.student_id = ?
         AND si.internship_id = ?
+        AND si.cohort_status = 'current'
       LIMIT 1
       `,
       [company_mentor_id, student_id, internship_id],
@@ -373,6 +377,7 @@ const getFeedbacks = async (req, res) => {
       JOIN student_internship si
         ON mf.student_id = si.student_id
        AND mf.internship_id = si.internship_id
+       AND si.cohort_status = 'current'
       JOIN student s
         ON mf.student_id = s.student_id
       JOIN internship i

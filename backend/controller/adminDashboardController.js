@@ -165,22 +165,22 @@ export const getAllUsers = async (req, res) => {
         "SELECT student_id AS id, full_name, email, faculty, department, 'student' AS role, profile_status AS status FROM student"
       ),
       db.query(
-        "SELECT mentor_id AS id, full_name, email, NULL AS faculty, NULL AS department, 'mentor' AS role, 'active' AS status FROM mentor"
+        "SELECT mentor_id AS id, full_name, email, NULL AS faculty, NULL AS department, 'mentor' AS role, account_status AS status FROM mentor"
       ),
       db.query(
-        "SELECT faculty_id AS id, faculty_name AS full_name, email, faculty_name AS faculty, NULL AS department, 'faculty' AS role, 'active' AS status FROM faculty"
+        "SELECT faculty_id AS id, faculty_name AS full_name, email, faculty_name AS faculty, NULL AS department, 'faculty' AS role, account_status AS status FROM faculty"
       ),
       db.query(
         "SELECT UIL_id AS id, full_name, email, 'UIL' AS faculty, NULL AS department, 'uil' AS role, 'active' AS status FROM UIL"
       ),
       db.query(
-        "SELECT company_id AS id, company_name AS full_name, email, company_type AS faculty, industry AS department, 'company' AS role, status FROM company"
+        "SELECT company_id AS id, company_name AS full_name, email, company_type AS faculty, industry AS department, 'company' AS role, account_status AS status, status AS approval_status FROM company"
       ),
       db.query(
         "SELECT admin_id AS id, full_name, email, 'System Administration' AS faculty, NULL AS department, 'admin' AS role, 'active' AS status FROM admin"
       ),
       db.query(
-        "SELECT company_mentor_id AS id, full_name, email, 'Company Mentor' AS faculty, NULL AS department, 'company_mentor' AS role, 'active' AS status FROM company_mentor"
+        "SELECT company_mentor_id AS id, full_name, email, 'Company Mentor' AS faculty, NULL AS department, 'company_mentor' AS role, account_status AS status FROM company_mentor"
       ),
     ]);
 
@@ -208,6 +208,101 @@ export const getAllUsers = async (req, res) => {
   }
 };
 
+const DEACTIVATABLE_ACCOUNT_TABLES = Object.freeze({
+  mentor: {
+    table: "mentor",
+    idColumn: "mentor_id",
+    label: "Faculty mentor",
+  },
+  faculty: {
+    table: "faculty",
+    idColumn: "faculty_id",
+    label: "Faculty",
+  },
+  company_mentor: {
+    table: "company_mentor",
+    idColumn: "company_mentor_id",
+    label: "Company mentor",
+  },
+  company: {
+    table: "company",
+    idColumn: "company_id",
+    label: "Company",
+  },
+});
+
+export const deactivateUserAccount = async (req, res) => {
+  try {
+    const role = String(req.params.role || "").trim().toLowerCase();
+    const accountId = req.params.id;
+    const config = DEACTIVATABLE_ACCOUNT_TABLES[role];
+
+    if (!config || !accountId) {
+      return res.status(400).json({
+        success: false,
+        message: "Unsupported account type or missing account ID",
+      });
+    }
+
+    if (role === "company") {
+      const [[usage]] = await db.query(
+        `
+        SELECT COUNT(*) AS current_students
+        FROM student_internship
+        WHERE company_id = ?
+          AND LOWER(status) IN ('accepted', 'in progress', 'active')
+        `,
+        [accountId],
+      );
+
+      if (Number(usage?.current_students || 0) > 0) {
+        return res.status(409).json({
+          success: false,
+          message:
+            "This company cannot be deactivated while students are currently attending internship there.",
+          current_students: Number(usage.current_students || 0),
+        });
+      }
+    }
+
+    const [result] = await db.query(
+      `
+      UPDATE ${config.table}
+      SET account_status = 'inactive',
+          deleted_at = COALESCE(deleted_at, NOW()),
+          deleted_by = ?,
+          delete_reason = COALESCE(delete_reason, 'Deactivated by admin')
+      WHERE ${config.idColumn} = ?
+      `,
+      [req.user.admin_id, accountId],
+    );
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({
+        success: false,
+        message: `${config.label} not found`,
+      });
+    }
+
+    await insertSystemLog({
+      actorId: req.user.admin_id,
+      action: "ACCOUNT_DEACTIVATED",
+      description: `${config.label} deactivated: ${accountId}`,
+    }).catch(() => null);
+
+    res.status(200).json({
+      success: true,
+      message: `${config.label} deactivated successfully`,
+    });
+  } catch (error) {
+    console.error("Deactivate account error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to deactivate account",
+    });
+  }
+};
+
 export const getFaculties = async (req, res) => {
   try {
     const [rows] = await db.query(
@@ -216,19 +311,20 @@ export const getFaculties = async (req, res) => {
         f.faculty_id,
         f.faculty_name,
         f.email,
+        f.account_status,
         COUNT(DISTINCT s.student_id) AS total_students,
         COUNT(DISTINCT CASE WHEN s.assigned_mentor IS NOT NULL THEN s.assigned_mentor END) AS linked_mentors
       FROM faculty f
       LEFT JOIN student s
         ON s.faculty = f.faculty_name
-      GROUP BY f.faculty_id, f.faculty_name, f.email
+      GROUP BY f.faculty_id, f.faculty_name, f.email, f.account_status
       ORDER BY f.faculty_name
       `
     );
 
     const faculties = rows.map((row) => ({
       ...row,
-      status: "Active",
+      status: row.account_status,
     }));
 
     res.status(200).json({
@@ -258,7 +354,7 @@ export const updateFaculty = async (req, res) => {
     }
 
     const [existingRows] = await db.query(
-      "SELECT faculty_id, faculty_name, email FROM faculty WHERE faculty_id = ?",
+      "SELECT faculty_id, faculty_name, email, account_status FROM faculty WHERE faculty_id = ?",
       [faculty_id]
     );
 
@@ -307,8 +403,13 @@ export const deleteFaculty = async (req, res) => {
     }
 
     const [result] = await db.query(
-      "DELETE FROM faculty WHERE faculty_id = ?",
-      [faculty_id]
+      `UPDATE faculty
+       SET account_status = 'inactive',
+           deleted_at = COALESCE(deleted_at, NOW()),
+           deleted_by = ?,
+           delete_reason = COALESCE(delete_reason, 'Deactivated by admin')
+       WHERE faculty_id = ?`,
+      [req.user.admin_id, faculty_id]
     );
 
     if (result.affectedRows === 0) {
@@ -320,19 +421,19 @@ export const deleteFaculty = async (req, res) => {
 
     await insertSystemLog({
       actorId: req.user.admin_id,
-      action: "FACULTY_DELETED",
-      description: `Faculty deleted: ${faculty_id}`,
+      action: "FACULTY_DEACTIVATED",
+      description: `Faculty deactivated: ${faculty_id}`,
     }).catch(() => null);
 
     res.status(200).json({
       success: true,
-      message: "Faculty deleted successfully",
+      message: "Faculty deactivated successfully",
     });
   } catch (error) {
-    console.error("Delete faculty error:", error);
+    console.error("Deactivate faculty error:", error);
     res.status(500).json({
       success: false,
-      message: "Failed to delete faculty",
+      message: "Failed to deactivate faculty",
     });
   }
 };
@@ -481,22 +582,22 @@ export const exportAdminData = async (req, res) => {
           "SELECT student_id AS id, full_name, email, faculty, department, 'student' AS role, profile_status AS status FROM student"
         ),
         db.query(
-          "SELECT mentor_id AS id, full_name, email, NULL AS faculty, NULL AS department, 'mentor' AS role, 'active' AS status FROM mentor"
+          "SELECT mentor_id AS id, full_name, email, NULL AS faculty, NULL AS department, 'mentor' AS role, account_status AS status FROM mentor"
         ),
         db.query(
-          "SELECT faculty_id AS id, faculty_name AS full_name, email, faculty_name AS faculty, NULL AS department, 'faculty' AS role, 'active' AS status FROM faculty"
+          "SELECT faculty_id AS id, faculty_name AS full_name, email, faculty_name AS faculty, NULL AS department, 'faculty' AS role, account_status AS status FROM faculty"
         ),
         db.query(
           "SELECT UIL_id AS id, full_name, email, 'UIL' AS faculty, NULL AS department, 'uil' AS role, 'active' AS status FROM UIL"
         ),
         db.query(
-          "SELECT company_id AS id, company_name AS full_name, email, company_type AS faculty, industry AS department, 'company' AS role, status FROM company"
+          "SELECT company_id AS id, company_name AS full_name, email, company_type AS faculty, industry AS department, 'company' AS role, account_status AS status, status AS approval_status FROM company"
         ),
         db.query(
           "SELECT admin_id AS id, full_name, email, 'System Administration' AS faculty, NULL AS department, 'admin' AS role, 'active' AS status FROM admin"
         ),
         db.query(
-          "SELECT company_mentor_id AS id, full_name, email, 'Company Mentor' AS faculty, NULL AS department, 'company_mentor' AS role, 'active' AS status FROM company_mentor"
+          "SELECT company_mentor_id AS id, full_name, email, 'Company Mentor' AS faculty, NULL AS department, 'company_mentor' AS role, account_status AS status FROM company_mentor"
         ),
       ]);
 
@@ -523,7 +624,8 @@ export const exportAdminData = async (req, res) => {
           location,
           city,
           region,
-          status
+          status,
+          account_status
         FROM company
         ORDER BY company_name
         `

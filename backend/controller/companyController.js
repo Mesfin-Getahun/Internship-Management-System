@@ -9,6 +9,7 @@ import {
   createNotification,
   createNotifications,
 } from "../utils/notificationService.js";
+import { getCurrentAcademicYear } from "../utils/academicYear.js";
 
 const LOCKED_INTERNSHIP_STATUSES = [
   "accepted",
@@ -17,6 +18,8 @@ const LOCKED_INTERNSHIP_STATUSES = [
   "completed",
   "complete",
 ];
+
+const CURRENT_PLACEMENT_STATUSES = ["accepted", "in progress", "active"];
 
 const getInternshipLockedUsage = async (internship_id, company_id) => {
   const [rows] = await db.query(
@@ -387,7 +390,8 @@ const getProfile = async (req, res) => {
         region,
         profile_pic,
         license_url,
-        status
+        status,
+        account_status
       FROM company
       WHERE company_id = ?
       `,
@@ -414,6 +418,70 @@ const getProfile = async (req, res) => {
   }
 };
 
+const deleteAccount = async (req, res) => {
+  try {
+    const company_id = req.user.company_id;
+    const deletedBy = String(company_id);
+
+    const [activePlacements] = await db.query(
+      `
+      SELECT COUNT(*) AS total
+      FROM student_internship
+      WHERE company_id = ?
+        AND LOWER(status) IN (?, ?, ?)
+      `,
+      [company_id, ...CURRENT_PLACEMENT_STATUSES],
+    );
+
+    const currentStudents = Number(activePlacements[0]?.total || 0);
+
+    if (currentStudents > 0) {
+      return res.status(409).json({
+        success: false,
+        message:
+          "You cannot delete your account while students are currently attending internship at your company.",
+        current_students: currentStudents,
+      });
+    }
+
+    const [result] = await db.query(
+      `
+      UPDATE company
+      SET account_status = 'inactive',
+          deleted_at = COALESCE(deleted_at, NOW()),
+          deleted_by = ?,
+          delete_reason = COALESCE(delete_reason, 'Company self-deleted account')
+      WHERE company_id = ?
+      `,
+      [deletedBy, company_id],
+    );
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({
+        success: false,
+        message: "Company account not found",
+      });
+    }
+
+    await createLog(
+      company_id,
+      "COMPANY_ACCOUNT_DEACTIVATED",
+      `${req.user.company_name || "Company"} deactivated its account`,
+    ).catch(() => null);
+
+    res.status(200).json({
+      success: true,
+      message: "Company account deactivated successfully",
+    });
+  } catch (error) {
+    console.error("Delete company account error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to deactivate company account",
+    });
+  }
+};
+
 const getCompanyMentors = async (req, res) => {
   try {
     const [mentors] = await db.query(
@@ -424,6 +492,8 @@ const getCompanyMentors = async (req, res) => {
         cm.email,
         cm.phone_number,
         cm.must_change_password,
+        cm.account_status,
+        cm.deleted_at,
         COUNT(DISTINCT si.id) AS assigned_students,
         COUNT(DISTINCT mf.feedback_id) AS feedback_count
       FROM company_mentor cm
@@ -436,7 +506,9 @@ const getCompanyMentors = async (req, res) => {
         cm.full_name,
         cm.email,
         cm.phone_number,
-        cm.must_change_password
+        cm.must_change_password,
+        cm.account_status,
+        cm.deleted_at
       ORDER BY cm.full_name
       `,
     );
@@ -523,8 +595,8 @@ const createCompanyMentor = async (req, res) => {
 
     await db.query(
       `INSERT INTO company_mentor
-       (company_mentor_id, full_name, email, phone_number, password, must_change_password)
-       VALUES (?, ?, ?, ?, ?, TRUE)`,
+       (company_mentor_id, full_name, email, phone_number, password, must_change_password, account_status)
+       VALUES (?, ?, ?, ?, ?, TRUE, 'active')`,
       [mentorId, cleanFullName, cleanEmail, cleanPhone, hashedPassword],
     );
 
@@ -543,6 +615,7 @@ const createCompanyMentor = async (req, res) => {
         email: cleanEmail,
         phone_number: cleanPhone,
         must_change_password: 1,
+        account_status: "active",
         assigned_students: 0,
         feedback_count: 0,
       },
@@ -568,7 +641,7 @@ const updateCompanyMentor = async (req, res) => {
     } = req.body;
 
     const [existingRows] = await db.query(
-      `SELECT company_mentor_id, full_name, email, phone_number, must_change_password
+      `SELECT company_mentor_id, full_name, email, phone_number, must_change_password, account_status
        FROM company_mentor
        WHERE company_mentor_id = ?
        LIMIT 1`,
@@ -668,7 +741,7 @@ const deleteCompanyMentor = async (req, res) => {
     const { company_mentor_id } = req.params;
 
     const [mentorRows] = await db.query(
-      `SELECT company_mentor_id, full_name, email
+      `SELECT company_mentor_id, full_name, email, account_status
        FROM company_mentor
        WHERE company_mentor_id = ?
        LIMIT 1`,
@@ -682,49 +755,31 @@ const deleteCompanyMentor = async (req, res) => {
       });
     }
 
-    const [[usage]] = await db.query(
-      `SELECT
-         (SELECT COUNT(*) FROM student_internship WHERE company_mentor_id = ?) AS assigned_students,
-         (SELECT COUNT(*) FROM mentor_feedback WHERE company_mentor_id = ?) AS feedback_count`,
-      [company_mentor_id, company_mentor_id],
-    );
-
-    if (Number(usage.assigned_students || 0) > 0) {
-      return res.status(409).json({
-        success: false,
-        message:
-          "This mentor is assigned to students. Reassign those students before deleting the mentor.",
-      });
-    }
-
-    if (Number(usage.feedback_count || 0) > 0) {
-      return res.status(409).json({
-        success: false,
-        message:
-          "This mentor has feedback history and cannot be deleted without losing records.",
-      });
-    }
-
     await db.query(
-      "DELETE FROM company_mentor WHERE company_mentor_id = ?",
-      [company_mentor_id],
+      `UPDATE company_mentor
+       SET account_status = 'inactive',
+           deleted_at = COALESCE(deleted_at, NOW()),
+           deleted_by = ?,
+           delete_reason = COALESCE(delete_reason, 'Deactivated by company')
+       WHERE company_mentor_id = ?`,
+      [String(req.user.company_id), company_mentor_id],
     );
 
     await createLog(
       req.user.company_id,
-      "COMPANY_MENTOR_DELETED",
-      `Company mentor ${mentorRows[0].full_name || company_mentor_id} deleted by ${req.user.company_name || "company"}`,
+      "COMPANY_MENTOR_DEACTIVATED",
+      `Company mentor ${mentorRows[0].full_name || company_mentor_id} deactivated by ${req.user.company_name || "company"}`,
     );
 
     res.status(200).json({
       success: true,
-      message: "Company mentor deleted successfully",
+      message: "Company mentor deactivated successfully",
     });
   } catch (error) {
-    console.error("Delete company mentor error:", error);
+    console.error("Deactivate company mentor error:", error);
     res.status(500).json({
       success: false,
-      message: "Failed to delete company mentor",
+      message: "Failed to deactivate company mentor",
     });
   }
 };
@@ -765,7 +820,9 @@ const getApplications = async (req, res) => {
       JOIN student s ON a.student_id = s.student_id
       JOIN internship i ON a.internship_id = i.internship_id
       LEFT JOIN student_internship si
-        ON a.student_id = si.student_id AND a.internship_id = si.internship_id
+        ON a.student_id = si.student_id
+       AND a.internship_id = si.internship_id
+       AND si.cohort_status = 'current'
       LEFT JOIN company_mentor cm
         ON si.company_mentor_id = cm.company_mentor_id
       WHERE i.company_id = ?
@@ -886,6 +943,7 @@ const accept = async (req, res) => {
       internshipStartDate && new Date(internshipStartDate) > new Date()
         ? "accepted"
         : "in progress";
+    const currentAcademicYear = await getCurrentAcademicYear();
 
     const [currentInternships] = await db.query(
       `
@@ -907,6 +965,8 @@ const accept = async (req, res) => {
           ON si.company_id = c.company_id
         WHERE si.student_id = ?
           AND si.internship_id <> ?
+          AND si.academic_year_id = ?
+          AND si.cohort_status = 'current'
           AND LOWER(si.status) IN ('in progress', 'accepted', 'active')
 
         UNION ALL
@@ -927,7 +987,13 @@ const accept = async (req, res) => {
       ) current_records
       LIMIT 1
       `,
-      [student_id, internship_id, student_id, internship_id],
+      [
+        student_id,
+        internship_id,
+        currentAcademicYear.academic_year_id,
+        student_id,
+        internship_id,
+      ],
     );
 
     if (currentInternships.length > 0) {
@@ -948,29 +1014,31 @@ const accept = async (req, res) => {
       SELECT id
       FROM student_internship
       WHERE student_id = ? AND internship_id = ?
+        AND academic_year_id = ?
       LIMIT 1
       `,
-      [student_id, internship_id],
+      [student_id, internship_id, currentAcademicYear.academic_year_id],
     );
 
     if (existingPlacement.length === 0) {
       await db.query(
         `INSERT INTO student_internship 
-        (student_id, internship_id, company_id, status, start_date) 
-        VALUES (?, ?, ?, ?, ?)`,
+        (student_id, internship_id, company_id, status, start_date, academic_year_id, cohort_status)
+        VALUES (?, ?, ?, ?, ?, ?, 'current')`,
         [
           student_id,
           internship_id,
           applicationCompanyId,
           placementStatus,
           internshipStartDate,
+          currentAcademicYear.academic_year_id,
         ],
       );
     } else {
       await db.query(
         `
         UPDATE student_internship
-        SET status = ?, start_date = ?
+        SET status = ?, start_date = ?, cohort_status = 'current'
         WHERE id = ?
         `,
         [placementStatus, internshipStartDate, existingPlacement[0].id],
@@ -1093,6 +1161,7 @@ const assignMentor = async (req, res) => {
         FROM student_internship
         WHERE student_id = ?
           AND company_id = ?
+          AND cohort_status = 'current'
           AND LOWER(status) IN ('in progress', 'accepted', 'active')
         ORDER BY id DESC
         LIMIT 1
@@ -1111,7 +1180,7 @@ const assignMentor = async (req, res) => {
 
     // Check if student_internship exists
     const [existing] = await db.query(
-      "SELECT * FROM student_internship WHERE id = ? AND company_id = ?",
+      "SELECT * FROM student_internship WHERE id = ? AND company_id = ? AND cohort_status = 'current'",
       [resolvedInternshipId, company_id],
     );
 
@@ -1121,16 +1190,18 @@ const assignMentor = async (req, res) => {
         .json({ success: false, message: "Student internship not found" });
     }
 
-    // Optional: check if company_mentor exists
     const [mentor] = await db.query(
-      "SELECT * FROM company_mentor WHERE company_mentor_id = ?",
+      `SELECT *
+       FROM company_mentor
+       WHERE company_mentor_id = ?
+         AND account_status = 'active'`,
       [resolvedMentorId],
     );
 
     if (mentor.length === 0) {
       return res
         .status(404)
-        .json({ success: false, message: "Company mentor not found" });
+        .json({ success: false, message: "Active company mentor not found" });
     }
 
     // Assign the mentor
@@ -1278,7 +1349,7 @@ const activeInternships = async (req, res) => {
         i.location,
         i.status,
 
-        COUNT(CASE WHEN si.status = 'in progress' THEN si.student_id END) AS active_students,
+        COUNT(CASE WHEN si.status = 'in progress' AND si.cohort_status = 'current' THEN si.student_id END) AS active_students,
         COUNT(CASE
           WHEN LOWER(COALESCE(si.status, '')) IN ('accepted', 'in progress', 'active', 'completed', 'complete')
           THEN si.student_id
@@ -1451,4 +1522,5 @@ export {
   viewApplication,
   activeInternships,
   registerCompany,
+  deleteAccount,
 };

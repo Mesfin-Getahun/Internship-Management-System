@@ -63,14 +63,14 @@ const assignMentor = async (req, res) => {
 
     // 3️⃣ Check if mentor exists
     const [mentors] = await db.query(
-      "SELECT mentor_id FROM mentor WHERE mentor_id = ?",
+      "SELECT mentor_id FROM mentor WHERE mentor_id = ? AND account_status = 'active'",
       [mentor_id],
     );
 
     if (mentors.length === 0) {
       return res.status(404).json({
         success: false,
-        message: "Mentor not found",
+        message: "Active mentor not found",
       });
     }
 
@@ -172,6 +172,7 @@ const getStudents = async (req, res) => {
         s.profile_status,
         s.assigned_mentor AS university_mentor_id,
         m.full_name AS university_mentor_name,
+        m.account_status AS university_mentor_status,
 
         si.internship_id,
         si.id AS student_internship_id,
@@ -187,6 +188,7 @@ const getStudents = async (req, res) => {
       LEFT JOIN student_internship si
         ON s.student_id = si.student_id
         AND LOWER(si.status) IN ('in progress', 'accepted', 'active', 'completed', 'complete', 'rejected')
+        AND si.cohort_status = 'current'
       LEFT JOIN internship i
         ON si.internship_id = i.internship_id
       LEFT JOIN company c
@@ -222,11 +224,13 @@ const getMentors = async (req, res) => {
         m.full_name,
         m.email,
         m.phone_number,
+        m.account_status,
         COUNT(s.student_id) AS assigned_students_count
       FROM mentor m
       LEFT JOIN student s
         ON s.assigned_mentor = m.mentor_id
-      GROUP BY m.mentor_id, m.full_name, m.email, m.phone_number
+      WHERE m.account_status = 'active'
+      GROUP BY m.mentor_id, m.full_name, m.email, m.phone_number, m.account_status
       ORDER BY m.full_name
       `,
     );
@@ -384,14 +388,14 @@ const changeMentor = async (req, res) => {
     }
 
     const [mentors] = await db.query(
-      "SELECT mentor_id FROM mentor WHERE mentor_id = ?",
+      "SELECT mentor_id FROM mentor WHERE mentor_id = ? AND account_status = 'active'",
       [new_mentor_id],
     );
 
     if (mentors.length === 0) {
       return res.status(404).json({
         success: false,
-        message: "Mentor not found",
+        message: "Active mentor not found",
       });
     }
 
@@ -427,7 +431,9 @@ const getPaymentData = async (req, res) => {
         c.company_name
       FROM payments p
       JOIN student s ON p.student_id = s.student_id
-      LEFT JOIN student_internship si ON s.student_id = si.student_id
+      LEFT JOIN student_internship si
+        ON s.student_id = si.student_id
+        AND si.cohort_status = 'current'
       LEFT JOIN internship i ON si.internship_id = i.internship_id
       LEFT JOIN company c ON i.company_id = c.company_id
       WHERE s.faculty = ?
@@ -473,6 +479,7 @@ const generateStipendReportCsv = async (req, res) => {
       LEFT JOIN student_internship si
         ON s.student_id = si.student_id
         AND LOWER(si.status) IN ('in progress', 'accepted', 'active', 'completed', 'complete')
+        AND si.cohort_status = 'current'
       LEFT JOIN internship i ON si.internship_id = i.internship_id
       LEFT JOIN company c ON i.company_id = c.company_id
       WHERE s.faculty = ?
@@ -527,6 +534,7 @@ const updateInternshipCompletionStatus = async (req, res) => {
       JOIN student s ON si.student_id = s.student_id
       WHERE si.id = ?
         AND s.faculty = ?
+        AND si.cohort_status = 'current'
       LIMIT 1
       `,
       [placement_id, faculty],

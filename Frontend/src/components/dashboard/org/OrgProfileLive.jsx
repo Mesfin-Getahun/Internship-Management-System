@@ -3,7 +3,7 @@ import axios from 'axios';
 import { toast } from 'react-toastify';
 import { useAuth } from '../../../AuthContext';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faCheckCircle, faFilePdf } from '@fortawesome/free-solid-svg-icons';
+import { faCheckCircle, faFilePdf, faSpinner, faTrash } from '@fortawesome/free-solid-svg-icons';
 
 const OrgProfileLive = () => {
   const [profile, setProfile] = useState(null);
@@ -21,7 +21,8 @@ const OrgProfileLive = () => {
   });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const { user } = useAuth();
+  const [deleting, setDeleting] = useState(false);
+  const { user, logout } = useAuth();
 
   useEffect(() => {
     const fetchProfile = async () => {
@@ -81,6 +82,29 @@ const OrgProfileLive = () => {
     }
   };
 
+  const handleDeleteAccount = async () => {
+    const confirmed = window.confirm(
+      'Deactivate this company account? You can only do this when no students are currently attending internship at your company.',
+    );
+
+    if (!confirmed) return;
+
+    try {
+      setDeleting(true);
+      await axios.delete(
+        `${import.meta.env.VITE_BACKEND_URL}/api/company/account`,
+        { headers: { Authorization: `Bearer ${user?.token}` } },
+      );
+      toast.success('Company account deactivated. Historical records remain available to the university.');
+      logout();
+    } catch (err) {
+      console.error(err);
+      toast.error(err.response?.data?.message || 'Failed to deactivate company account.');
+    } finally {
+      setDeleting(false);
+    }
+  };
+
   if (loading) {
     return <div className="text-slate-500">Loading profile...</div>;
   }
@@ -93,7 +117,7 @@ const OrgProfileLive = () => {
           <p className="text-slate-500 text-sm mt-1">Manage your company information through the live company profile routes.</p>
         </div>
         <div className="px-4 py-2 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 rounded-xl text-[10px] font-black uppercase tracking-widest border border-green-200 dark:border-green-800/30">
-          {profile?.status || 'Partner'}
+          {profile?.account_status === 'inactive' ? 'Inactive' : profile?.status || 'Partner'}
         </div>
       </header>
 
@@ -178,6 +202,22 @@ const OrgProfileLive = () => {
                 )}
               </div>
             </div>
+          </div>
+
+          <div className="bg-white dark:bg-slate-900 rounded-3xl border border-red-100 dark:border-red-900/40 p-8 shadow-sm">
+            <h4 className="font-bold text-slate-800 dark:text-white mb-3">Account</h4>
+            <p className="text-xs leading-relaxed text-slate-500 dark:text-slate-400 mb-5">
+              Deactivation is allowed only when no students are currently attending internship here.
+            </p>
+            <button
+              type="button"
+              onClick={handleDeleteAccount}
+              disabled={deleting}
+              className="w-full inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-red-600 text-white font-black hover:bg-red-700 disabled:opacity-60"
+            >
+              <FontAwesomeIcon icon={deleting ? faSpinner : faTrash} spin={deleting} />
+              {deleting ? 'Checking...' : 'Deactivate Account'}
+            </button>
           </div>
         </div>
       </div>

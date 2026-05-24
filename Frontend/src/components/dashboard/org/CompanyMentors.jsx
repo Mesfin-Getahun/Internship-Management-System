@@ -153,8 +153,13 @@ const CompanyMentors = () => {
   const handleDelete = async (mentor) => {
     if (!authConfig) return;
 
+    if (String(mentor.account_status || "active").toLowerCase() === "inactive") {
+      toast.info("This mentor is already inactive.");
+      return;
+    }
+
     const confirmed = window.confirm(
-      `Delete ${mentor.full_name || "this mentor"}? This cannot remove mentors with assigned students or feedback history.`,
+      `Deactivate ${mentor.full_name || "this mentor"}? Their previous student and feedback records will remain available.`,
     );
 
     if (!confirmed) return;
@@ -165,11 +170,11 @@ const CompanyMentors = () => {
         `${import.meta.env.VITE_BACKEND_URL}/api/company/mentors/${mentor.company_mentor_id}`,
         authConfig,
       );
-      toast.success("Company mentor deleted.");
+      toast.success("Company mentor deactivated.");
       await fetchMentors();
     } catch (error) {
       console.error(error);
-      toast.error(error.response?.data?.message || "Failed to delete company mentor.");
+      toast.error(error.response?.data?.message || "Failed to deactivate company mentor.");
     } finally {
       setDeletingId(null);
     }
@@ -310,23 +315,30 @@ const CompanyMentors = () => {
                   {mentors.map((mentor) => {
                     const isDeleting = deletingId === mentor.company_mentor_id;
                     const mustChange = Number(mentor.must_change_password) === 1;
+                    const isInactive =
+                      String(mentor.account_status || "active").toLowerCase() === "inactive";
 
                     return (
                       <tr key={mentor.company_mentor_id} className="hover:bg-slate-50/60 dark:hover:bg-slate-800/30">
                         <td className="p-4 min-w-[260px]">
-                          <p className="font-black text-slate-800 dark:text-white">{mentor.full_name || "Unnamed mentor"}</p>
+                          <p className="font-black text-slate-800 dark:text-white">
+                            {mentor.full_name || "Unnamed mentor"}
+                            {isInactive ? " (Inactive)" : ""}
+                          </p>
                           <p className="text-sm text-slate-500 dark:text-slate-400 break-all">{mentor.email || "No email"}</p>
                           <p className="text-xs text-slate-400 mt-1">{mentor.company_mentor_id}</p>
                         </td>
                         <td className="p-4">
                           <span
                             className={`inline-flex rounded-full px-3 py-1 text-xs font-black ${
-                              mustChange
+                              isInactive
+                                ? "bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400"
+                                : mustChange
                                 ? "bg-amber-50 text-amber-700 dark:bg-amber-900/20 dark:text-amber-300"
                                 : "bg-emerald-50 text-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-300"
                             }`}
                           >
-                            {mustChange ? "Password pending" : "Active"}
+                            {isInactive ? "Inactive" : mustChange ? "Password pending" : "Active"}
                           </span>
                         </td>
                         <td className="p-4 text-sm font-bold text-slate-600 dark:text-slate-300">
@@ -337,6 +349,7 @@ const CompanyMentors = () => {
                             <button
                               type="button"
                               onClick={() => startEdit(mentor)}
+                              disabled={isInactive}
                               className="h-10 w-10 rounded-lg border border-slate-200 dark:border-slate-700 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20"
                               title="Edit mentor"
                             >
@@ -345,9 +358,9 @@ const CompanyMentors = () => {
                             <button
                               type="button"
                               onClick={() => handleDelete(mentor)}
-                              disabled={isDeleting}
+                              disabled={isDeleting || isInactive}
                               className="h-10 w-10 rounded-lg border border-slate-200 dark:border-slate-700 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 disabled:opacity-60"
-                              title="Delete mentor"
+                              title="Deactivate mentor"
                             >
                               <FontAwesomeIcon icon={isDeleting ? faSpinner : faTrash} spin={isDeleting} />
                             </button>

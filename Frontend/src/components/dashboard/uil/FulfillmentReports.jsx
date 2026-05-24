@@ -5,17 +5,43 @@ import { useAuth } from '../../../AuthContext';
 const FulfillmentReports = () => {
   const { user } = useAuth();
   const [rows, setRows] = useState([]);
+  const [academicYears, setAcademicYears] = useState([]);
+  const [selectedYearId, setSelectedYearId] = useState('');
   const [selectedFaculty, setSelectedFaculty] = useState('All Faculties');
   const [loading, setLoading] = useState(true);
+  const [closingYear, setClosingYear] = useState(false);
   const [error, setError] = useState('');
+  const [message, setMessage] = useState('');
+
+  const authConfig = useMemo(
+    () => user?.token ? { headers: { Authorization: `Bearer ${user.token}` } } : null,
+    [user?.token],
+  );
+
+  const fetchAcademicYears = async () => {
+    if (!authConfig) return;
+
+    const res = await axios.get(
+      `${import.meta.env.VITE_BACKEND_URL}/api/UIL/academic-years`,
+      authConfig,
+    );
+    const years = Array.isArray(res.data?.years) ? res.data.years : [];
+    setAcademicYears(years);
+    setSelectedYearId((current) => current || String(years.find((year) => year.status === 'current')?.academic_year_id || ''));
+  };
 
   const fetchReports = async () => {
+    if (!authConfig) return;
+
     try {
       setLoading(true);
       setError('');
-      const res = await axios.get(`${import.meta.env.VITE_BACKEND_URL}/api/UIL/fulfillmentReports`, {
-        headers: { Authorization: `Bearer ${user?.token}` },
-      });
+      setMessage('');
+      const params = selectedYearId ? { academic_year_id: selectedYearId } : undefined;
+      const res = await axios.get(
+        `${import.meta.env.VITE_BACKEND_URL}/api/UIL/fulfillmentReports`,
+        { ...authConfig, params },
+      );
       setRows(Array.isArray(res.data?.reports) ? res.data.reports : []);
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to load fulfillment reports.');
@@ -25,8 +51,49 @@ const FulfillmentReports = () => {
   };
 
   useEffect(() => {
-    if (user?.token) fetchReports();
-  }, [user?.token]);
+    if (authConfig) {
+      fetchAcademicYears().catch((err) => {
+        setError(err.response?.data?.message || 'Failed to load academic years.');
+      });
+    }
+  }, [authConfig]);
+
+  useEffect(() => {
+    if (authConfig) fetchReports();
+  }, [authConfig, selectedYearId]);
+
+  const selectedYear = useMemo(
+    () => academicYears.find((year) => String(year.academic_year_id) === String(selectedYearId)),
+    [academicYears, selectedYearId],
+  );
+
+  const closeCurrentYear = async () => {
+    if (!authConfig) return;
+
+    const currentYear = academicYears.find((year) => year.status === 'current');
+    const confirmed = window.confirm(
+      `Close academic year ${currentYear?.label || 'current'}? Current placements with complete evidence will be archived, and the next year will become current.`,
+    );
+
+    if (!confirmed) return;
+
+    try {
+      setClosingYear(true);
+      setError('');
+      setMessage('');
+      const res = await axios.post(
+        `${import.meta.env.VITE_BACKEND_URL}/api/UIL/academic-years/close-current`,
+        {},
+        authConfig,
+      );
+      setMessage(res.data?.message || 'Academic year closed successfully.');
+      await fetchAcademicYears();
+    } catch (err) {
+      setError(err.response?.data?.message || 'Failed to close academic year.');
+    } finally {
+      setClosingYear(false);
+    }
+  };
 
   const faculties = useMemo(() => {
     const names = rows.map((row) => row.faculty).filter(Boolean);
@@ -39,8 +106,9 @@ const FulfillmentReports = () => {
   }, [rows, selectedFaculty]);
 
   const exportCsv = () => {
-    const headers = ['Student ID', 'Student Name', 'Faculty', 'Organization', 'Internship', 'Mentor Report', 'Organization Evaluation', 'Result'];
+    const headers = ['Academic Year', 'Student ID', 'Student Name', 'Faculty', 'Organization', 'Internship', 'Mentor Report', 'Organization Evaluation', 'Result'];
     const csvRows = filteredRows.map((row) => [
+      row.academic_year_label || selectedYear?.label || '',
       row.student_id,
       row.student_name,
       row.faculty,
@@ -58,7 +126,8 @@ const FulfillmentReports = () => {
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `fulfillment-report-${selectedFaculty.replace(/\s+/g, '-').toLowerCase()}.csv`;
+    const yearPart = (selectedYear?.label || 'current').replace(/[^\w]+/g, '-').toLowerCase();
+    link.download = `fulfillment-report-${yearPart}-${selectedFaculty.replace(/\s+/g, '-').toLowerCase()}.csv`;
     link.click();
     URL.revokeObjectURL(url);
   };
@@ -72,6 +141,20 @@ const FulfillmentReports = () => {
 
       <div className="bg-white rounded-3xl border border-slate-100 shadow-sm p-8">
         <div className="flex flex-wrap gap-4 items-end">
+          <div className="flex-grow max-w-xs">
+            <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Academic Year</label>
+            <select
+              value={selectedYearId}
+              onChange={(e) => setSelectedYearId(e.target.value)}
+              className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
+            >
+              {academicYears.map((year) => (
+                <option key={year.academic_year_id} value={year.academic_year_id}>
+                  {year.label} {year.status === 'current' ? '(Current)' : '(Archived)'}
+                </option>
+              ))}
+            </select>
+          </div>
           <div className="flex-grow max-w-xs">
             <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Faculty Department</label>
             <select
@@ -90,6 +173,15 @@ const FulfillmentReports = () => {
           >
             Refresh
           </button>
+          {selectedYear?.status === 'current' && (
+            <button
+              onClick={closeCurrentYear}
+              disabled={closingYear}
+              className="px-8 py-3 bg-emerald-600 text-white text-xs font-black uppercase tracking-widest rounded-xl hover:bg-emerald-700 transition-all shadow-xl shadow-emerald-500/20 active:scale-95 disabled:opacity-50"
+            >
+              {closingYear ? 'Closing...' : 'Close Year'}
+            </button>
+          )}
           <button
             onClick={exportCsv}
             disabled={filteredRows.length === 0}
@@ -100,6 +192,7 @@ const FulfillmentReports = () => {
         </div>
       </div>
 
+      {message && <p className="rounded-xl bg-green-50 px-4 py-3 text-sm font-bold text-green-700">{message}</p>}
       {error && <p className="rounded-xl bg-red-50 px-4 py-3 text-sm font-bold text-red-700">{error}</p>}
 
       <div className="bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden">
@@ -112,6 +205,7 @@ const FulfillmentReports = () => {
             <thead>
               <tr className="bg-slate-50/50 border-b border-slate-100 text-[10px] font-black uppercase text-slate-400 tracking-widest">
                 <th className="p-5">Student Information</th>
+                <th className="p-5">Year</th>
                 <th className="p-5">Organization</th>
                 <th className="p-5 text-center">Mentor Report</th>
                 <th className="p-5 text-center">Org Eval</th>
@@ -130,6 +224,9 @@ const FulfillmentReports = () => {
                       <div className="font-bold text-slate-800">{row.student_name || 'Student'}</div>
                       <div className="text-[10px] text-slate-400 font-mono mt-0.5">{row.student_id}</div>
                       <div className="text-[10px] text-slate-400 mt-1">{row.faculty || 'Faculty not set'}</div>
+                    </td>
+                    <td className="p-5 text-slate-500 font-bold uppercase tracking-tighter">
+                      {row.academic_year_label || 'Current'}
                     </td>
                     <td className="p-5 text-slate-500 font-bold uppercase tracking-tighter">
                       {row.company_name || 'Not assigned'}

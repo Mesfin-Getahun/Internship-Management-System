@@ -4,6 +4,7 @@ import {
   getAdminProfile,
   getAdminOverview,
   getAllUsers,
+  deactivateUserAccount,
   getFaculties,
   updateFaculty,
   deleteFaculty,
@@ -23,6 +24,7 @@ adminDashboardRoute.use(authAdmin);
 adminDashboardRoute.get("/profile", getAdminProfile);
 adminDashboardRoute.get("/overview", getAdminOverview);
 adminDashboardRoute.get("/users", getAllUsers);
+adminDashboardRoute.delete("/users/:role/:id", deactivateUserAccount);
 adminDashboardRoute.get("/faculties", getFaculties);
 adminDashboardRoute.put("/faculties/:faculty_id", updateFaculty);
 adminDashboardRoute.delete("/faculties/:faculty_id", deleteFaculty);

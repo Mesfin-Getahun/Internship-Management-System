@@ -16,6 +16,7 @@ import {
   viewApplication,
   activeInternships,
   registerCompany,
+  deleteAccount,
 } from "../controller/companyController.js";
 import { authCompany } from "../middleware/auth.js";
 import { companyDocumentUpload } from "../middleware/fileUploadLimits.js";
@@ -297,5 +298,6 @@ companyRoute.post("/assignMentor", authCompany, assignMentor);
  *         description: Company profile updated
  */
 companyRoute.put("/updateProfile", authCompany, updateProfile);
+companyRoute.delete("/account", authCompany, deleteAccount);
 
 export default companyRoute;

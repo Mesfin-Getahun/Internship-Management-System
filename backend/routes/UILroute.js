@@ -10,6 +10,9 @@ import {
   companyRequest,
   getActiveCompanies,
   exportCompaniesCsv,
+  getAcademicYears,
+  createAcademicYear,
+  closeCurrentAcademicYear,
   fulfillmentReports,
   inviteCompany,
   verifyCompanyInvite,
@@ -194,6 +197,9 @@ UILroute.put("/rejectCompany/:company_id", authUIL, rejectCompany);
  */
 UILroute.get("/companies/active", authUIL, getActiveCompanies);
 UILroute.get("/companies/export.csv", authUIL, exportCompaniesCsv);
+UILroute.get("/academic-years", authUIL, getAcademicYears);
+UILroute.post("/academic-years", authUIL, createAcademicYear);
+UILroute.post("/academic-years/close-current", authUIL, closeCurrentAcademicYear);
 UILroute.get("/fulfillmentReports", authUIL, fulfillmentReports);
 UILroute.get("/recommendation-letter", authUIL, getRecommendationLetter);
 UILroute.post(

@@ -50,7 +50,9 @@ const ManageFaculties = () => {
   };
 
   const handleDelete = async (faculty) => {
-    const confirmed = window.confirm(`Delete faculty "${faculty.faculty_name}"?`);
+    if (String(faculty.status || '').toLowerCase() === 'inactive') return;
+
+    const confirmed = window.confirm(`Deactivate faculty "${faculty.faculty_name}"? Historical data will remain available.`);
     if (!confirmed) return;
 
     try {
@@ -62,7 +64,7 @@ const ManageFaculties = () => {
       );
       await fetchFaculties();
     } catch (error) {
-      console.error('Failed to delete faculty.', error);
+      console.error('Failed to deactivate faculty.', error);
     }
   };
 
@@ -92,7 +94,10 @@ const ManageFaculties = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-50 text-sm">
-              {faculties.map((f, i) => (
+              {faculties.map((f, i) => {
+                const isActive = String(f.status || '').toLowerCase() === 'active';
+
+                return (
                 <tr key={i} className="hover:bg-slate-50/50 transition-colors group">
                   <td className="p-5">
                     <div className="font-bold text-slate-800 group-hover:text-indigo-600 transition-colors">{f.faculty_name}</div>
@@ -102,7 +107,7 @@ const ManageFaculties = () => {
                   <td className="p-5 text-center font-bold text-slate-700">{Number(f.total_students || 0).toLocaleString()}</td>
                   <td className="p-5 text-center">
                     <span className={`px-3 py-1 rounded-xl text-[10px] font-black uppercase tracking-widest ${
-                      f.status === 'Active' ? 'bg-indigo-100 text-indigo-700' : 'bg-slate-100 text-slate-400'
+                      isActive ? 'bg-indigo-100 text-indigo-700' : 'bg-slate-100 text-slate-400'
                     }`}>
                       {f.status}
                     </span>
@@ -112,13 +117,14 @@ const ManageFaculties = () => {
                        <button onClick={() => handleEdit(f)} className="p-2.5 bg-slate-50 text-slate-400 hover:bg-indigo-50 hover:text-indigo-600 rounded-xl transition-all">
                           <FontAwesomeIcon icon={faEdit} className="h-4 w-4" />
                        </button>
-                       <button onClick={() => handleDelete(f)} className="p-2.5 bg-slate-50 text-slate-400 hover:bg-red-50 hover:text-red-600 rounded-xl transition-all">
+                       <button onClick={() => handleDelete(f)} disabled={!isActive} className="p-2.5 bg-slate-50 text-slate-400 hover:bg-red-50 hover:text-red-600 rounded-xl transition-all disabled:opacity-40">
                           <FontAwesomeIcon icon={faTrash} className="h-4 w-4" />
                        </button>
                     </div>
                   </td>
                 </tr>
-              ))}
+                );
+              })}
             </tbody>
           </table>
         </div>
