@@ -2,8 +2,55 @@ import React, { useEffect, useMemo, useState, useRef } from 'react';
 import axios from 'axios';
 import { useAuth } from '../../../AuthContext';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faEye, faBriefcase, faSpinner, faUserMinus, faUserPen, faUpload } from '@fortawesome/free-solid-svg-icons';
+import { faEye, faBriefcase, faSpinner, faUserMinus, faUserPen, faUpload, faTimes } from '@fortawesome/free-solid-svg-icons';
 import { getDepartmentOptions, matchesDepartment } from '../../../utils/departmentFilters';
+
+const getProfileStatus = (status) => {
+  const normalized = String(status || '').trim().toLowerCase();
+
+  if (['complete', 'completed', 'profile_complete'].includes(normalized)) {
+    return {
+      label: 'Complete',
+      badge: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400',
+    };
+  }
+
+  return {
+    label: 'Incomplete',
+    badge: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400',
+  };
+};
+
+const DetailModal = ({ title, icon, fields, onClose }) => (
+  <div className="fixed inset-0 z-[80] flex items-center justify-center p-4">
+    <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={onClose}></div>
+    <div className="relative w-full max-w-2xl rounded-3xl border border-slate-200 bg-white shadow-2xl dark:border-slate-800 dark:bg-slate-900">
+      <div className="flex items-center justify-between border-b border-slate-100 p-6 dark:border-slate-800">
+        <div className="flex items-center gap-3">
+          <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-600 dark:bg-emerald-900/20 dark:text-emerald-300">
+            <FontAwesomeIcon icon={icon} />
+          </div>
+          <h3 className="text-lg font-black text-slate-800 dark:text-white">{title}</h3>
+        </div>
+        <button
+          type="button"
+          onClick={onClose}
+          className="rounded-xl p-2 text-slate-400 transition-all hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-800 dark:hover:text-white"
+        >
+          <FontAwesomeIcon icon={faTimes} />
+        </button>
+      </div>
+      <div className="grid gap-4 p-6 sm:grid-cols-2">
+        {fields.map(([label, value]) => (
+          <div key={label} className="rounded-2xl border border-slate-100 bg-slate-50 p-4 dark:border-slate-800 dark:bg-slate-800/40">
+            <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">{label}</p>
+            <p className="mt-2 break-words text-sm font-bold text-slate-700 dark:text-slate-200">{value || 'Not available'}</p>
+          </div>
+        ))}
+      </div>
+    </div>
+  </div>
+);
 
 const FacultyManageStudentsLive = () => {
   const [students, setStudents] = useState([]);
@@ -16,6 +63,7 @@ const FacultyManageStudentsLive = () => {
   const [newMentorId, setNewMentorId] = useState('');
   const [actionLoading, setActionLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [detailModal, setDetailModal] = useState(null);
   const fileInputRef = useRef(null);
   const { user } = useAuth();
 
@@ -79,6 +127,37 @@ const FacultyManageStudentsLive = () => {
   const getPlacementLabel = (student) => {
     if (!student.internship_id) return 'Not Placed';
     return student.internship_status || 'Assigned';
+  };
+
+  const openStudentDetails = (student) => {
+    const profileStatus = getProfileStatus(student.profile_status);
+    setDetailModal({
+      title: student.full_name || 'Student Details',
+      icon: faEye,
+      fields: [
+        ['Student ID', student.student_id],
+        ['Full Name', student.full_name],
+        ['Email', student.email],
+        ['Department', student.department],
+        ['Profile Status', profileStatus.label],
+        ['University Mentor', student.university_mentor_name || 'Not Assigned'],
+      ],
+    });
+  };
+
+  const openInternshipDetails = (student) => {
+    setDetailModal({
+      title: student.internship_title || 'Internship Details',
+      icon: faBriefcase,
+      fields: [
+        ['Placement Status', getPlacementLabel(student)],
+        ['Internship Title', student.internship_title],
+        ['Organization', student.company_name],
+        ['Placement Start', student.placement_start_date ? new Date(student.placement_start_date).toLocaleDateString() : null],
+        ['Internship Start', student.start_date ? new Date(student.start_date).toLocaleDateString() : null],
+        ['Internship End', student.end_date ? new Date(student.end_date).toLocaleDateString() : null],
+      ],
+    });
   };
 
   const handleDeleteMentor = async (studentId) => {
@@ -213,7 +292,10 @@ const FacultyManageStudentsLive = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                {filteredStudents.map((student) => (
+                {filteredStudents.map((student) => {
+                  const profileStatus = getProfileStatus(student.profile_status);
+
+                  return (
                   <tr key={student.student_id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors">
                     <td className="p-5">
                       <div className="font-bold text-slate-800 dark:text-white">{student.full_name}</div>
@@ -273,20 +355,26 @@ const FacultyManageStudentsLive = () => {
                       )}
                     </td>
                     <td className="p-5 text-center">
-                      <span className={`px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest ${
-                        (student.profile_status || '').toLowerCase() === 'complete'
-                          ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400'
-                          : 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400'
-                      }`}>
-                        {student.profile_status || 'Unknown'}
+                      <span className={`px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest ${profileStatus.badge}`}>
+                        {profileStatus.label}
                       </span>
                     </td>
                     <td className="p-5 text-right">
                       <div className="flex justify-end gap-2">
-                        <button title={student.email || 'No email'} className="p-2 bg-slate-50 dark:bg-slate-800 text-slate-500 dark:text-slate-400 rounded-lg hover:bg-emerald-50 dark:hover:bg-emerald-900/20 hover:text-emerald-600 transition-all">
+                        <button
+                          type="button"
+                          title="View student details"
+                          onClick={() => openStudentDetails(student)}
+                          className="p-2 bg-slate-50 dark:bg-slate-800 text-slate-500 dark:text-slate-400 rounded-lg hover:bg-emerald-50 dark:hover:bg-emerald-900/20 hover:text-emerald-600 transition-all"
+                        >
                           <FontAwesomeIcon icon={faEye} className="h-4 w-4" />
                         </button>
-                        <button title={student.internship_title || 'No internship assigned'} className="p-2 bg-slate-50 dark:bg-slate-800 text-slate-500 dark:text-slate-400 rounded-lg hover:bg-blue-50 dark:hover:bg-blue-900/20 hover:text-blue-600 transition-all">
+                        <button
+                          type="button"
+                          title="View internship details"
+                          onClick={() => openInternshipDetails(student)}
+                          className="p-2 bg-slate-50 dark:bg-slate-800 text-slate-500 dark:text-slate-400 rounded-lg hover:bg-blue-50 dark:hover:bg-blue-900/20 hover:text-blue-600 transition-all"
+                        >
                           <FontAwesomeIcon icon={faBriefcase} className="h-4 w-4" />
                         </button>
                         <button
@@ -312,7 +400,8 @@ const FacultyManageStudentsLive = () => {
                       </div>
                     </td>
                   </tr>
-                ))}
+                  );
+                })}
                 {filteredStudents.length === 0 && (
                   <tr>
                     <td colSpan="5" className="p-10 text-center text-slate-500 dark:text-slate-400">
@@ -325,6 +414,14 @@ const FacultyManageStudentsLive = () => {
           </div>
         )}
       </div>
+      {detailModal && (
+        <DetailModal
+          title={detailModal.title}
+          icon={detailModal.icon}
+          fields={detailModal.fields}
+          onClose={() => setDetailModal(null)}
+        />
+      )}
     </div>
   );
 };
