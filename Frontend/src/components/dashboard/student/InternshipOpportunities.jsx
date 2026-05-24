@@ -89,7 +89,8 @@ const InternshipOpportunities = () => {
 
       {currentInternship && (
         <div className="rounded-2xl border border-amber-100 bg-amber-50 px-5 py-4 text-sm font-semibold text-amber-800">
-          You already have a current internship{currentInternship.internship_title ? `: ${currentInternship.internship_title}` : ''}. New applications are disabled until that internship is completed.
+          You already have a current internship{currentInternship.internship_title ? `: ${currentInternship.internship_title}` : ''}. New applications are disabled until it is completed
+          {currentInternship.can_cancel_current_internship ? ' or you cancel it from Active Internship Status within the 7-day early cancellation window.' : '.'}
         </div>
       )}
 
@@ -138,6 +139,7 @@ const InternshipOpportunities = () => {
               {opp.application_locked && (
                 <p className="mb-4 text-xs font-bold text-amber-600">
                   Applications locked: you already have a current internship.
+                  {currentInternship?.can_cancel_current_internship ? ' You can cancel it from Active Internship Status if it is unsuitable.' : ''}
                 </p>
               )}
 
@@ -207,9 +209,9 @@ const InternshipOpportunities = () => {
             <div className="p-8 border-t border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/30">
                  <button 
                     onClick={() => navigate(`/student/apply/${selectedInternship.internship_id}`)}
-                    disabled={!selectedInternship.meets_duration_requirement || selectedInternship.application_locked}
+                   disabled={!selectedInternship.meets_duration_requirement || selectedInternship.application_locked}
                     className="w-full py-5 bg-blue-600 text-white rounded-2xl font-bold hover:bg-blue-700 shadow-xl shadow-blue-500/20 transition-all active:scale-95 disabled:bg-slate-400 disabled:shadow-none disabled:cursor-not-allowed">
-                   {selectedInternship.application_locked ? 'Already Placed' : selectedInternship.meets_duration_requirement ? 'Apply for this Position' : 'Duration Not Eligible'}
+                   {selectedInternship.application_locked ? 'Cancel Current Internship First' : selectedInternship.meets_duration_requirement ? 'Apply for this Position' : 'Duration Not Eligible'}
                  </button>
             </div>
           </div>

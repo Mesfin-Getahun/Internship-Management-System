@@ -6,6 +6,7 @@ import {
   faBuilding,
   faChevronRight,
   faFileAlt,
+  faPaperclip,
   faSpinner,
   faStar,
   faTimes,
@@ -99,6 +100,21 @@ const EvaluationModal = ({ evaluation, onClose }) => {
               </div>
             </div>
           ))}
+
+          {evaluation.attachment_url && (
+            <div>
+              <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest mb-3">Supporting Attachment</p>
+              <a
+                href={evaluation.attachment_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-2 rounded-xl bg-blue-50 px-4 py-3 text-xs font-black uppercase tracking-widest text-blue-700 transition-all hover:bg-blue-100 dark:bg-blue-900/20 dark:text-blue-300"
+              >
+                <FontAwesomeIcon icon={faPaperclip} />
+                {evaluation.attachment_name || 'Open Attachment'}
+              </a>
+            </div>
+          )}
 
           <div className="text-right font-black text-blue-600 dark:text-blue-400 uppercase tracking-widest text-lg pt-6 border-t border-slate-100 dark:border-slate-800">
             Final Equivalent Grade: {(numericRating * 8).toFixed(2)} / 40.00
@@ -293,6 +309,20 @@ const OrganizationUpdates = () => {
                     </p>
                   </div>
                 </div>
+
+                {evaluation.attachment_url && (
+                  <div className="mb-8">
+                    <a
+                      href={evaluation.attachment_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-2 rounded-xl bg-blue-50 px-4 py-3 text-xs font-black uppercase tracking-widest text-blue-700 transition-all hover:bg-blue-100 dark:bg-blue-900/20 dark:text-blue-300"
+                    >
+                      <FontAwesomeIcon icon={faPaperclip} />
+                      {evaluation.attachment_name || 'Open Attachment'}
+                    </a>
+                  </div>
+                )}
 
                 <div className="flex justify-end pt-6 border-t border-slate-100 dark:border-slate-800">
                   <button

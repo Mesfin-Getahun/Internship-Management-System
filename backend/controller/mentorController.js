@@ -1,6 +1,7 @@
 import { uploadToCloudinary } from "../utils/cloudinaryUpload.js";
 import db from "../config/mysql.js";
 import { createNotification } from "../utils/notificationService.js";
+import { ensureMentorFeedbackAttachmentColumns } from "../utils/mentorFeedbackSchema.js";
 
 const fetchStudents = async (req, res) => {
   const mentorId = req.user.mentor_id;
@@ -219,6 +220,8 @@ const mentorSignReport = async (req, res) => {
 
 const companyMentorFeedback = async (req, res) => {
   try {
+    await ensureMentorFeedbackAttachmentColumns();
+
     const mentor_id = req.user.mentor_id;
 
     if (!mentor_id) {
@@ -239,6 +242,8 @@ const companyMentorFeedback = async (req, res) => {
         f.strengths,
         f.weaknesses,
         f.suggestions,
+        f.attachment_url,
+        f.attachment_name,
         f.created_at,
         s.student_id,
         s.full_name AS student_name,
@@ -277,6 +282,8 @@ const companyMentorFeedback = async (req, res) => {
         mf.weaknesses,
         mf.suggestions,
         mf.overall_comment,
+        mf.attachment_url,
+        mf.attachment_name,
         mf.created_at,
         mf.updated_at,
         s.student_id,
@@ -347,6 +354,8 @@ const companyMentorFeedback = async (req, res) => {
 
 const getSingleFeedback = async (req, res) => {
   try {
+    await ensureMentorFeedbackAttachmentColumns();
+
     const mentor_id = req.user.mentor_id;
     const { feedback_id } = req.params;
 
@@ -368,6 +377,8 @@ const getSingleFeedback = async (req, res) => {
         f.strengths,
         f.weaknesses,
         f.suggestions,
+        f.attachment_url,
+        f.attachment_name,
         f.created_at,
         s.student_id,
         s.full_name AS student_name,

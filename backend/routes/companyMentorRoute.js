@@ -6,7 +6,8 @@ import {
   getFeedbacks,
 } from "../controller/companyMentorController.js";
 import { authCompanyMentor } from "../middleware/auth.js";
-import { expensiveActionLimiter } from "../middleware/security.js";
+import { supportingDocumentUpload } from "../middleware/fileUploadLimits.js";
+import { expensiveActionLimiter, uploadLimiter } from "../middleware/security.js";
 
 /**
  * @swagger
@@ -72,6 +73,8 @@ companyMentorRoute.post(
 companyMentorRoute.post(
   "/feedBack/:internship_id/:student_id",
   authCompanyMentor,
+  uploadLimiter,
+  supportingDocumentUpload.single("attachment"),
   giveFeedBack
 );
 

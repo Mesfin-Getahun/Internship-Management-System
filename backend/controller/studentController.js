@@ -3,6 +3,7 @@ import bcrypt from "bcryptjs";
 import { uploadToCloudinary } from "../utils/cloudinaryUpload.js";
 import createLog from "../utils/createLog.js";
 import { createNotification } from "../utils/notificationService.js";
+import { ensureMentorFeedbackAttachmentColumns } from "../utils/mentorFeedbackSchema.js";
 
 function isMissingTableError(error, tableName) {
   return (
@@ -103,6 +104,35 @@ const withDurationEligibility = (internship, department) => {
 };
 
 const CURRENT_INTERNSHIP_STATUSES = ["in progress", "accepted", "active"];
+const INTERNSHIP_CANCEL_WINDOW_DAYS = 7;
+
+const addDays = (date, days) => {
+  const parsed = new Date(date);
+  if (Number.isNaN(parsed.getTime())) return null;
+  parsed.setDate(parsed.getDate() + days);
+  return parsed;
+};
+
+const getInternshipCancellationState = (placement) => {
+  const startDate = placement?.placement_start_date || placement?.start_date;
+  const deadline = addDays(startDate, INTERNSHIP_CANCEL_WINDOW_DAYS);
+
+  if (!deadline) {
+    return {
+      can_cancel_current_internship: false,
+      cancellation_deadline: null,
+      cancellation_window_days: INTERNSHIP_CANCEL_WINDOW_DAYS,
+    };
+  }
+
+  deadline.setHours(23, 59, 59, 999);
+
+  return {
+    can_cancel_current_internship: new Date() <= deadline,
+    cancellation_deadline: deadline.toISOString(),
+    cancellation_window_days: INTERNSHIP_CANCEL_WINDOW_DAYS,
+  };
+};
 
 const getStudentCurrentInternshipLock = async (studentId) => {
   const [rows] = await db.query(
@@ -112,14 +142,18 @@ const getStudentCurrentInternshipLock = async (studentId) => {
       internship_id,
       internship_title,
       company_name,
-      status
+      status,
+      placement_id,
+      placement_start_date
     FROM (
       SELECT
         'placement' AS source,
         si.internship_id,
         i.title AS internship_title,
         c.company_name,
-        si.status
+        si.status,
+        si.id AS placement_id,
+        si.start_date AS placement_start_date
       FROM student_internship si
       JOIN internship i
         ON si.internship_id = i.internship_id
@@ -135,7 +169,9 @@ const getStudentCurrentInternshipLock = async (studentId) => {
         a.internship_id,
         i.title AS internship_title,
         c.company_name,
-        a.status
+        a.status,
+        NULL AS placement_id,
+        NULL AS placement_start_date
       FROM application a
       JOIN internship i
         ON a.internship_id = i.internship_id
@@ -149,7 +185,12 @@ const getStudentCurrentInternshipLock = async (studentId) => {
     [studentId, ...CURRENT_INTERNSHIP_STATUSES, studentId],
   );
 
-  return rows[0] || null;
+  if (!rows[0]) return null;
+
+  return {
+    ...rows[0],
+    ...getInternshipCancellationState(rows[0]),
+  };
 };
 
 const fetchInternships = async (req, res) => {
@@ -436,6 +477,138 @@ const cancelApplication = async (req, res) => {
   }
 };
 
+const cancelCurrentInternship = async (req, res) => {
+  const connection = await db.getConnection();
+
+  try {
+    const student_id = req.user.student_id;
+    const { placement_id } = req.params;
+
+    if (!placement_id) {
+      return res.status(400).json({
+        success: false,
+        message: "Placement ID is required",
+      });
+    }
+
+    await connection.beginTransaction();
+
+    const [placements] = await connection.query(
+      `
+      SELECT
+        si.id,
+        si.student_id,
+        si.internship_id,
+        si.company_id,
+        si.status,
+        si.start_date AS placement_start_date,
+        i.title AS internship_title,
+        c.company_name
+      FROM student_internship si
+      JOIN internship i
+        ON si.internship_id = i.internship_id
+      LEFT JOIN company c
+        ON si.company_id = c.company_id
+      WHERE si.id = ?
+        AND si.student_id = ?
+        AND LOWER(si.status) IN ('in progress', 'accepted', 'active')
+      LIMIT 1
+      FOR UPDATE
+      `,
+      [placement_id, student_id],
+    );
+
+    if (placements.length === 0) {
+      await connection.rollback();
+      return res.status(404).json({
+        success: false,
+        message: "Current internship placement not found or cannot be cancelled",
+      });
+    }
+
+    const placement = placements[0];
+    const cancellationState = getInternshipCancellationState(placement);
+
+    if (!cancellationState.can_cancel_current_internship) {
+      await connection.rollback();
+      return res.status(403).json({
+        success: false,
+        message: `You can only cancel a current internship within ${INTERNSHIP_CANCEL_WINDOW_DAYS} days of the placement start date.`,
+        cancellation_deadline: cancellationState.cancellation_deadline,
+      });
+    }
+
+    const [[activity]] = await connection.query(
+      `
+      SELECT
+        (SELECT COUNT(*)
+         FROM internship_report
+         WHERE student_id = ?
+           AND internship_id = ?) AS report_count,
+        (SELECT COUNT(*)
+         FROM internship_evaluation
+         WHERE student_id = ?
+           AND internship_id = ?) AS evaluation_count
+      `,
+      [student_id, placement.internship_id, student_id, placement.internship_id],
+    );
+
+    if (Number(activity?.report_count || 0) > 0 || Number(activity?.evaluation_count || 0) > 0) {
+      await connection.rollback();
+      return res.status(409).json({
+        success: false,
+        message: "This internship already has reports or evaluations, so it cannot be cancelled as an early unsuitable placement.",
+      });
+    }
+
+    await connection.query(
+      `
+      UPDATE student_internship
+      SET status = 'cancelled',
+          end_date = COALESCE(end_date, CURRENT_DATE())
+      WHERE id = ?
+      `,
+      [placement_id],
+    );
+
+    await connection.query(
+      `
+      UPDATE application
+      SET status = 'cancelled'
+      WHERE student_id = ?
+        AND internship_id = ?
+        AND LOWER(status) = 'accepted'
+      `,
+      [student_id, placement.internship_id],
+    );
+
+    await connection.commit();
+
+    await createNotification({
+      recipientRole: "company",
+      recipientId: placement.company_id,
+      title: "Internship placement cancelled",
+      message: `${req.user.full_name || student_id} cancelled the placement for ${placement.internship_title || "your internship"} within the early cancellation window.`,
+      type: "application",
+      link: "/organization/applications",
+    }).catch(() => null);
+
+    res.status(200).json({
+      success: true,
+      message: "Current internship cancelled successfully. You may now apply for another internship.",
+    });
+  } catch (error) {
+    await connection.rollback();
+    console.error("Cancel current internship error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to cancel current internship",
+    });
+  } finally {
+    connection.release();
+  }
+};
+
 const serializeList = (value) => {
   if (Array.isArray(value)) return JSON.stringify(value);
   if (typeof value === "string") {
@@ -618,6 +791,7 @@ const myInternship = async (req, res) => {
     const [rows] = await db.query(
       `
       SELECT 
+        si.id AS student_internship_id,
         i.internship_id,
         i.title,
         i.description,
@@ -690,7 +864,12 @@ const myInternship = async (req, res) => {
 
     res.status(200).json({
       success: true,
-      internship: rows[0] || null,
+      internship: rows[0]
+        ? {
+            ...rows[0],
+            ...getInternshipCancellationState(rows[0]),
+          }
+        : null,
       applications,
     });
   } catch (error) {
@@ -1075,6 +1254,8 @@ const submitSignedReportToFaculty = async (req, res) => {
 
 const feedbacks = async (req, res) => {
   try {
+    await ensureMentorFeedbackAttachmentColumns();
+
     const student_id = req.user.student_id; // from auth middleware
 
     // fetch all feedback for this student
@@ -1090,6 +1271,8 @@ const feedbacks = async (req, res) => {
          mf.weaknesses,
          mf.suggestions,
          mf.overall_comment,
+         mf.attachment_url,
+         mf.attachment_name,
          mf.created_at,
          mf.updated_at,
          CASE
@@ -1181,6 +1364,7 @@ export {
   feedbacks,
   updateProfile,
   cancelApplication,
+  cancelCurrentInternship,
   suggestedInternships,
   submitSignedReportToFaculty,
   getRecommendationLetter,

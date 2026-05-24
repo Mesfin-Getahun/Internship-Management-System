@@ -2,9 +2,9 @@ import React, { useState, useEffect, useMemo } from 'react';
 import axios from 'axios';
 import { useAuth } from '../../../AuthContext';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faUser, faBuilding, faStar, faSpinner, faCommentSlash, faReply } from '@fortawesome/free-solid-svg-icons';
+import { faUser, faBuilding, faStar, faSpinner, faCommentSlash, faReply, faPaperclip } from '@fortawesome/free-solid-svg-icons';
 
-const FeedbackCard = ({ author, role, date, content, rating, strengths, weaknesses, suggestions, children }) => (
+const FeedbackCard = ({ author, role, date, content, rating, strengths, weaknesses, suggestions, attachmentUrl, attachmentName, children }) => (
   <div className="bg-white dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-3xl p-8 mb-6 shadow-sm transition-all hover:shadow-lg group">
     <div className="flex items-start justify-between mb-4">
       <div className="flex items-center">
@@ -50,6 +50,17 @@ const FeedbackCard = ({ author, role, date, content, rating, strengths, weakness
           <p className="text-sm text-slate-600 dark:text-slate-300 mt-2">{suggestions || 'Not provided'}</p>
         </div>
       </div>
+    )}
+    {attachmentUrl && (
+      <a
+        href={attachmentUrl}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="mt-6 inline-flex items-center gap-2 rounded-xl bg-indigo-50 px-4 py-2 text-xs font-black uppercase tracking-widest text-indigo-700 transition-all hover:bg-indigo-100 dark:bg-indigo-950/30 dark:text-indigo-300"
+      >
+        <FontAwesomeIcon icon={faPaperclip} />
+        {attachmentName || 'Open Attachment'}
+      </a>
     )}
     {children}
   </div>
@@ -156,6 +167,8 @@ const FeedbackAndEvaluation = () => {
           strengths={fb.strengths}
           weaknesses={fb.weaknesses}
           suggestions={fb.suggestions}
+          attachmentUrl={fb.attachment_url}
+          attachmentName={fb.attachment_name}
         >
           {facultyReplies.map((reply) => (
             <FacultyReply key={reply.feedback_id || `${fb.feedback_id}-faculty`} feedback={reply} />

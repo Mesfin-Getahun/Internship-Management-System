@@ -11,6 +11,18 @@ const allowedMimeTypes = {
     "image/png",
     "image/webp",
   ]),
+  supportingDocument: new Set([
+    "application/pdf",
+    "image/jpeg",
+    "image/png",
+    "image/webp",
+    "text/plain",
+    "text/csv",
+    "application/msword",
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    "application/vnd.ms-excel",
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  ]),
   spreadsheet: new Set([
     "text/csv",
     "application/vnd.ms-excel",
@@ -43,6 +55,12 @@ export const companyDocumentUpload = multer({
   storage,
   limits: { fileSize: 5 * MB, files: 2 },
   fileFilter: fileFilterFor(allowedMimeTypes.imageOrPdf),
+});
+
+export const supportingDocumentUpload = multer({
+  storage,
+  limits: { fileSize: 5 * MB, files: 1 },
+  fileFilter: fileFilterFor(allowedMimeTypes.supportingDocument),
 });
 
 export const spreadsheetUpload = multer({

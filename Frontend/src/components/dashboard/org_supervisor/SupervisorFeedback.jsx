@@ -1,10 +1,10 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import axios from 'axios';
 import { useAuth } from '../../../AuthContext';
 import { toast, ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faCommentDots, faPaperPlane, faSpinner, faStar, faUsersSlash } from '@fortawesome/free-solid-svg-icons';
+import { faCommentDots, faFileAlt, faPaperPlane, faPaperclip, faSpinner, faStar, faTimes, faUsersSlash } from '@fortawesome/free-solid-svg-icons';
 
 const SupervisorFeedback = () => {
   const { user } = useAuth();
@@ -13,6 +13,8 @@ const SupervisorFeedback = () => {
   const [selectedKey, setSelectedKey] = useState('');
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const [attachmentFile, setAttachmentFile] = useState(null);
+  const fileInputRef = useRef(null);
   const [form, setForm] = useState({
     feedback_type: 'weekly',
     rating: 0,
@@ -90,11 +92,22 @@ const SupervisorFeedback = () => {
 
     try {
       setSubmitting(true);
+      const formData = new FormData();
+      Object.entries(form).forEach(([key, value]) => {
+        formData.append(key, value ?? '');
+      });
+      if (attachmentFile) {
+        formData.append('attachment', attachmentFile);
+      }
+
       await axios.post(
         `${import.meta.env.VITE_BACKEND_URL}/api/company_mentor/feedBack/${selectedStudent.internship_id}/${selectedStudent.student_id}`,
-        form,
+        formData,
         {
-          headers: { Authorization: `Bearer ${user?.token}` },
+          headers: {
+            Authorization: `Bearer ${user?.token}`,
+            'Content-Type': 'multipart/form-data',
+          },
         }
       );
 
@@ -107,6 +120,10 @@ const SupervisorFeedback = () => {
         suggestions: '',
         overall_comment: '',
       });
+      setAttachmentFile(null);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
       await fetchData();
     } catch (error) {
       console.error('Failed to submit supervisor feedback.', error);
@@ -200,6 +217,50 @@ const SupervisorFeedback = () => {
             </div>
           ))}
 
+          <div>
+            <label className="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">Supporting Document</label>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".pdf,.png,.jpg,.jpeg,.webp,.doc,.docx,.xls,.xlsx,.csv,.txt,application/pdf,image/png,image/jpeg,image/webp,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/csv,text/plain"
+              className="hidden"
+              onChange={(event) => setAttachmentFile(event.target.files?.[0] || null)}
+            />
+            <div className="flex flex-col gap-3 rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-800">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div className="min-w-0">
+                  <p className="text-sm font-bold text-slate-700 dark:text-white">
+                    {attachmentFile ? attachmentFile.name : 'Attach evidence, screenshots, or supporting files'}
+                  </p>
+                  <p className="mt-1 text-xs text-slate-500">PDF, image, Word, Excel, CSV, or text file up to 5 MB.</p>
+                </div>
+                <div className="flex gap-2">
+                  {attachmentFile && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setAttachmentFile(null);
+                        if (fileInputRef.current) fileInputRef.current.value = '';
+                      }}
+                      className="inline-flex items-center gap-2 rounded-xl bg-white px-4 py-2 text-xs font-black uppercase tracking-widest text-slate-500 transition-all hover:bg-slate-100 dark:bg-slate-900 dark:hover:bg-slate-700"
+                    >
+                      <FontAwesomeIcon icon={faTimes} />
+                      Remove
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    className="inline-flex items-center gap-2 rounded-xl bg-slate-800 px-4 py-2 text-xs font-black uppercase tracking-widest text-white transition-all hover:bg-slate-700 dark:bg-slate-700"
+                  >
+                    <FontAwesomeIcon icon={faPaperclip} />
+                    Choose File
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+
           <div className="flex justify-end pt-4 border-t border-slate-100 dark:border-slate-800">
             <button
               type="submit"
@@ -249,6 +310,17 @@ const SupervisorFeedback = () => {
                     </div>
                   </div>
                   <p className="text-sm text-slate-700 dark:text-slate-300 leading-relaxed">{feedback.overall_comment || 'No comment provided.'}</p>
+                  {feedback.attachment_url && (
+                    <a
+                      href={feedback.attachment_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="mt-4 inline-flex items-center gap-2 rounded-xl bg-white px-4 py-2 text-xs font-black uppercase tracking-widest text-emerald-700 shadow-sm transition-all hover:bg-emerald-50 dark:bg-slate-900 dark:text-emerald-300 dark:hover:bg-slate-700"
+                    >
+                      <FontAwesomeIcon icon={faFileAlt} />
+                      {feedback.attachment_name || 'Open Attachment'}
+                    </a>
+                  )}
                 </div>
               ))}
             </div>

@@ -63,6 +63,13 @@ export function cancelStudentApplication(applicationId) {
   });
 }
 
+export function cancelCurrentInternship(placementId) {
+  return apiRequest(`/api/student/cancelCurrentInternship/${placementId}`, {
+    method: "PUT",
+    requiresAuth: true,
+  });
+}
+
 export function submitSignedReportToFaculty(reportId) {
   return apiRequest(`/api/student/submitToFaculty/${reportId}`, {
     method: "PUT",

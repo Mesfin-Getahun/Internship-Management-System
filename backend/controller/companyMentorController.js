@@ -4,6 +4,7 @@ import generateAttendancePDF from "../utils/generateAttendancePDF.js";
 import { uploadToCloudinary } from "../utils/cloudinaryUpload.js";
 import fs from "fs";
 import { createNotifications } from "../utils/notificationService.js";
+import { ensureMentorFeedbackAttachmentColumns } from "../utils/mentorFeedbackSchema.js";
 
 // const fetchStudents = async (req, res) => {
 //   const mentorId = req.user.company_mentor_id;
@@ -219,6 +220,8 @@ const postEvaluation = async (req, res) => {
 
 const giveFeedBack = async (req, res) => {
   try {
+    await ensureMentorFeedbackAttachmentColumns();
+
     const company_mentor_id = req.user.company_mentor_id;
 
     // ✅ Take IDs from URL params, not body
@@ -273,28 +276,39 @@ const giveFeedBack = async (req, res) => {
         ? null
         : Number(rating);
 
-    if (numericRating !== null && (!Number.isFinite(numericRating) || numericRating < 0 || numericRating > 100)) {
+    if (numericRating !== null && (!Number.isFinite(numericRating) || numericRating < 0 || numericRating > 10)) {
       return res.status(400).json({
         success: false,
-        message: "Rating must be a number between 0 and 100",
+        message: "Rating must be a number between 0 and 10",
       });
     }
+
+    const storedRating = numericRating && numericRating > 0 ? numericRating : null;
+    const attachmentUrl = req.file
+      ? await uploadToCloudinary(
+          req.file.buffer,
+          "mentor_feedback/attachments",
+          req.file.originalname,
+        )
+      : null;
 
     await db.query(
       `INSERT INTO mentor_feedback
        (student_id, internship_id, company_mentor_id, feedback_type, rating,
-        strengths, weaknesses, suggestions, overall_comment)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        strengths, weaknesses, suggestions, overall_comment, attachment_url, attachment_name)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         student_id,
         internship_id,
         company_mentor_id,
         feedback_type || "weekly",
-        numericRating,
+        storedRating,
         strengths || null,
         weaknesses || null,
         suggestions || null,
         overall_comment || feedback_text || null,
+        attachmentUrl,
+        req.file?.originalname || null,
       ]
     );
 
@@ -332,6 +346,8 @@ const giveFeedBack = async (req, res) => {
 
 const getFeedbacks = async (req, res) => {
   try {
+    await ensureMentorFeedbackAttachmentColumns();
+
     const company_mentor_id = req.user.company_mentor_id;
 
     const [feedbacks] = await db.query(
@@ -346,6 +362,8 @@ const getFeedbacks = async (req, res) => {
         mf.weaknesses,
         mf.suggestions,
         mf.overall_comment,
+        mf.attachment_url,
+        mf.attachment_name,
         mf.created_at,
         s.full_name AS student_name,
         s.department,

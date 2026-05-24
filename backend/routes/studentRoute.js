@@ -10,6 +10,7 @@ import {
   feedbacks,
   updateProfile,
   cancelApplication,
+  cancelCurrentInternship,
   submitSignedReportToFaculty,
   getRecommendationLetter,
   suggestedInternships,
@@ -262,6 +263,11 @@ studentRoute.post(
  *         description: Server error
  */
 studentRoute.delete("/cancelApplication/:id", authStudent, cancelApplication);
+studentRoute.put(
+  "/cancelCurrentInternship/:placement_id",
+  authStudent,
+  cancelCurrentInternship,
+);
 studentRoute.put(
   "/submitToFaculty/:report_id",
   authStudent,

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useAuth } from '../../../AuthContext';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faBriefcase, faBuilding, faUser, faSpinner, faUniversity } from '@fortawesome/free-solid-svg-icons';
+import { faBan, faBriefcase, faBuilding, faUser, faSpinner, faUniversity } from '@fortawesome/free-solid-svg-icons';
 import { getInternshipProgressState } from '../../../utils/internshipProgress';
 
 const InfoCard = ({ icon, label, value, subValue }) => (
@@ -22,25 +22,58 @@ const InternshipStatus = () => {
   const { user } = useAuth();
   const [internshipData, setInternshipData] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [canceling, setCanceling] = useState(false);
+  const [message, setMessage] = useState('');
+  const [error, setError] = useState('');
+
+  const fetchActiveInternship = async () => {
+    try {
+      setLoading(true);
+      setError('');
+      const res = await axios.get(`${import.meta.env.VITE_BACKEND_URL}/api/student/myInternship`, {
+         headers: { Authorization: `Bearer ${user?.token}` }
+      });
+      
+      const data = res.data.internship || res.data.data || null;
+      setInternshipData(data);
+    } catch (err) {
+       console.error(err);
+       setError(err.response?.data?.message || 'Failed to load current internship.');
+    } finally {
+       setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    const fetchActiveInternship = async () => {
-      try {
-        setLoading(true);
-        const res = await axios.get(`${import.meta.env.VITE_BACKEND_URL}/api/student/myInternship`, {
-           headers: { Authorization: `Bearer ${user?.token}` }
-        });
-        
-        const data = res.data.internship || res.data.data || null;
-        if (data) setInternshipData(data);
-      } catch (err) {
-         console.error(err);
-      } finally {
-         setLoading(false);
-      }
-    };
     if (user?.token) fetchActiveInternship();
-  }, [user]);
+  }, [user?.token]);
+
+  const handleCancelCurrentInternship = async () => {
+    if (!internshipData?.student_internship_id) return;
+
+    const confirmed = window.confirm(
+      'Cancel this current internship placement? This is only allowed within the first 7 days and will let you apply for another opportunity.',
+    );
+    if (!confirmed) return;
+
+    try {
+      setCanceling(true);
+      setError('');
+      setMessage('');
+      const res = await axios.put(
+        `${import.meta.env.VITE_BACKEND_URL}/api/student/cancelCurrentInternship/${encodeURIComponent(internshipData.student_internship_id)}`,
+        {},
+        { headers: { Authorization: `Bearer ${user?.token}` } },
+      );
+      setMessage(res.data?.message || 'Current internship cancelled successfully.');
+      await fetchActiveInternship();
+    } catch (err) {
+      console.error(err);
+      setError(err.response?.data?.message || 'Failed to cancel current internship.');
+    } finally {
+      setCanceling(false);
+    }
+  };
 
   if (loading) {
      return (
@@ -54,15 +87,31 @@ const InternshipStatus = () => {
 
   if (!internshipData || (activeStatus !== 'in progress' && activeStatus !== 'accepted' && activeStatus !== 'active')) {
     return (
-      <div className="flex flex-col justify-center items-center h-64 text-slate-500 animate-fade-in bg-white dark:bg-slate-900 rounded-3xl border border-slate-100 dark:border-slate-800 shadow-sm p-8">
-         <FontAwesomeIcon icon={faBriefcase} size="3x" className="mb-4 opacity-50" />
-         <p className="font-bold text-lg">Progress Dormant.</p>
-         <p className="text-sm mt-1">Progress starts after a company accepts you and the internship start date arrives.</p>
+      <div className="animate-fade-in space-y-4">
+        {message && (
+          <div className="rounded-2xl border border-emerald-100 bg-emerald-50 px-5 py-4 text-sm font-bold text-emerald-700">
+            {message}
+          </div>
+        )}
+        {error && (
+          <div className="rounded-2xl border border-rose-100 bg-rose-50 px-5 py-4 text-sm font-bold text-rose-700">
+            {error}
+          </div>
+        )}
+        <div className="flex flex-col justify-center items-center h-64 text-slate-500 bg-white dark:bg-slate-900 rounded-3xl border border-slate-100 dark:border-slate-800 shadow-sm p-8">
+           <FontAwesomeIcon icon={faBriefcase} size="3x" className="mb-4 opacity-50" />
+           <p className="font-bold text-lg">Progress Dormant.</p>
+           <p className="text-sm mt-1">Progress starts after a company accepts you and the internship start date arrives.</p>
+        </div>
       </div>
     );
   }
 
   const progressState = getInternshipProgressState(internshipData);
+  const canCancel = Boolean(internshipData?.can_cancel_current_internship);
+  const cancellationDeadline = internshipData?.cancellation_deadline
+    ? new Date(internshipData.cancellation_deadline).toLocaleDateString()
+    : null;
 
   return (
     <div className="animate-fade-in space-y-8 pb-12">
@@ -72,6 +121,17 @@ const InternshipStatus = () => {
           An overview of your current placement and progress.
         </p>
       </header>
+
+      {message && (
+        <div className="rounded-2xl border border-emerald-100 bg-emerald-50 px-5 py-4 text-sm font-bold text-emerald-700">
+          {message}
+        </div>
+      )}
+      {error && (
+        <div className="rounded-2xl border border-rose-100 bg-rose-50 px-5 py-4 text-sm font-bold text-rose-700">
+          {error}
+        </div>
+      )}
 
       <div className="bg-white dark:bg-slate-800/50 rounded-3xl border border-slate-200 dark:border-slate-700 shadow-sm p-8">
         <div className="flex flex-col md:flex-row items-start gap-8">
@@ -88,6 +148,11 @@ const InternshipStatus = () => {
               }`}>
                 {progressState.label}
               </span>
+              <span className={`px-3 py-1 rounded-lg text-xs font-bold uppercase ${
+                canCancel ? 'bg-amber-100 text-amber-700' : 'bg-slate-100 text-slate-600'
+              }`}>
+                {canCancel ? 'Early cancellation available' : 'Cancellation window closed'}
+              </span>
             </div>
             <div className="max-w-xl">
               <div className="flex items-center justify-between text-xs font-bold text-slate-500 mb-2">
@@ -101,6 +166,11 @@ const InternshipStatus = () => {
                 ></div>
               </div>
               <p className="text-xs text-slate-500 dark:text-slate-400 mt-2">{progressState.message}</p>
+              {cancellationDeadline && (
+                <p className="text-xs text-slate-500 dark:text-slate-400 mt-2">
+                  Early cancellation deadline: {cancellationDeadline}
+                </p>
+              )}
             </div>
           </div>
         </div>
@@ -109,6 +179,17 @@ const InternshipStatus = () => {
           <InfoCard icon={faUniversity} label="Faculty" value={internshipData.faculty} />
           <InfoCard icon={faUser} label="Company Mentor" value={internshipData.company_mentor_name} subValue="Internship Supervisor" />
           <InfoCard icon={faUser} label="Assigned Mentor" value={internshipData.university_mentor_name} subValue="Faculty Advisor" />
+        </div>
+        <div className="mt-8 flex justify-end border-t border-slate-100 pt-6 dark:border-slate-700/50">
+          <button
+            type="button"
+            onClick={handleCancelCurrentInternship}
+            disabled={!canCancel || canceling}
+            className="inline-flex items-center gap-2 rounded-2xl bg-rose-50 px-5 py-3 text-xs font-black uppercase tracking-widest text-rose-700 transition-all hover:bg-rose-600 hover:text-white disabled:cursor-not-allowed disabled:opacity-45 disabled:hover:bg-rose-50 disabled:hover:text-rose-700"
+          >
+            <FontAwesomeIcon icon={canceling ? faSpinner : faBan} spin={canceling} />
+            Cancel Current Internship
+          </button>
         </div>
       </div>
     </div>
