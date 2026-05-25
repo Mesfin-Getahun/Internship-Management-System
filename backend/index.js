@@ -14,14 +14,8 @@ import notificationRoute from "./routes/notificationRoute.js";
 import { startCompanyMentorFeedbackReminderJob } from "./utils/companyMentorFeedbackReminder.js";
 import {
   registerStudent,
-  createCompanyMentor,
-  createFaculty,
-  createMentor,
-  createUIL,
-  createAdmin,
 } from "./middleware/register.js";
 import { checkMaintenanceMode } from "./middleware/Maintenance.js";
-import { authAdmin } from "./middleware/auth.js";
 import {
   authLimiter,
   globalLimiter,
@@ -78,11 +72,6 @@ app.use("/api/admin", adminDashboardRoute);
 app.use("/api/notifications", notificationRoute);
 
 app.use("/api/registerStudent", registerStudent);
-app.use("/api/registerMentor", authAdmin, createMentor);
-app.use("/api/registerCompanyMentor", authAdmin, createCompanyMentor);
-app.use("/api/registerFaculty", authAdmin, createFaculty);
-app.use("/api/registerUIL", authAdmin, createUIL);
-app.use("/api/registerAdmin", authAdmin, createAdmin);
 
 app.use("/api/login", authLimiter, router);
 app.use("/api/change-password", authLimiter, changeRouter);

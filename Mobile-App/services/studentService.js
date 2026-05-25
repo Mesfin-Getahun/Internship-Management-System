@@ -99,7 +99,6 @@ export function submitPaymentForm(formData) {
   return apiRequest("/api/student/paymentApplication", {
     method: "POST",
     body: formData,
-    isFormData: true,
     requiresAuth: true,
   });
 }

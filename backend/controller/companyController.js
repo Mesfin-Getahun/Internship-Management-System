@@ -10,16 +10,21 @@ import {
   createNotifications,
 } from "../utils/notificationService.js";
 import { getCurrentAcademicYear } from "../utils/academicYear.js";
+import { ensureCompanyMentorCompanyColumn } from "../utils/companyMentorSchema.js";
+import {
+  recordCompanyMentorAssignment,
+} from "../utils/mentorAssignmentHistorySchema.js";
+import {
+  APPLICATION_STATUS,
+  PLACEMENT_STATUS,
+  isPendingApplication,
+} from "../utils/statusRules.js";
 
-const LOCKED_INTERNSHIP_STATUSES = [
-  "accepted",
-  "in progress",
-  "active",
-  "completed",
-  "complete",
+const CURRENT_PLACEMENT_STATUSES = [
+  PLACEMENT_STATUS.ACCEPTED,
+  PLACEMENT_STATUS.IN_PROGRESS,
+  PLACEMENT_STATUS.ACTIVE,
 ];
-
-const CURRENT_PLACEMENT_STATUSES = ["accepted", "in progress", "active"];
 
 const getInternshipLockedUsage = async (internship_id, company_id) => {
   const [rows] = await db.query(
@@ -484,25 +489,36 @@ const deleteAccount = async (req, res) => {
 
 const getCompanyMentors = async (req, res) => {
   try {
+    await ensureCompanyMentorCompanyColumn();
+
+    const company_id = req.user.company_id;
+
     const [mentors] = await db.query(
       `
       SELECT
         cm.company_mentor_id,
+        cm.company_id,
         cm.full_name,
         cm.email,
         cm.phone_number,
         cm.must_change_password,
         cm.account_status,
         cm.deleted_at,
-        COUNT(DISTINCT si.id) AS assigned_students,
+        COUNT(DISTINCT CASE
+          WHEN si.cohort_status = 'current'
+            AND LOWER(si.status) IN ('accepted', 'in progress', 'active')
+          THEN si.id
+        END) AS assigned_students,
         COUNT(DISTINCT mf.feedback_id) AS feedback_count
       FROM company_mentor cm
       LEFT JOIN student_internship si
         ON si.company_mentor_id = cm.company_mentor_id
       LEFT JOIN mentor_feedback mf
         ON mf.company_mentor_id = cm.company_mentor_id
+      WHERE cm.company_id = ?
       GROUP BY
         cm.company_mentor_id,
+        cm.company_id,
         cm.full_name,
         cm.email,
         cm.phone_number,
@@ -511,6 +527,7 @@ const getCompanyMentors = async (req, res) => {
         cm.deleted_at
       ORDER BY cm.full_name
       `,
+      [company_id],
     );
 
     res.status(200).json({
@@ -551,6 +568,9 @@ const generateCompanyMentorId = async () => {
 
 const createCompanyMentor = async (req, res) => {
   try {
+    await ensureCompanyMentorCompanyColumn();
+
+    const company_id = req.user.company_id;
     const {
       company_mentor_id,
       full_name,
@@ -595,9 +615,9 @@ const createCompanyMentor = async (req, res) => {
 
     await db.query(
       `INSERT INTO company_mentor
-       (company_mentor_id, full_name, email, phone_number, password, must_change_password, account_status)
-       VALUES (?, ?, ?, ?, ?, TRUE, 'active')`,
-      [mentorId, cleanFullName, cleanEmail, cleanPhone, hashedPassword],
+       (company_mentor_id, company_id, full_name, email, phone_number, password, must_change_password, account_status)
+       VALUES (?, ?, ?, ?, ?, ?, TRUE, 'active')`,
+      [mentorId, company_id, cleanFullName, cleanEmail, cleanPhone, hashedPassword],
     );
 
     await createLog(
@@ -611,6 +631,7 @@ const createCompanyMentor = async (req, res) => {
       message: "Company mentor created successfully",
       mentor: {
         company_mentor_id: mentorId,
+        company_id,
         full_name: cleanFullName,
         email: cleanEmail,
         phone_number: cleanPhone,
@@ -632,6 +653,9 @@ const createCompanyMentor = async (req, res) => {
 
 const updateCompanyMentor = async (req, res) => {
   try {
+    await ensureCompanyMentorCompanyColumn();
+
+    const company_id = req.user.company_id;
     const { company_mentor_id } = req.params;
     const {
       full_name,
@@ -641,11 +665,11 @@ const updateCompanyMentor = async (req, res) => {
     } = req.body;
 
     const [existingRows] = await db.query(
-      `SELECT company_mentor_id, full_name, email, phone_number, must_change_password, account_status
+      `SELECT company_mentor_id, company_id, full_name, email, phone_number, must_change_password, account_status
        FROM company_mentor
-       WHERE company_mentor_id = ?
+       WHERE company_mentor_id = ? AND company_id = ?
        LIMIT 1`,
-      [company_mentor_id],
+      [company_mentor_id, company_id],
     );
 
     if (existingRows.length === 0) {
@@ -738,14 +762,17 @@ const updateCompanyMentor = async (req, res) => {
 
 const deleteCompanyMentor = async (req, res) => {
   try {
+    await ensureCompanyMentorCompanyColumn();
+
+    const company_id = req.user.company_id;
     const { company_mentor_id } = req.params;
 
     const [mentorRows] = await db.query(
       `SELECT company_mentor_id, full_name, email, account_status
        FROM company_mentor
-       WHERE company_mentor_id = ?
+       WHERE company_mentor_id = ? AND company_id = ?
        LIMIT 1`,
-      [company_mentor_id],
+      [company_mentor_id, company_id],
     );
 
     if (mentorRows.length === 0) {
@@ -761,8 +788,8 @@ const deleteCompanyMentor = async (req, res) => {
            deleted_at = COALESCE(deleted_at, NOW()),
            deleted_by = ?,
            delete_reason = COALESCE(delete_reason, 'Deactivated by company')
-       WHERE company_mentor_id = ?`,
-      [String(req.user.company_id), company_mentor_id],
+       WHERE company_mentor_id = ? AND company_id = ?`,
+      [String(req.user.company_id), company_mentor_id, company_id],
     );
 
     await createLog(
@@ -813,6 +840,7 @@ const getApplications = async (req, res) => {
         i.title AS internship_title,
 
         si.id AS student_internship_id,
+        si.status AS placement_status,
         si.company_mentor_id,
         cm.full_name AS company_mentor_name
 
@@ -899,13 +927,19 @@ const viewApplication = async (req, res) => {
 };
 
 const accept = async (req, res) => {
+  const connection = await db.getConnection();
+
   try {
     const { application_id } = req.params;
     const company_id = req.user.company_id;
 
-    const [rows] = await db.query(
+    await connection.beginTransaction();
+
+    const [rows] = await connection.query(
       `
       SELECT 
+        a.application_id,
+        a.status AS application_status,
         a.student_id,
         a.internship_id,
         i.company_id,
@@ -919,14 +953,24 @@ const accept = async (req, res) => {
         ON i.company_id = c.company_id
       WHERE a.application_id = ?
         AND i.company_id = ?
+      FOR UPDATE
       `,
       [application_id, company_id],
     );
 
     if (rows.length === 0) {
+      await connection.rollback();
       return res.status(404).json({
         success: false,
         message: "Application not found",
+      });
+    }
+
+    if (!isPendingApplication(rows[0].application_status)) {
+      await connection.rollback();
+      return res.status(409).json({
+        success: false,
+        message: "Only pending applications can be accepted",
       });
     }
 
@@ -941,62 +985,45 @@ const accept = async (req, res) => {
     const internshipStartDate = start_date || null;
     const placementStatus =
       internshipStartDate && new Date(internshipStartDate) > new Date()
-        ? "accepted"
-        : "in progress";
-    const currentAcademicYear = await getCurrentAcademicYear();
+        ? PLACEMENT_STATUS.ACCEPTED
+        : PLACEMENT_STATUS.IN_PROGRESS;
+    const currentAcademicYear = await getCurrentAcademicYear(connection);
 
-    const [currentInternships] = await db.query(
+    await connection.query(
+      "SELECT student_id FROM student WHERE student_id = ? FOR UPDATE",
+      [student_id],
+    );
+
+    const [currentInternships] = await connection.query(
       `
       SELECT
-        current_records.internship_id,
-        current_records.internship_title,
-        current_records.company_name,
-        current_records.status
-      FROM (
-        SELECT
-          si.internship_id,
-          i.title AS internship_title,
-          c.company_name,
-          si.status
-        FROM student_internship si
-        JOIN internship i
-          ON si.internship_id = i.internship_id
-        LEFT JOIN company c
-          ON si.company_id = c.company_id
-        WHERE si.student_id = ?
-          AND si.internship_id <> ?
-          AND si.academic_year_id = ?
-          AND si.cohort_status = 'current'
-          AND LOWER(si.status) IN ('in progress', 'accepted', 'active')
-
-        UNION ALL
-
-        SELECT
-          a.internship_id,
-          i.title AS internship_title,
-          c.company_name,
-          a.status
-        FROM application a
-        JOIN internship i
-          ON a.internship_id = i.internship_id
-        LEFT JOIN company c
-          ON i.company_id = c.company_id
-        WHERE a.student_id = ?
-          AND a.internship_id <> ?
-          AND LOWER(a.status) = 'accepted'
-      ) current_records
+        si.internship_id,
+        i.title AS internship_title,
+        c.company_name,
+        si.status
+      FROM student_internship si
+      JOIN internship i
+        ON si.internship_id = i.internship_id
+      LEFT JOIN company c
+        ON si.company_id = c.company_id
+      WHERE si.student_id = ?
+        AND si.internship_id <> ?
+        AND si.academic_year_id = ?
+        AND si.cohort_status = 'current'
+        AND LOWER(si.status) IN (?, ?, ?)
       LIMIT 1
+      FOR UPDATE
       `,
       [
         student_id,
         internship_id,
         currentAcademicYear.academic_year_id,
-        student_id,
-        internship_id,
+        ...CURRENT_PLACEMENT_STATUSES,
       ],
     );
 
     if (currentInternships.length > 0) {
+      await connection.rollback();
       return res.status(409).json({
         success: false,
         message: `This student already has a current internship${currentInternships[0].internship_title ? `: ${currentInternships[0].internship_title}` : ""}.`,
@@ -1004,24 +1031,25 @@ const accept = async (req, res) => {
       });
     }
 
-    await db.query(
-      "UPDATE application SET status = 'accepted' WHERE application_id = ?",
-      [application_id],
+    await connection.query(
+      "UPDATE application SET status = ? WHERE application_id = ?",
+      [APPLICATION_STATUS.ACCEPTED, application_id],
     );
 
-    const [existingPlacement] = await db.query(
+    const [existingPlacement] = await connection.query(
       `
       SELECT id
       FROM student_internship
       WHERE student_id = ? AND internship_id = ?
         AND academic_year_id = ?
       LIMIT 1
+      FOR UPDATE
       `,
       [student_id, internship_id, currentAcademicYear.academic_year_id],
     );
 
     if (existingPlacement.length === 0) {
-      await db.query(
+      await connection.query(
         `INSERT INTO student_internship 
         (student_id, internship_id, company_id, status, start_date, academic_year_id, cohort_status)
         VALUES (?, ?, ?, ?, ?, ?, 'current')`,
@@ -1035,7 +1063,7 @@ const accept = async (req, res) => {
         ],
       );
     } else {
-      await db.query(
+      await connection.query(
         `
         UPDATE student_internship
         SET status = ?, start_date = ?, cohort_status = 'current'
@@ -1045,16 +1073,24 @@ const accept = async (req, res) => {
       );
     }
 
-    await db.query(
+    await connection.query(
       `
       UPDATE application
-      SET status = 'withdrawn'
+      SET status = ?
       WHERE student_id = ?
         AND internship_id <> ?
-        AND LOWER(status) = 'pending'
+        AND LOWER(status) = ?
       `,
-      [student_id, internship_id],
+      [
+        APPLICATION_STATUS.WITHDRAWN,
+        student_id,
+        internship_id,
+        APPLICATION_STATUS.PENDING,
+      ],
     );
+
+    await connection.commit();
+
     await createNotification({
       recipientRole: "student",
       recipientId: student_id,
@@ -1069,14 +1105,19 @@ const accept = async (req, res) => {
       message: "Application accepted and internship assigned",
     });
   } catch (error) {
+    await connection.rollback().catch(() => null);
     console.error(error);
     res
       .status(500)
       .json({ success: false, message: "Failed to accept application" });
+  } finally {
+    connection.release();
   }
 };
 
 const reject = async (req, res) => {
+  const connection = await db.getConnection();
+
   try {
     const { application_id } = req.params;
     const company_id = req.user.company_id;
@@ -1087,11 +1128,13 @@ const reject = async (req, res) => {
         .json({ success: false, message: "Application ID is required" });
     }
 
-    // Check if application exists
-    const [existing] = await db.query(
+    await connection.beginTransaction();
+
+    const [existing] = await connection.query(
       `
       SELECT
         a.application_id,
+        a.status AS application_status,
         a.student_id,
         i.title AS internship_title,
         c.company_name
@@ -1101,21 +1144,32 @@ const reject = async (req, res) => {
       JOIN company c
         ON i.company_id = c.company_id
       WHERE a.application_id = ? AND i.company_id = ?
+      FOR UPDATE
       `,
       [application_id, company_id],
     );
 
     if (existing.length === 0) {
+      await connection.rollback();
       return res
         .status(404)
         .json({ success: false, message: "Application not found" });
     }
 
-    // Update application status to 'rejected'
-    await db.query(
-      "UPDATE application SET status = 'rejected' WHERE application_id = ?",
-      [application_id],
+    if (!isPendingApplication(existing[0].application_status)) {
+      await connection.rollback();
+      return res.status(409).json({
+        success: false,
+        message: "Only pending applications can be rejected",
+      });
+    }
+
+    await connection.query(
+      "UPDATE application SET status = ? WHERE application_id = ?",
+      [APPLICATION_STATUS.REJECTED, application_id],
     );
+
+    await connection.commit();
 
     await createNotification({
       recipientRole: "student",
@@ -1130,15 +1184,23 @@ const reject = async (req, res) => {
       .status(200)
       .json({ success: true, message: "Application rejected successfully" });
   } catch (error) {
+    await connection.rollback().catch(() => null);
     console.error("Reject application error:", error);
     res
       .status(500)
       .json({ success: false, message: "Failed to reject application" });
+  } finally {
+    connection.release();
   }
 };
 
 const assignMentor = async (req, res) => {
+  let connection;
+
   try {
+    await ensureCompanyMentorCompanyColumn();
+    connection = await db.getConnection();
+
     const company_id = req.user.company_id;
     const { student_internship_id, company_mentor_id, student_id, mentor_id } =
       req.body;
@@ -1154,22 +1216,26 @@ const assignMentor = async (req, res) => {
       });
     }
 
+    await connection.beginTransaction();
+
     if (!resolvedInternshipId && student_id) {
-      const [placements] = await db.query(
+      const [placements] = await connection.query(
         `
         SELECT id
         FROM student_internship
         WHERE student_id = ?
           AND company_id = ?
           AND cohort_status = 'current'
-          AND LOWER(status) IN ('in progress', 'accepted', 'active')
+          AND LOWER(status) IN (?, ?, ?)
         ORDER BY id DESC
         LIMIT 1
+        FOR UPDATE
         `,
-        [student_id, company_id],
+        [student_id, company_id, ...CURRENT_PLACEMENT_STATUSES],
       );
 
       if (placements.length === 0) {
+        await connection.rollback();
         return res
           .status(404)
           .json({ success: false, message: "Student internship not found" });
@@ -1179,45 +1245,71 @@ const assignMentor = async (req, res) => {
     }
 
     // Check if student_internship exists
-    const [existing] = await db.query(
-      "SELECT * FROM student_internship WHERE id = ? AND company_id = ? AND cohort_status = 'current'",
-      [resolvedInternshipId, company_id],
+    const [existing] = await connection.query(
+      `SELECT id, student_id, internship_id, company_id, company_mentor_id
+       FROM student_internship
+       WHERE id = ?
+         AND company_id = ?
+         AND cohort_status = 'current'
+         AND LOWER(status) IN (?, ?, ?)
+       FOR UPDATE`,
+      [resolvedInternshipId, company_id, ...CURRENT_PLACEMENT_STATUSES],
     );
 
     if (existing.length === 0) {
+      await connection.rollback();
       return res
         .status(404)
         .json({ success: false, message: "Student internship not found" });
     }
 
-    const [mentor] = await db.query(
+    const [mentor] = await connection.query(
       `SELECT *
        FROM company_mentor
        WHERE company_mentor_id = ?
+         AND company_id = ?
          AND account_status = 'active'`,
-      [resolvedMentorId],
+      [resolvedMentorId, company_id],
     );
 
     if (mentor.length === 0) {
+      await connection.rollback();
       return res
         .status(404)
         .json({ success: false, message: "Active company mentor not found" });
     }
 
     // Assign the mentor
-    await db.query(
+    await connection.query(
       "UPDATE student_internship SET company_mentor_id = ? WHERE id = ?",
       [resolvedMentorId, resolvedInternshipId],
     );
+
+    await recordCompanyMentorAssignment({
+      connection,
+      studentInternshipId: existing[0].id,
+      studentId: existing[0].student_id,
+      internshipId: existing[0].internship_id,
+      companyId: existing[0].company_id,
+      oldCompanyMentorId: existing[0].company_mentor_id || null,
+      newCompanyMentorId: resolvedMentorId,
+      changedByCompanyId: company_id,
+      action: existing[0].company_mentor_id ? "reassigned" : "assigned",
+    });
+
+    await connection.commit();
 
     res
       .status(200)
       .json({ success: true, message: "Mentor assigned successfully" });
   } catch (error) {
+    if (connection) await connection.rollback().catch(() => null);
     console.error("Assign mentor error:", error);
     res
       .status(500)
       .json({ success: false, message: "Failed to assign mentor" });
+  } finally {
+    if (connection) connection.release();
   }
 };
 

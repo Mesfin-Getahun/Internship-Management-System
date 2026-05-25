@@ -4,6 +4,13 @@ import { uploadToCloudinary } from "../utils/cloudinaryUpload.js";
 import createLog from "../utils/createLog.js";
 import { createNotification } from "../utils/notificationService.js";
 import { ensureMentorFeedbackAttachmentColumns } from "../utils/mentorFeedbackSchema.js";
+import { ensureInternshipEvaluationMentorColumns } from "../utils/internshipEvaluationSchema.js";
+import {
+  APPLICATION_STATUS,
+  PLACEMENT_STATUS,
+  REPORT_STATUS,
+  isPendingApplication,
+} from "../utils/statusRules.js";
 
 function isMissingTableError(error, tableName) {
   return (
@@ -208,7 +215,11 @@ const withDurationEligibility = (internship, department) => {
   };
 };
 
-const CURRENT_INTERNSHIP_STATUSES = ["in progress", "accepted", "active"];
+const CURRENT_INTERNSHIP_STATUSES = [
+  PLACEMENT_STATUS.IN_PROGRESS,
+  PLACEMENT_STATUS.ACCEPTED,
+  PLACEMENT_STATUS.ACTIVE,
+];
 const INTERNSHIP_CANCEL_WINDOW_DAYS = 7;
 
 const addDays = (date, days) => {
@@ -542,8 +553,15 @@ const applyInternships = async (req, res) => {
     await db.query(
       `INSERT INTO application
        (student_id, internship_id, applied_date, status, statement, cv_file, academic_doc)
-       VALUES (?, ?, CURDATE(), 'pending', ?, ?, ?)`,
-      [student_id, internship_id, statement, cvUrl, academicUrl]
+       VALUES (?, ?, CURDATE(), ?, ?, ?, ?)`,
+      [
+        student_id,
+        internship_id,
+        APPLICATION_STATUS.PENDING,
+        statement,
+        cvUrl,
+        academicUrl,
+      ]
     );
 
     await createNotification({
@@ -569,6 +587,8 @@ const applyInternships = async (req, res) => {
 };
 
 const cancelApplication = async (req, res) => {
+  const connection = await db.getConnection();
+
   try {
     const student_id = req.user.student_id; // from auth middleware
     const application_id = req.params.application_id || req.params.id;
@@ -579,32 +599,48 @@ const cancelApplication = async (req, res) => {
         .json({ success: false, message: "Application ID is required" });
     }
 
+    await connection.beginTransaction();
+
     // Check if application exists and belongs to this student
-    const [existing] = await db.query(
-      "SELECT * FROM application WHERE application_id = ? AND student_id = ?",
+    const [existing] = await connection.query(
+      "SELECT application_id, status FROM application WHERE application_id = ? AND student_id = ? FOR UPDATE",
       [application_id, student_id]
     );
 
     if (existing.length === 0) {
+      await connection.rollback();
       return res.status(404).json({
         success: false,
         message: "Application not found or you are not authorized",
       });
     }
 
-    // Delete the application
-    await db.query("DELETE FROM application WHERE application_id = ?", [
-      application_id,
-    ]);
+    if (!isPendingApplication(existing[0].status)) {
+      await connection.rollback();
+      return res.status(409).json({
+        success: false,
+        message: "Only pending applications can be cancelled from this screen.",
+      });
+    }
+
+    await connection.query(
+      "UPDATE application SET status = ? WHERE application_id = ?",
+      [APPLICATION_STATUS.CANCELLED, application_id],
+    );
+
+    await connection.commit();
 
     res
       .status(200)
       .json({ success: true, message: "Application cancelled successfully" });
   } catch (error) {
+    await connection.rollback().catch(() => null);
     console.error("Cancel application error:", error);
     res
       .status(500)
       .json({ success: false, message: "Failed to cancel application" });
+  } finally {
+    connection.release();
   }
 };
 
@@ -642,12 +678,12 @@ const cancelCurrentInternship = async (req, res) => {
         ON si.company_id = c.company_id
       WHERE si.id = ?
         AND si.student_id = ?
-        AND LOWER(si.status) IN ('in progress', 'accepted', 'active')
+        AND LOWER(si.status) IN (?, ?, ?)
         AND si.cohort_status = 'current'
       LIMIT 1
       FOR UPDATE
       `,
-      [placement_id, student_id],
+      [placement_id, student_id, ...CURRENT_INTERNSHIP_STATUSES],
     );
 
     if (placements.length === 0) {
@@ -696,22 +732,27 @@ const cancelCurrentInternship = async (req, res) => {
     await connection.query(
       `
       UPDATE student_internship
-      SET status = 'cancelled',
+      SET status = ?,
           end_date = COALESCE(end_date, CURRENT_DATE())
       WHERE id = ?
       `,
-      [placement_id],
+      [PLACEMENT_STATUS.CANCELLED, placement_id],
     );
 
     await connection.query(
       `
       UPDATE application
-      SET status = 'cancelled'
+      SET status = ?
       WHERE student_id = ?
         AND internship_id = ?
-        AND LOWER(status) = 'accepted'
+        AND LOWER(status) = ?
       `,
-      [student_id, placement.internship_id],
+      [
+        APPLICATION_STATUS.CANCELLED,
+        student_id,
+        placement.internship_id,
+        APPLICATION_STATUS.ACCEPTED,
+      ],
     );
 
     await connection.commit();
@@ -916,6 +957,54 @@ const getStudentReports = async (req, res) => {
   }
 };
 
+const getStudentEvaluations = async (req, res) => {
+  try {
+    await ensureInternshipEvaluationMentorColumns();
+
+    const student_id = req.user.student_id;
+
+    const [evaluations] = await db.query(
+      `
+      SELECT
+        ie.evaluation_id,
+        ie.evaluation_id AS internship_evaluation_id,
+        ie.student_id,
+        ie.internship_id,
+        ie.company_mentor_id,
+        ie.assessment_pdf_url,
+        ie.attendance_pdf_url,
+        ie.total_mark,
+        ie.submitted_at,
+        ie.submitted_at AS created_at,
+        i.title AS internship_title,
+        c.company_name,
+        cm.full_name AS company_mentor_name
+      FROM internship_evaluation ie
+      LEFT JOIN internship i
+        ON ie.internship_id = i.internship_id
+      LEFT JOIN company c
+        ON i.company_id = c.company_id
+      LEFT JOIN company_mentor cm
+        ON ie.company_mentor_id = cm.company_mentor_id
+      WHERE ie.student_id = ?
+      ORDER BY ie.submitted_at DESC, ie.evaluation_id DESC
+      `,
+      [student_id],
+    );
+
+    res.status(200).json({
+      success: true,
+      evaluations,
+    });
+  } catch (error) {
+    console.error("Fetch student evaluations error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to fetch evaluations",
+    });
+  }
+};
+
 const myInternship = async (req, res) => {
   try {
     const studentId = req.user.student_id;
@@ -1031,11 +1120,11 @@ const uploadInternshipReport = async (req, res) => {
         ON si.internship_id = i.internship_id
       WHERE si.student_id = ?
         AND si.internship_id = ?
-        AND LOWER(si.status) IN ('in progress', 'accepted', 'active')
+        AND LOWER(si.status) IN (?, ?, ?)
         AND si.cohort_status = 'current'
       LIMIT 1
       `,
-      [student_id, internship_id],
+      [student_id, internship_id, ...CURRENT_INTERNSHIP_STATUSES],
     );
 
     if (!activeInternship) {
@@ -1082,8 +1171,8 @@ const uploadInternshipReport = async (req, res) => {
     await db.query(
       `INSERT INTO internship_report
        (student_id, internship_id, report_url, status, submission_date)
-       VALUES (?, ?, ?, 'submitted', CURDATE())`,
-      [student_id, internship_id, reportUrl]
+       VALUES (?, ?, ?, ?, CURDATE())`,
+      [student_id, internship_id, reportUrl, REPORT_STATUS.SUBMITTED]
     );
 
     const [[reportContext]] = await db.query(
@@ -1307,13 +1396,18 @@ const submitSignedReportToFaculty = async (req, res) => {
 
     const [result] = await db.query(
       `UPDATE internship_report
-       SET status = 'signed', faculty_submitted_at = NOW()
+       SET status = ?, faculty_submitted_at = NOW()
        WHERE report_id = ?
          AND student_id = ?
-         AND status = 'signed'
+         AND status = ?
          AND mentor_signed_url IS NOT NULL
          AND faculty_submitted_at IS NULL`,
-      [report_id, student_id]
+      [
+        REPORT_STATUS.FACULTY_SUBMITTED,
+        report_id,
+        student_id,
+        REPORT_STATUS.SIGNED,
+      ]
     );
 
     if (result.affectedRows === 0) {
@@ -1335,7 +1429,10 @@ const submitSignedReportToFaculty = async (req, res) => {
         });
       }
 
-      if (report.faculty_submitted_at || report.status === "faculty_submitted") {
+      if (
+        report.faculty_submitted_at ||
+        report.status === REPORT_STATUS.FACULTY_SUBMITTED
+      ) {
         return res.status(409).json({
           success: false,
           message: "This report has already been submitted to faculty.",
@@ -1495,6 +1592,7 @@ export {
   applyInternships,
   myInternship,
   getStudentReports,
+  getStudentEvaluations,
   uploadInternshipReport,
   getPaymentApplication,
   submitPaymentApplication,

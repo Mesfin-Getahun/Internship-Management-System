@@ -8,24 +8,24 @@ import { faChevronRight, faClipboardCheck, faSpinner, faUser, faUsersSlash } fro
 const Evaluation = () => {
   const { user } = useAuth();
   const [students, setStudents] = useState([]);
-  const [feedbacks, setFeedbacks] = useState([]);
+  const [evaluations, setEvaluations] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchData = async () => {
       try {
         setLoading(true);
-        const [studentsRes, feedbacksRes] = await Promise.all([
+        const [studentsRes, evaluationsRes] = await Promise.all([
           axios.get(`${import.meta.env.VITE_BACKEND_URL}/api/company_mentor/students`, {
             headers: { Authorization: `Bearer ${user?.token}` },
           }),
-          axios.get(`${import.meta.env.VITE_BACKEND_URL}/api/company_mentor/feedbacks`, {
+          axios.get(`${import.meta.env.VITE_BACKEND_URL}/api/company_mentor/evaluations`, {
             headers: { Authorization: `Bearer ${user?.token}` },
           }),
         ]);
 
         setStudents(Array.isArray(studentsRes.data?.students) ? studentsRes.data.students : []);
-        setFeedbacks(Array.isArray(feedbacksRes.data?.feedbacks) ? feedbacksRes.data.feedbacks : []);
+        setEvaluations(Array.isArray(evaluationsRes.data?.evaluations) ? evaluationsRes.data.evaluations : []);
       } catch (error) {
         console.error('Failed to load evaluation roster.', error);
       } finally {
@@ -40,9 +40,9 @@ const Evaluation = () => {
     }
   }, [user?.token]);
 
-  const feedbackKeys = useMemo(
-    () => new Set(feedbacks.map((item) => `${item.internship_id}_${item.student_id}`)),
-    [feedbacks]
+  const evaluationKeys = useMemo(
+    () => new Set(evaluations.map((item) => `${item.internship_id}_${item.student_id}`)),
+    [evaluations]
   );
 
   return (
@@ -68,13 +68,20 @@ const Evaluation = () => {
         <div className="space-y-4">
           {students.map((student) => {
             const evaluationKey = `${student.internship_id}_${student.student_id}`;
-            const hasFeedback = feedbackKeys.has(evaluationKey);
+            const hasEvaluation = evaluationKeys.has(evaluationKey);
 
             return (
               <Link
                 to={`/org-supervisor/evaluate/${student.internship_id}_${student.student_id}`}
                 key={evaluationKey}
-                className="block bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700/50 p-5 rounded-2xl transition-all shadow-sm border border-slate-200 dark:border-slate-700"
+                onClick={(event) => {
+                  if (hasEvaluation) event.preventDefault();
+                }}
+                className={`block bg-white dark:bg-slate-800 p-5 rounded-2xl transition-all shadow-sm border border-slate-200 dark:border-slate-700 ${
+                  hasEvaluation
+                    ? 'cursor-default opacity-75'
+                    : 'hover:bg-slate-50 dark:hover:bg-slate-700/50'
+                }`}
               >
                 <div className="flex justify-between items-center gap-4">
                   <div className="flex items-center gap-4">
@@ -90,11 +97,11 @@ const Evaluation = () => {
                   </div>
                   <div className="flex items-center gap-4">
                     <span className={`px-3 py-1 text-xs font-semibold rounded-full ${
-                      hasFeedback
+                      hasEvaluation
                         ? 'bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300'
                         : 'bg-amber-100 text-amber-800 dark:bg-amber-900/50 dark:text-amber-300'
                     }`}>
-                      {hasFeedback ? 'Feedback Sent' : 'Evaluation Ready'}
+                      {hasEvaluation ? 'Evaluation Submitted' : 'Evaluation Ready'}
                     </span>
                     <div className="flex items-center gap-2 text-slate-400 dark:text-slate-500">
                       <FontAwesomeIcon icon={faClipboardCheck} />

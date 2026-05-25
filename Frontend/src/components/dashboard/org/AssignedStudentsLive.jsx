@@ -41,8 +41,12 @@ const AssignedStudentsLive = () => {
       );
 
       const activePlacements = applications.filter((application) => {
-        const status = String(application.status || '').toLowerCase();
-        return ['accepted', 'approved', 'active'].includes(status) || application.student_internship_id;
+        const placementStatus = String(application.placement_status || '').toLowerCase();
+        const applicationStatus = String(application.status || '').toLowerCase();
+        return (
+          ['accepted', 'in progress', 'active'].includes(placementStatus) ||
+          (!placementStatus && ['accepted', 'approved', 'active'].includes(applicationStatus))
+        );
       });
 
       setStudents(activePlacements);

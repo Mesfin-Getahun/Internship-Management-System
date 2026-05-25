@@ -4,6 +4,7 @@ import {
   fetchInternships,
   myInternship,
   getStudentReports,
+  getStudentEvaluations,
   uploadInternshipReport,
   getPaymentApplication,
   submitPaymentApplication,
@@ -136,6 +137,7 @@ studentRoute.get("/internships/suggested", authStudent, suggestedInternships);
  */
 studentRoute.get("/myInternship", authStudent, myInternship);
 studentRoute.get("/reports", authStudent, getStudentReports);
+studentRoute.get("/evaluations", authStudent, getStudentEvaluations);
 studentRoute.get("/paymentApplication", authStudent, getPaymentApplication);
 
 /**

@@ -1,6 +1,9 @@
 import db from "../config/mysql.js";
 import bcrypt from "bcryptjs";
 import * as xlsx from "xlsx";
+import {
+  recordFacultyMentorAssignment,
+} from "../utils/mentorAssignmentHistorySchema.js";
 
 const escapeCsvValue = (value) => {
   if (value === null || value === undefined) {
@@ -36,6 +39,8 @@ const buildCsvContent = (rows) => {
 };
 
 const assignMentor = async (req, res) => {
+  const connection = await db.getConnection();
+
   try {
     const { student_id, mentor_id } = req.body;
     const faculty = req.user.faculty_name;
@@ -49,12 +54,15 @@ const assignMentor = async (req, res) => {
     }
 
     // 2️⃣ Check if student exists
-    const [students] = await db.query(
-      "SELECT student_id FROM student WHERE student_id = ? AND faculty = ?",
+    await connection.beginTransaction();
+
+    const [students] = await connection.query(
+      "SELECT student_id, assigned_mentor FROM student WHERE student_id = ? AND faculty = ? FOR UPDATE",
       [student_id, faculty],
     );
 
     if (students.length === 0) {
+      await connection.rollback();
       return res.status(404).json({
         success: false,
         message: "Student not found under your faculty",
@@ -62,12 +70,13 @@ const assignMentor = async (req, res) => {
     }
 
     // 3️⃣ Check if mentor exists
-    const [mentors] = await db.query(
+    const [mentors] = await connection.query(
       "SELECT mentor_id FROM mentor WHERE mentor_id = ? AND account_status = 'active'",
       [mentor_id],
     );
 
     if (mentors.length === 0) {
+      await connection.rollback();
       return res.status(404).json({
         success: false,
         message: "Active mentor not found",
@@ -75,18 +84,30 @@ const assignMentor = async (req, res) => {
     }
 
     // 4️⃣ Assign mentor
-    const [result] = await db.query(
+    const [result] = await connection.query(
       "UPDATE student SET assigned_mentor = ? WHERE student_id = ?",
       [mentor_id, student_id],
     );
 
     // 5️⃣ Extra safety check
     if (result.affectedRows === 0) {
+      await connection.rollback();
       return res.status(400).json({
         success: false,
         message: "Mentor assignment failed",
       });
     }
+
+    await recordFacultyMentorAssignment({
+      connection,
+      studentId: student_id,
+      oldMentorId: students[0].assigned_mentor || null,
+      newMentorId: mentor_id,
+      changedByFacultyId: req.user.faculty_id || null,
+      action: students[0].assigned_mentor ? "reassigned" : "assigned",
+    });
+
+    await connection.commit();
 
     // 6️⃣ Success response
     return res.status(200).json({
@@ -98,12 +119,15 @@ const assignMentor = async (req, res) => {
       },
     });
   } catch (error) {
+    await connection.rollback().catch(() => null);
     console.error("Assign mentor error:", error);
 
     return res.status(500).json({
       success: false,
       message: "Internal server error",
     });
+  } finally {
+    connection.release();
   }
 };
 
@@ -321,16 +345,21 @@ const facultyViewReports = async (req, res) => {
 };
 
 const deleteMentor = async (req, res) => {
+  const connection = await db.getConnection();
+
   try {
     const faculty = req.user.faculty_name;
     const { id: student_id } = req.params;
 
-    const [students] = await db.query(
-      "SELECT student_id, assigned_mentor FROM student WHERE student_id = ? AND faculty = ?",
+    await connection.beginTransaction();
+
+    const [students] = await connection.query(
+      "SELECT student_id, assigned_mentor FROM student WHERE student_id = ? AND faculty = ? FOR UPDATE",
       [student_id, faculty],
     );
 
     if (students.length === 0) {
+      await connection.rollback();
       return res.status(404).json({
         success: false,
         message: "Student not found under your faculty",
@@ -338,16 +367,28 @@ const deleteMentor = async (req, res) => {
     }
 
     if (!students[0].assigned_mentor) {
+      await connection.rollback();
       return res.status(400).json({
         success: false,
         message: "Student does not have an assigned mentor",
       });
     }
 
-    await db.query(
+    await connection.query(
       "UPDATE student SET assigned_mentor = NULL WHERE student_id = ?",
       [student_id],
     );
+
+    await recordFacultyMentorAssignment({
+      connection,
+      studentId: student_id,
+      oldMentorId: students[0].assigned_mentor,
+      newMentorId: null,
+      changedByFacultyId: req.user.faculty_id || null,
+      action: "removed",
+    });
+
+    await connection.commit();
 
     res.status(200).json({
       success: true,
@@ -355,14 +396,19 @@ const deleteMentor = async (req, res) => {
       data: { student_id },
     });
   } catch (error) {
+    await connection.rollback().catch(() => null);
     console.error("Delete mentor error:", error);
     res
       .status(500)
       .json({ success: false, message: "Failed to remove mentor" });
+  } finally {
+    connection.release();
   }
 };
 
 const changeMentor = async (req, res) => {
+  const connection = await db.getConnection();
+
   try {
     const faculty = req.user.faculty_name;
     const { id: student_id } = req.params;
@@ -375,34 +421,49 @@ const changeMentor = async (req, res) => {
       });
     }
 
-    const [students] = await db.query(
-      "SELECT student_id FROM student WHERE student_id = ? AND faculty = ?",
+    await connection.beginTransaction();
+
+    const [students] = await connection.query(
+      "SELECT student_id, assigned_mentor FROM student WHERE student_id = ? AND faculty = ? FOR UPDATE",
       [student_id, faculty],
     );
 
     if (students.length === 0) {
+      await connection.rollback();
       return res.status(404).json({
         success: false,
         message: "Student not found under your faculty",
       });
     }
 
-    const [mentors] = await db.query(
+    const [mentors] = await connection.query(
       "SELECT mentor_id FROM mentor WHERE mentor_id = ? AND account_status = 'active'",
       [new_mentor_id],
     );
 
     if (mentors.length === 0) {
+      await connection.rollback();
       return res.status(404).json({
         success: false,
         message: "Active mentor not found",
       });
     }
 
-    await db.query(
+    await connection.query(
       "UPDATE student SET assigned_mentor = ? WHERE student_id = ?",
       [new_mentor_id, student_id],
     );
+
+    await recordFacultyMentorAssignment({
+      connection,
+      studentId: student_id,
+      oldMentorId: students[0].assigned_mentor || null,
+      newMentorId: new_mentor_id,
+      changedByFacultyId: req.user.faculty_id || null,
+      action: students[0].assigned_mentor ? "reassigned" : "assigned",
+    });
+
+    await connection.commit();
 
     res.status(200).json({
       success: true,
@@ -410,10 +471,13 @@ const changeMentor = async (req, res) => {
       data: { student_id, mentor_id: new_mentor_id },
     });
   } catch (error) {
+    await connection.rollback().catch(() => null);
     console.error("Change mentor error:", error);
     res
       .status(500)
       .json({ success: false, message: "Failed to change mentor" });
+  } finally {
+    connection.release();
   }
 };
 

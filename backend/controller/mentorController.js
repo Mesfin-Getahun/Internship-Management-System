@@ -2,6 +2,7 @@ import { uploadToCloudinary } from "../utils/cloudinaryUpload.js";
 import db from "../config/mysql.js";
 import { createNotification } from "../utils/notificationService.js";
 import { ensureMentorFeedbackAttachmentColumns } from "../utils/mentorFeedbackSchema.js";
+import { REPORT_STATUS } from "../utils/statusRules.js";
 
 const fetchStudents = async (req, res) => {
   const mentorId = req.user.mentor_id;
@@ -192,9 +193,9 @@ const mentorSignReport = async (req, res) => {
 
     await db.query(
       `UPDATE internship_report
-       SET mentor_signed_url = ?, mentor_id = ?, status = 'signed', signed_at = NOW()
+       SET mentor_signed_url = ?, mentor_id = ?, status = ?, signed_at = NOW()
        WHERE report_id = ?`,
-      [signedUrl, mentor_id, report_id],
+      [signedUrl, mentor_id, REPORT_STATUS.SIGNED, report_id],
     );
 
     await createNotification({

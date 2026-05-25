@@ -13,7 +13,6 @@ import Badge from "../components/ui/Badge";
 import { getCurrentSession } from "../services/authService";
 import Button from "../components/ui/Button";
 import { cancelStudentApplication, getMyInternship, getPaymentApplication, getStudentFeedbacks, submitPaymentForm } from "../services/studentService";
-import { appendAssetToFormData, pickPdfDocument } from "../utils/documentUpload";
 
 function formatStatusLabel(status) {
   if (!status) {
@@ -50,7 +49,6 @@ export default function HomeScreen() {
     accountHolder: "",
     accountNumber: "",
   });
-  const [acceptanceLetterFile, setAcceptanceLetterFile] = useState(null);
   const [submittingPayment, setSubmittingPayment] = useState(false);
 
   const loadDashboard = async () => {
@@ -130,13 +128,6 @@ export default function HomeScreen() {
     );
   };
 
-  const handlePickAcceptanceLetter = async () => {
-    const file = await pickPdfDocument();
-    if (file) {
-      setAcceptanceLetterFile(file);
-    }
-  };
-
   const handleSubmitPayment = async () => {
     if (data?.paymentFeatureAvailable === false) {
       Alert.alert(
@@ -151,22 +142,14 @@ export default function HomeScreen() {
       return;
     }
 
-    if (!acceptanceLetterFile) {
-      Alert.alert("Missing File", "Please choose the signed acceptance letter PDF.");
-      return;
-    }
-
     setSubmittingPayment(true);
 
-    const formData = new FormData();
-    formData.append("bankName", paymentForm.bankName);
-    formData.append("accountHolder", paymentForm.accountHolder);
-    formData.append("accountNumber", paymentForm.accountNumber);
-    appendAssetToFormData(formData, "acceptanceLetter", acceptanceLetterFile);
-
     try {
-      const response = await submitPaymentForm(formData);
-      setAcceptanceLetterFile(null);
+      const response = await submitPaymentForm({
+        bankName: paymentForm.bankName,
+        accountHolder: paymentForm.accountHolder,
+        accountNumber: paymentForm.accountNumber,
+      });
       setSubmittingPayment(false);
       Alert.alert("Payment Submitted", response.message || "Payment application submitted successfully.");
       loadDashboard().catch(() => {});
@@ -335,7 +318,7 @@ export default function HomeScreen() {
           ) : (
             <View className="mt-4">
               <Text className="mb-3 text-sm leading-6 text-slate-500">
-                Fill this form and submit your signed acceptance letter so the faculty side can review your payment application.
+                Fill this form so the faculty side can review your payment application.
               </Text>
 
               <InputField
@@ -363,19 +346,6 @@ export default function HomeScreen() {
                 keyboardType="number-pad"
                 className="mb-4"
               />
-
-              <View className="mb-4 rounded-[22px] bg-slate-50 p-4">
-                <Text className="mb-3 text-sm font-semibold text-slate-700">
-                  {acceptanceLetterFile
-                    ? `Acceptance Letter: ${acceptanceLetterFile.name}`
-                    : "Signed acceptance letter PDF is required"}
-                </Text>
-                <Button
-                  title="Choose Acceptance Letter PDF"
-                  variant="outline"
-                  onPress={handlePickAcceptanceLetter}
-                />
-              </View>
 
               <Button
                 title="Submit Payment Application"

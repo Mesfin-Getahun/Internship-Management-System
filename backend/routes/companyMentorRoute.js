@@ -4,6 +4,7 @@ import {
   fetchStudents,
   postEvaluation,
   getFeedbacks,
+  getEvaluations,
 } from "../controller/companyMentorController.js";
 import { authCompanyMentor } from "../middleware/auth.js";
 import { supportingDocumentUpload } from "../middleware/fileUploadLimits.js";
@@ -20,6 +21,7 @@ const companyMentorRoute = express.Router();
 
 companyMentorRoute.get("/students", authCompanyMentor, fetchStudents);
 companyMentorRoute.get("/feedbacks", authCompanyMentor, getFeedbacks);
+companyMentorRoute.get("/evaluations", authCompanyMentor, getEvaluations);
 
 companyMentorRoute.post(
   "/evaluation/:internship_id/:student_id",

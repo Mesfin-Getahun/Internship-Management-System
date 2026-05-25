@@ -5,6 +5,7 @@ import { uploadToCloudinary } from "../utils/cloudinaryUpload.js";
 import fs from "fs";
 import { createNotifications } from "../utils/notificationService.js";
 import { ensureMentorFeedbackAttachmentColumns } from "../utils/mentorFeedbackSchema.js";
+import { ensureInternshipEvaluationMentorColumns } from "../utils/internshipEvaluationSchema.js";
 
 // const fetchStudents = async (req, res) => {
 //   const mentorId = req.user.company_mentor_id;
@@ -72,6 +73,8 @@ const fetchStudents = async (req, res) => {
 
 const postEvaluation = async (req, res) => {
   try {
+    await ensureInternshipEvaluationMentorColumns();
+
     const company_mentor_id = req.user.company_mentor_id;
     const { internship_id, student_id } = req.params;
     const { assessment, attendanceData } = req.body;
@@ -123,6 +126,24 @@ const postEvaluation = async (req, res) => {
       return res.status(400).json({
         success: false,
         message: "Assessment and attendance data are required",
+      });
+    }
+
+    const [existingEvaluations] = await db.query(
+      `
+      SELECT evaluation_id
+      FROM internship_evaluation
+      WHERE student_id = ?
+        AND internship_id = ?
+      LIMIT 1
+      `,
+      [student_id, internship_id],
+    );
+
+    if (existingEvaluations.length > 0) {
+      return res.status(409).json({
+        success: false,
+        message: "A final evaluation has already been submitted for this student and internship",
       });
     }
 
@@ -180,10 +201,10 @@ const postEvaluation = async (req, res) => {
     await db.query(
       `
       INSERT INTO internship_evaluation
-      (student_id, internship_id, assessment_pdf_url, attendance_pdf_url, total_mark)
-      VALUES (?, ?, ?, ?, ?)
+      (student_id, internship_id, company_mentor_id, assessment_pdf_url, attendance_pdf_url, total_mark)
+      VALUES (?, ?, ?, ?, ?, ?)
       `,
-      [student.student_id, internship_id, assessmentURL, attendanceURL, totalMark]
+      [student.student_id, internship_id, company_mentor_id, assessmentURL, attendanceURL, totalMark]
     );
 
     await createNotifications([
@@ -217,6 +238,54 @@ const postEvaluation = async (req, res) => {
     res.status(500).json({
       success: false,
       message: "Failed to submit evaluation",
+    });
+  }
+};
+
+const getEvaluations = async (req, res) => {
+  try {
+    await ensureInternshipEvaluationMentorColumns();
+
+    const company_mentor_id = req.user.company_mentor_id;
+
+    const [evaluations] = await db.query(
+      `
+      SELECT
+        ie.evaluation_id,
+        ie.student_id,
+        ie.internship_id,
+        ie.company_mentor_id,
+        ie.assessment_pdf_url,
+        ie.attendance_pdf_url,
+        ie.total_mark,
+        ie.submitted_at,
+        s.full_name AS student_name,
+        s.department,
+        i.title AS internship_title,
+        c.company_name
+      FROM internship_evaluation ie
+      JOIN student s
+        ON ie.student_id = s.student_id
+      LEFT JOIN internship i
+        ON ie.internship_id = i.internship_id
+      LEFT JOIN company c
+        ON i.company_id = c.company_id
+      WHERE ie.company_mentor_id = ?
+      ORDER BY ie.submitted_at DESC, ie.evaluation_id DESC
+      `,
+      [company_mentor_id],
+    );
+
+    res.status(200).json({
+      success: true,
+      count: evaluations.length,
+      evaluations,
+    });
+  } catch (error) {
+    console.error("Fetch company mentor evaluations error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to fetch evaluation history",
     });
   }
 };
@@ -404,4 +473,4 @@ const getFeedbacks = async (req, res) => {
   }
 };
 
-export { giveFeedBack, fetchStudents, postEvaluation, getFeedbacks };
+export { giveFeedBack, fetchStudents, postEvaluation, getFeedbacks, getEvaluations };

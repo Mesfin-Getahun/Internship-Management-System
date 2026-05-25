@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faDatabase, faDownload, faFileExcel } from '@fortawesome/free-solid-svg-icons';
+import { faDatabase, faDownload } from '@fortawesome/free-solid-svg-icons';
 import { toast, ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import { useAuth } from '../../../AuthContext';
@@ -11,7 +11,6 @@ const DataBackup = () => {
   const [isBackingUp, setIsBackingUp] = useState(false);
   const [progress, setProgress] = useState(0);
   const [backupHistory, setBackupHistory] = useState([]);
-  const [activeExport, setActiveExport] = useState('');
 
   const fetchBackups = async () => {
     try {
@@ -63,40 +62,6 @@ const DataBackup = () => {
     toast.info(`Backup file saved on server: ${file}`);
   };
 
-  const handleExport = async (dataType) => {
-    try {
-      setActiveExport(dataType);
-      const res = await axios.get(
-        `${import.meta.env.VITE_BACKEND_URL}/api/admin/export/${dataType}`,
-        {
-          headers: { Authorization: `Bearer ${user?.token}` },
-          responseType: 'blob',
-        }
-      );
-
-      const contentDisposition = res.headers['content-disposition'] || '';
-      const fileNameMatch = contentDisposition.match(/filename="?([^"]+)"?/i);
-      const fileName = fileNameMatch?.[1] || `${dataType}.csv`;
-
-      const blob = new Blob([res.data], { type: 'text/csv;charset=utf-8;' });
-      const downloadUrl = window.URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = downloadUrl;
-      link.setAttribute('download', fileName);
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      window.URL.revokeObjectURL(downloadUrl);
-
-      toast.success(`Successfully exported ${dataType} as a CSV file.`);
-    } catch (error) {
-      console.error(`Failed to export ${dataType}.`, error);
-      toast.error(error.response?.data?.message || `Failed to export ${dataType}.`);
-    } finally {
-      setActiveExport('');
-    }
-  };
-
   return (
     <div className="space-y-8">
       <ToastContainer theme="dark" position="bottom-right" />
@@ -126,17 +91,6 @@ const DataBackup = () => {
           <FontAwesomeIcon icon={faDatabase} size={18} />
           {isBackingUp ? 'Backup in Progress...' : 'Backup Now'}
         </button>
-      </div>
-
-      {/* Data Export Section */}
-      <div className="bg-slate-900 p-8 rounded-2xl shadow-2xl">
-        <h2 className="text-2xl font-bold text-white mb-4">Export Data</h2>
-        <p className="text-slate-400 mb-6">Export specific data tables as CSV files for external analysis or record-keeping.</p>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          <button onClick={() => handleExport('users')} disabled={activeExport === 'users'} className="bg-sky-600 hover:bg-sky-700 disabled:bg-slate-600 text-white font-semibold py-3 px-4 rounded-lg flex items-center gap-3"><FontAwesomeIcon icon={faFileExcel} /> {activeExport === 'users' ? 'Exporting Users...' : 'Export Users'}</button>
-          <button onClick={() => handleExport('organizations')} disabled={activeExport === 'organizations'} className="bg-sky-600 hover:bg-sky-700 disabled:bg-slate-600 text-white font-semibold py-3 px-4 rounded-lg flex items-center gap-3"><FontAwesomeIcon icon={faFileExcel} /> {activeExport === 'organizations' ? 'Exporting Organizations...' : 'Export Organizations'}</button>
-          <button onClick={() => handleExport('students')} disabled={activeExport === 'students'} className="bg-sky-600 hover:bg-sky-700 disabled:bg-slate-600 text-white font-semibold py-3 px-4 rounded-lg flex items-center gap-3"><FontAwesomeIcon icon={faFileExcel} /> {activeExport === 'students' ? 'Exporting Students...' : 'Export Students'}</button>
-        </div>
       </div>
 
       {/* Backup History Section */}
