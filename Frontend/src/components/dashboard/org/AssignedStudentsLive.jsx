@@ -92,8 +92,15 @@ const AssignedStudentsLive = () => {
       const mentorObj = companyMentors.find(
         (mentor) => String(mentor.company_mentor_id) === String(mentorIdToAssign),
       );
-      toast.success(`${mentorObj?.full_name || 'Mentor'} has been assigned to the student.`);
+      toast.success(
+        `${mentorObj?.full_name || 'Mentor'} has been ${student.company_mentor_id ? 'assigned as the new mentor' : 'assigned to the student'}.`,
+      );
       await fetchAssignedStudents();
+      setSelectedMentors((prev) => {
+        const next = { ...prev };
+        delete next[studentId];
+        return next;
+      });
     } catch (err) {
       console.error(err);
       toast.error(err.response?.data?.message || 'Failed to assign mentor. Please try again.');
@@ -106,7 +113,7 @@ const AssignedStudentsLive = () => {
     <div className="animate-fade-in space-y-6 pb-12">
       <header>
         <h2 className="text-2xl font-bold text-slate-800 dark:text-white">Assign Mentors to Students</h2>
-        <p className="text-slate-500 text-sm mt-1">Assign real company mentor accounts using the company `assignMentor` route.</p>
+        <p className="text-slate-500 text-sm mt-1">Assign or change company mentors while keeping each mentor&apos;s previous feedback history.</p>
       </header>
 
       <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-100 dark:border-slate-800 shadow-sm overflow-hidden min-h-[300px]">
@@ -134,7 +141,10 @@ const AssignedStudentsLive = () => {
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
                 {students.map((student) => {
                   const studentId = student.student_id || student.id;
-                  const isAssigned = student.company_mentor_id;
+                  const currentMentorId = student.company_mentor_id ? String(student.company_mentor_id) : '';
+                  const selectedMentorId = selectedMentors[studentId] || '';
+                  const isAssigned = Boolean(currentMentorId);
+                  const isSameMentor = selectedMentorId && String(selectedMentorId) === currentMentorId;
                   return (
                     <tr key={studentId} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors">
                       <td className="p-6 border-r border-slate-50 dark:border-slate-800/50 max-w-[220px]">
@@ -145,7 +155,8 @@ const AssignedStudentsLive = () => {
                         {student.faculty || student.department || 'Not Specified'}
                       </td>
                       <td className="p-6">
-                        {isAssigned ? (
+                        <div className="flex flex-col gap-3">
+                          {isAssigned && (
                           <div className="flex items-center gap-3 bg-green-50 dark:bg-green-900/10 px-4 py-2.5 rounded-xl border border-green-100/50 dark:border-green-900/30 inline-flex">
                             <div className="w-8 h-8 rounded-full bg-green-100 dark:bg-green-900/50 flex items-center justify-center text-green-600 dark:text-green-400">
                               <FontAwesomeIcon icon={faUserCheck} size="sm" />
@@ -154,31 +165,29 @@ const AssignedStudentsLive = () => {
                               {student.company_mentor_name || 'Assigned'}
                             </span>
                           </div>
-                        ) : (
+                          )}
                           <select
                             onChange={(event) => handleMentorSelect(studentId, event.target.value)}
                             className="w-full max-w-xs px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 font-semibold text-sm appearance-none cursor-pointer"
                             value={selectedMentors[studentId] || ''}
                           >
-                            <option value="">Choose organizational mentor...</option>
+                            <option value="">{isAssigned ? 'Choose a new mentor...' : 'Choose organizational mentor...'}</option>
                             {companyMentors.map((mentor) => (
                               <option key={mentor.company_mentor_id} value={mentor.company_mentor_id}>
                                 {mentor.full_name}
                               </option>
                             ))}
                           </select>
-                        )}
+                        </div>
                       </td>
                       <td className="p-6 text-center">
-                        {!isAssigned && (
-                          <button
-                            onClick={() => handleAssign(student)}
-                            className="px-6 py-3 bg-blue-600 text-white rounded-xl font-bold text-xs hover:bg-blue-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-md shadow-blue-500/20 active:scale-95 uppercase tracking-wider"
-                            disabled={!selectedMentors[studentId] || assigningStudentId === studentId}
-                          >
-                            {assigningStudentId === studentId ? 'Assigning...' : 'Finalize'}
-                          </button>
-                        )}
+                        <button
+                          onClick={() => handleAssign(student)}
+                          className="px-6 py-3 bg-blue-600 text-white rounded-xl font-bold text-xs hover:bg-blue-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-md shadow-blue-500/20 active:scale-95 uppercase tracking-wider"
+                          disabled={!selectedMentorId || isSameMentor || assigningStudentId === studentId}
+                        >
+                          {assigningStudentId === studentId ? 'Saving...' : isAssigned ? 'Change' : 'Finalize'}
+                        </button>
                       </td>
                     </tr>
                   );

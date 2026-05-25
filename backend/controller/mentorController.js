@@ -278,6 +278,7 @@ const companyMentorFeedback = async (req, res) => {
         mf.parent_feedback_id,
         mf.internship_id,
         mf.company_mentor_id,
+        mf.faculty_mentor_id,
         mf.feedback_type,
         mf.rating,
         mf.strengths,
@@ -297,11 +298,11 @@ const companyMentorFeedback = async (req, res) => {
           ELSE 'company_mentor'
         END AS source_role,
         CASE
-          WHEN mf.company_mentor_id IS NULL THEN m.full_name
+          WHEN mf.company_mentor_id IS NULL THEN COALESCE(fm.full_name, current_m.full_name)
           ELSE cm.full_name
         END AS source_name,
         cm.full_name AS company_mentor_name,
-        m.full_name AS mentor_name
+        COALESCE(fm.full_name, current_m.full_name) AS mentor_name
       FROM mentor_feedback mf
       JOIN student s
         ON mf.student_id = s.student_id
@@ -311,8 +312,10 @@ const companyMentorFeedback = async (req, res) => {
         ON i.company_id = c.company_id
       LEFT JOIN company_mentor cm
         ON mf.company_mentor_id = cm.company_mentor_id
-      LEFT JOIN mentor m
-        ON s.assigned_mentor = m.mentor_id
+      LEFT JOIN mentor fm
+        ON mf.faculty_mentor_id = fm.mentor_id
+      LEFT JOIN mentor current_m
+        ON s.assigned_mentor = current_m.mentor_id
       WHERE s.assigned_mentor = ?
       ORDER BY mf.created_at DESC
       `,
@@ -430,6 +433,8 @@ const getSingleFeedback = async (req, res) => {
 
 const provideFeedback = async (req, res) => {
   try {
+    await ensureMentorFeedbackAttachmentColumns();
+
     const mentor_id = req.user.mentor_id;
     const { id: student_id } = req.params;
     const { comments, rating, company_feedback_id } = req.body;
@@ -494,10 +499,10 @@ const provideFeedback = async (req, res) => {
     await db.query(
       `
       INSERT INTO mentor_feedback
-      (student_id, internship_id, company_mentor_id, parent_feedback_id, feedback_type, rating, overall_comment)
-      VALUES (?, ?, NULL, ?, 'faculty', ?, ?)
+      (student_id, internship_id, company_mentor_id, faculty_mentor_id, parent_feedback_id, feedback_type, rating, overall_comment)
+      VALUES (?, ?, NULL, ?, ?, 'faculty', ?, ?)
       `,
-      [student_id, student.internship_id, companyFeedback.feedback_id, rating || null, commentText],
+      [student_id, student.internship_id, mentor_id, companyFeedback.feedback_id, rating || null, commentText],
     );
 
     await createNotification({

@@ -3,9 +3,6 @@ import { Link, useNavigate } from "react-router-dom";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faTableCellsLarge,
-  faUsers,
-  faUniversity,
-  faShieldAlt,
   faDatabase,
   faHistory,
   faSignOutAlt,
@@ -25,9 +22,6 @@ const AdminSidebar = ({ activeTab, isOpen = false, onClose }) => {
 
   const menuItems = [
     { id: "overview", label: "Dashboard", icon: faTableCellsLarge },
-    { id: "faculties", label: "Manage Faculties", icon: faUniversity },
-    { id: "users", label: "Manage Users", icon: faUsers },
-    { id: "roles", label: "Roles & Permissions", icon: faShieldAlt },
     { id: "data-backup", label: "Data & Backup", icon: faDatabase },
     { id: "logs", label: "Audit Logs", icon: faHistory },
     { id: "monitoring", label: "Platform Monitoring", icon: faChartLine },

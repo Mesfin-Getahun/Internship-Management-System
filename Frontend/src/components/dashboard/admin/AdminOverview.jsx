@@ -6,14 +6,11 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import {
-  faUsers,
-  faChalkboardTeacher,
-  faUniversity,
-  faBuilding,
-  faBriefcase,
-  faHourglassHalf,
   faSpinner,
   faPowerOff,
+  faDatabase,
+  faHistory,
+  faChartLine,
 } from "@fortawesome/free-solid-svg-icons";
 
 const AdminOverview = () => {
@@ -87,35 +84,31 @@ const AdminOverview = () => {
     }
   };
 
-  const stats = useMemo(() => {
-    const summary = overview?.summary || {};
+  const systemTasks = useMemo(() => {
     return [
       {
-        label: "Total Students",
-        val: summary.total_students || 0,
-        icon: faUsers,
-        color: "indigo",
-        path: "/admin/users",
+        label: "Data & Backup",
+        detail: "Export and safeguard platform data",
+        icon: faDatabase,
+        classes: "bg-sky-50 text-sky-600",
+        path: "/admin/data-backup",
       },
       {
-        label: "Total Mentors",
-        val: summary.total_mentors || 0,
-        icon: faChalkboardTeacher,
-        color: "blue",
-        path: "/admin/users",
+        label: "Audit Logs",
+        detail: "Review system activity trail",
+        icon: faHistory,
+        classes: "bg-indigo-50 text-indigo-600",
+        path: "/admin/logs",
       },
       {
-        label: "Active Faculties",
-        val: summary.total_faculties || 0,
-        icon: faUniversity,
-        color: "emerald",
-        path: "/admin/faculties",
+        label: "Platform Monitoring",
+        detail: "Inspect health and maintenance mode",
+        icon: faChartLine,
+        classes: "bg-emerald-50 text-emerald-600",
+        path: "/admin/monitoring",
       },
-      // { label: 'Organizations', val: summary.total_organizations || 0, icon: faBuilding, color: 'slate', path: '/admin/users' },
-      // { label: 'Active Placements', val: summary.active_placements || 0, icon: faBriefcase, color: 'indigo', path: '/admin/monitoring' },
-      // { label: 'Pending Orgs', val: summary.pending_organizations || 0, icon: faHourglassHalf, color: 'amber', path: '/admin/logs' }
     ];
-  }, [overview]);
+  }, []);
 
   const recentLogs = overview?.recent_logs || [];
   const systemHealth = useMemo(() => {
@@ -184,22 +177,22 @@ const AdminOverview = () => {
         </p>
       </header>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4">
-        {stats.map((stat, i) => (
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        {systemTasks.map((task) => (
           <Link
-            to={stat.path}
-            key={i}
+            to={task.path}
+            key={task.label}
             className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm hover:shadow-lg transition-all group block"
           >
             <div
-              className={`w-10 h-10 rounded-xl bg-${stat.color}-50 text-${stat.color}-600 flex items-center justify-center mb-4 transition-transform group-hover:scale-110`}
+              className={`w-10 h-10 rounded-xl ${task.classes} flex items-center justify-center mb-4 transition-transform group-hover:scale-110`}
             >
-              <FontAwesomeIcon icon={stat.icon} className="h-5 w-5" />
+              <FontAwesomeIcon icon={task.icon} className="h-5 w-5" />
             </div>
             <p className="text-slate-400 text-[10px] font-black uppercase tracking-widest leading-none mb-1">
-              {stat.label}
+              {task.label}
             </p>
-            <div className="text-xl font-black text-slate-800">{stat.val}</div>
+            <div className="text-sm font-bold text-slate-700">{task.detail}</div>
           </Link>
         ))}
       </div>

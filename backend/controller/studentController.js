@@ -1399,6 +1399,7 @@ const feedbacks = async (req, res) => {
          mf.parent_feedback_id,
          mf.internship_id,
          mf.company_mentor_id,
+         mf.faculty_mentor_id,
          mf.feedback_type,
          mf.rating,
          mf.strengths,
@@ -1414,19 +1415,21 @@ const feedbacks = async (req, res) => {
            ELSE 'company_mentor'
          END AS source_role,
          CASE
-           WHEN mf.company_mentor_id IS NULL THEN m.full_name
+           WHEN mf.company_mentor_id IS NULL THEN COALESCE(fm.full_name, current_m.full_name)
            ELSE cm.full_name
          END AS source_name,
          cm.full_name AS company_mentor_name,
-         m.full_name AS mentor_name
+         COALESCE(fm.full_name, current_m.full_name) AS mentor_name
          
        FROM mentor_feedback mf
        LEFT JOIN company_mentor cm
          ON mf.company_mentor_id = cm.company_mentor_id
        LEFT JOIN student s
          ON mf.student_id = s.student_id
-       LEFT JOIN mentor m
-         ON s.assigned_mentor = m.mentor_id
+       LEFT JOIN mentor fm
+         ON mf.faculty_mentor_id = fm.mentor_id
+       LEFT JOIN mentor current_m
+         ON s.assigned_mentor = current_m.mentor_id
        WHERE mf.student_id = ?
        ORDER BY mf.created_at DESC`,
       [student_id]

@@ -4,9 +4,6 @@ import AdminNavbar from "../../components/dashboard/admin/AdminNavbar.jsx";
 import AdminSidebar from "../../components/dashboard/admin/AdminSidebar.jsx";
 import DashboardSidebarOverlay from "../../components/dashboard/common/DashboardSidebarOverlay.jsx";
 import AdminOverview from "../../components/dashboard/admin/AdminOverview.jsx";
-import ManageUsers from "../../components/dashboard/admin/ManageUsers.jsx";
-import ManageFaculties from "../../components/dashboard/admin/ManageFaculties.jsx";
-import RolesPermissions from "../../components/dashboard/admin/RolesPermissions.jsx";
 import AuditLogs from "../../components/dashboard/admin/AuditLogs.jsx";
 import PlatformMonitoring from "../../components/dashboard/admin/PlatformMonitoring.jsx";
 import DataBackup from "../../components/dashboard/admin/DataBackup.jsx";
@@ -18,9 +15,6 @@ const AdminDashboard = () => {
   const activeTab = location.pathname.split("/").pop() || "overview";
   const titleMap = {
     overview: "Admin Overview",
-    users: "Manage Users",
-    faculties: "Manage Faculties",
-    roles: "Roles & Permissions",
     logs: "Audit Logs",
     monitoring: "Platform Monitoring",
     "change-password": "Change Password",
@@ -42,9 +36,6 @@ const AdminDashboard = () => {
           <Routes>
             <Route path="/" element={<Navigate to="overview" replace />} />
             <Route path="overview" element={<AdminOverview />} />
-            <Route path="users" element={<ManageUsers />} />
-            <Route path="faculties" element={<ManageFaculties />} />
-            <Route path="roles" element={<RolesPermissions />} />
             <Route path="logs" element={<AuditLogs />} />
             <Route path="monitoring" element={<PlatformMonitoring />} />
             <Route path="change-password" element={<DashboardChangePassword />} />

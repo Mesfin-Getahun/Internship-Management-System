@@ -1,20 +1,27 @@
 import db from "../config/mysql.js";
 
-let attachmentColumnsPromise = null;
+let feedbackColumnsPromise = null;
 
 export const ensureMentorFeedbackAttachmentColumns = async () => {
-  if (attachmentColumnsPromise) {
-    return attachmentColumnsPromise;
+  if (feedbackColumnsPromise) {
+    return feedbackColumnsPromise;
   }
 
-  attachmentColumnsPromise = (async () => {
+  feedbackColumnsPromise = (async () => {
     const [columns] = await db.query(`
       SHOW COLUMNS
       FROM mentor_feedback
-      WHERE Field IN ('attachment_url', 'attachment_name')
+      WHERE Field IN ('faculty_mentor_id', 'attachment_url', 'attachment_name')
     `);
 
     const existingColumns = new Set(columns.map((column) => column.Field));
+
+    if (!existingColumns.has("faculty_mentor_id")) {
+      await db.query(`
+        ALTER TABLE mentor_feedback
+        ADD COLUMN faculty_mentor_id varchar(20) DEFAULT NULL AFTER company_mentor_id
+      `);
+    }
 
     if (!existingColumns.has("attachment_url")) {
       await db.query(`
@@ -30,9 +37,9 @@ export const ensureMentorFeedbackAttachmentColumns = async () => {
       `);
     }
   })().catch((error) => {
-    attachmentColumnsPromise = null;
+    feedbackColumnsPromise = null;
     throw error;
   });
 
-  return attachmentColumnsPromise;
+  return feedbackColumnsPromise;
 };
