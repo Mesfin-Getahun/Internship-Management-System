@@ -1,12 +1,13 @@
-import React, { useState, useEffect } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import axios from 'axios';
 import { useAuth } from '../../../AuthContext';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faTimes, faSpinner, faUsersSlash } from '@fortawesome/free-solid-svg-icons';
+import { faTimes, faSpinner, faUsersSlash, faCheckCircle } from '@fortawesome/free-solid-svg-icons';
 
 const MyStudents = () => {
   const [selectedStudent, setSelectedStudent] = useState(null);
   const [students, setStudents] = useState([]);
+  const [studentView, setStudentView] = useState('active');
   const [loading, setLoading] = useState(true);
   const { user } = useAuth();
 
@@ -28,6 +29,34 @@ const MyStudents = () => {
     if (user?.token) fetchStudents();
   }, [user]);
 
+  const isCompletedPlacement = (student) =>
+    ['completed', 'complete'].includes(String(student.status || '').toLowerCase());
+
+  const isActivePlacement = (student) =>
+    ['accepted', 'in progress', 'active'].includes(String(student.status || '').toLowerCase());
+
+  const filteredStudents = useMemo(() => {
+    if (studentView === 'completed') {
+      return students.filter(isCompletedPlacement);
+    }
+
+    if (studentView === 'active') {
+      return students.filter(isActivePlacement);
+    }
+
+    return students;
+  }, [studentView, students]);
+
+  const studentCounts = useMemo(() => {
+    const completed = students.filter(isCompletedPlacement).length;
+    const active = students.filter(isActivePlacement).length;
+    return {
+      active,
+      completed,
+      all: students.length,
+    };
+  }, [students]);
+
   return (
     <div className="animate-fade-in space-y-6 pb-12">
       <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
@@ -37,10 +66,37 @@ const MyStudents = () => {
         </div>
         <div className="flex items-center gap-3">
            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest bg-slate-100 dark:bg-slate-800 px-4 py-2 rounded-lg border border-slate-200 dark:border-slate-700">
-               Total Supervised: {students.length}
+               Total Assigned: {students.length}
            </span>
         </div>
       </header>
+
+      <div className="flex flex-wrap gap-2 rounded-2xl border border-slate-100 bg-white p-2 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+        {[
+          ['active', 'Active / Current', studentCounts.active],
+          ['completed', 'Completed', studentCounts.completed],
+          ['all', 'All Assigned Students', studentCounts.all],
+        ].map(([id, label, count]) => (
+          <button
+            key={id}
+            type="button"
+            onClick={() => setStudentView(id)}
+            className={`inline-flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-black uppercase tracking-widest transition-all ${
+              studentView === id
+                ? 'bg-teal-600 text-white shadow-lg shadow-teal-500/20'
+                : 'text-slate-500 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800'
+            }`}
+          >
+            {id === 'completed' && <FontAwesomeIcon icon={faCheckCircle} />}
+            {label}
+            <span className={`rounded-lg px-2 py-0.5 ${
+              studentView === id ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-300'
+            }`}>
+              {count}
+            </span>
+          </button>
+        ))}
+      </div>
 
       <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-100 dark:border-slate-800 overflow-hidden shadow-sm min-h-[300px]">
         {loading ? (
@@ -52,6 +108,12 @@ const MyStudents = () => {
               <FontAwesomeIcon icon={faUsersSlash} size="3x" className="mb-4 opacity-50" />
               <p className="font-bold text-lg text-slate-700 dark:text-white">No students assigned.</p>
               <p className="text-sm mt-1">Faculty hasn't assigned you any students for supervision yet.</p>
+           </div>
+        ) : filteredStudents.length === 0 ? (
+           <div className="flex flex-col justify-center items-center h-64 text-slate-400">
+              <FontAwesomeIcon icon={faUsersSlash} size="3x" className="mb-4 opacity-50" />
+              <p className="font-bold text-lg text-slate-700 dark:text-white">No students in this view.</p>
+              <p className="text-sm mt-1">Switch tabs to see another supervision list.</p>
            </div>
         ) : (
            <div className="overflow-x-auto">
@@ -65,8 +127,10 @@ const MyStudents = () => {
                  </tr>
                </thead>
                <tbody className="divide-y divide-slate-100 dark:divide-slate-800/50">
-                 {students.map((student, i) => (
-                   <tr key={student.student_id || student.id || i} className="hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors group">
+                 {filteredStudents.map((student, i) => {
+                   const completed = isCompletedPlacement(student);
+                   return (
+                   <tr key={`${student.student_id || student.id || i}-${student.internship_id || 'student'}`} className="hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors group">
                      <td className="p-5">
                        <div className="font-bold text-sm text-slate-800 dark:text-white group-hover:text-teal-600 dark:group-hover:text-teal-400 transition-colors">{student.student_name || student.full_name || student.name || 'Student'}</div>
                        <div className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1">ID: {student.student_id ? String(student.student_id).slice(0, 8) : 'N/A'} - {student.department || student.faculty || 'Engineering'}</div>
@@ -78,6 +142,7 @@ const MyStudents = () => {
                          const statusLabel = student.status || 'Active';
                          return (
                         <span className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest ${
+                         completed ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 border border-emerald-100 dark:border-emerald-900/50' :
                          status === 'active' || status === 'on track' || status === 'in progress' ? 'bg-teal-50 text-teal-700 dark:bg-teal-900/30 dark:text-teal-400 border border-teal-100 dark:border-teal-900/50' :
                          status === 'delayed' ? 'bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 border border-amber-100 dark:border-amber-900/50' :
                          'bg-slate-50 text-slate-700 dark:bg-slate-800/50 dark:text-slate-400 border border-slate-200 dark:border-slate-700'
@@ -96,7 +161,8 @@ const MyStudents = () => {
                        </button>
                      </td>
                    </tr>
-                 ))}
+                   );
+                 })}
                </tbody>
              </table>
            </div>

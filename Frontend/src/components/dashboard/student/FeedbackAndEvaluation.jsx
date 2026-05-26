@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import axios from 'axios';
 import { useAuth } from '../../../AuthContext';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faUser, faBuilding, faStar, faSpinner, faCommentSlash, faReply, faPaperclip } from '@fortawesome/free-solid-svg-icons';
+import { faUser, faBuilding, faStar, faSpinner, faCommentSlash, faReply, faPaperclip, faPaperPlane, faCheckCircle } from '@fortawesome/free-solid-svg-icons';
 
 const FeedbackCard = ({ author, role, date, content, rating, strengths, weaknesses, suggestions, attachmentUrl, attachmentName, children }) => (
   <div className="bg-white dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-3xl p-8 mb-6 shadow-sm transition-all hover:shadow-lg group">
@@ -94,6 +94,10 @@ const FacultyReply = ({ feedback }) => (
 
 const FeedbackAndEvaluation = () => {
   const [feedbacks, setFeedbacks] = useState([]);
+  const [ratingOptions, setRatingOptions] = useState([]);
+  const [ratingForms, setRatingForms] = useState({});
+  const [ratingSubmitting, setRatingSubmitting] = useState('');
+  const [ratingMessage, setRatingMessage] = useState('');
   const [loading, setLoading] = useState(true);
   const { user } = useAuth();
 
@@ -101,15 +105,32 @@ const FeedbackAndEvaluation = () => {
     const fetchFeedback = async () => {
       try {
         setLoading(true);
-        const res = await axios.get(`${import.meta.env.VITE_BACKEND_URL}/api/student/viewFeedbacks`, {
-          headers: { Authorization: `Bearer ${user?.token}` }
-        });
+        const [feedbackRes, ratingRes] = await Promise.all([
+          axios.get(`${import.meta.env.VITE_BACKEND_URL}/api/student/viewFeedbacks`, {
+            headers: { Authorization: `Bearer ${user?.token}` }
+          }),
+          axios.get(`${import.meta.env.VITE_BACKEND_URL}/api/student/company-ratings`, {
+            headers: { Authorization: `Bearer ${user?.token}` }
+          }),
+        ]);
         
-        if (res.data.feedbacks) {
-           setFeedbacks(res.data.feedbacks);
-        } else if (Array.isArray(res.data)) {
-           setFeedbacks(res.data);
+        if (feedbackRes.data.feedbacks) {
+           setFeedbacks(feedbackRes.data.feedbacks);
+        } else if (Array.isArray(feedbackRes.data)) {
+           setFeedbacks(feedbackRes.data);
         }
+
+        const placements = Array.isArray(ratingRes.data?.placements) ? ratingRes.data.placements : [];
+        setRatingOptions(placements);
+        setRatingForms(Object.fromEntries(
+          placements.map((placement) => {
+            const key = `${placement.company_id}_${placement.internship_id}`;
+            return [key, {
+              rating: placement.rating || 5,
+              comment: placement.comment || '',
+            }];
+          })
+        ));
       } catch (err) {
         console.error("Failed to fetch feedback:", err);
       } finally {
@@ -119,6 +140,46 @@ const FeedbackAndEvaluation = () => {
 
     if (user?.token) fetchFeedback();
   }, [user]);
+
+  const handleRatingChange = (key, field, value) => {
+    setRatingForms((prev) => ({
+      ...prev,
+      [key]: {
+        ...(prev[key] || {}),
+        [field]: value,
+      },
+    }));
+  };
+
+  const submitCompanyRating = async (placement) => {
+    const key = `${placement.company_id}_${placement.internship_id}`;
+    const form = ratingForms[key] || {};
+
+    try {
+      setRatingSubmitting(key);
+      setRatingMessage('');
+      await axios.post(`${import.meta.env.VITE_BACKEND_URL}/api/student/company-ratings`, {
+        internship_id: placement.internship_id,
+        company_id: placement.company_id,
+        rating: Number(form.rating || 5),
+        comment: form.comment || '',
+      }, {
+        headers: { Authorization: `Bearer ${user?.token}` },
+      });
+
+      setRatingOptions((prev) => prev.map((item) => (
+        item.company_id === placement.company_id && item.internship_id === placement.internship_id
+          ? { ...item, rating: Number(form.rating || 5), comment: form.comment || '', rating_id: item.rating_id || true }
+          : item
+      )));
+      setRatingMessage('Company rating saved successfully.');
+    } catch (err) {
+      console.error('Failed to submit company rating:', err);
+      setRatingMessage(err.response?.data?.message || 'Failed to save company rating.');
+    } finally {
+      setRatingSubmitting('');
+    }
+  };
 
   const threadedFeedbacks = useMemo(() => {
     const companyMentor = feedbacks
@@ -186,6 +247,81 @@ const FeedbackAndEvaluation = () => {
           Review official academic and performance feedback from your assigned supervisors.
         </p>
       </header>
+
+      {ratingOptions.length > 0 && (
+        <section className="rounded-3xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-6 shadow-sm">
+          <div className="mb-5">
+            <h2 className="text-xl font-bold text-slate-800 dark:text-white">Rate Host Company</h2>
+            <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
+              Share your completed internship experience with UIL.
+            </p>
+          </div>
+          {ratingMessage && (
+            <div className="mb-4 rounded-xl bg-slate-50 dark:bg-slate-800 px-4 py-3 text-sm font-semibold text-slate-600 dark:text-slate-300">
+              {ratingMessage}
+            </div>
+          )}
+          <div className="space-y-4">
+            {ratingOptions.map((placement) => {
+              const key = `${placement.company_id}_${placement.internship_id}`;
+              const form = ratingForms[key] || {};
+              const alreadyRated = Boolean(placement.rating_id || placement.rating);
+
+              return (
+                <div key={key} className="rounded-2xl border border-slate-100 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-800/40 p-5">
+                  <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
+                    <div>
+                      <p className="text-lg font-bold text-slate-800 dark:text-white">{placement.company_name || 'Host Company'}</p>
+                      <p className="text-xs font-bold uppercase tracking-widest text-slate-400 mt-1">
+                        {placement.internship_title || 'Completed Internship'}
+                      </p>
+                    </div>
+                    {alreadyRated && (
+                      <span className="inline-flex items-center gap-2 rounded-xl bg-emerald-50 px-3 py-2 text-[10px] font-black uppercase tracking-widest text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-300">
+                        <FontAwesomeIcon icon={faCheckCircle} />
+                        Rated
+                      </span>
+                    )}
+                  </div>
+                  <div className="mt-5 grid gap-4 lg:grid-cols-[180px_1fr_auto] lg:items-end">
+                    <label className="block">
+                      <span className="text-xs font-black uppercase tracking-widest text-slate-400">Rating</span>
+                      <select
+                        value={form.rating || 5}
+                        onChange={(event) => handleRatingChange(key, 'rating', event.target.value)}
+                        className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:border-slate-700 dark:bg-slate-900 dark:text-white"
+                      >
+                        {[5, 4, 3, 2, 1].map((value) => (
+                          <option key={value} value={value}>{value} Star{value === 1 ? '' : 's'}</option>
+                        ))}
+                      </select>
+                    </label>
+                    <label className="block">
+                      <span className="text-xs font-black uppercase tracking-widest text-slate-400">Comment</span>
+                      <textarea
+                        value={form.comment || ''}
+                        onChange={(event) => handleRatingChange(key, 'comment', event.target.value)}
+                        rows={3}
+                        className="mt-2 w-full resize-none rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:border-slate-700 dark:bg-slate-900 dark:text-white"
+                        placeholder="Write your experience with this company..."
+                      />
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => submitCompanyRating(placement)}
+                      disabled={ratingSubmitting === key}
+                      className="inline-flex h-12 items-center justify-center gap-2 rounded-xl bg-indigo-600 px-5 text-xs font-black uppercase tracking-widest text-white transition-all hover:bg-indigo-700 disabled:opacity-60"
+                    >
+                      <FontAwesomeIcon icon={ratingSubmitting === key ? faSpinner : faPaperPlane} spin={ratingSubmitting === key} />
+                      Save
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </section>
+      )}
 
       {loading ? (
          <div className="flex justify-center items-center h-64 text-indigo-500">

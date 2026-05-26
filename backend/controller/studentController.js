@@ -5,6 +5,7 @@ import createLog from "../utils/createLog.js";
 import { createNotification } from "../utils/notificationService.js";
 import { ensureMentorFeedbackAttachmentColumns } from "../utils/mentorFeedbackSchema.js";
 import { ensureInternshipEvaluationMentorColumns } from "../utils/internshipEvaluationSchema.js";
+import { ensureCompanyRatingTables } from "../utils/companyRatingSchema.js";
 import {
   APPLICATION_STATUS,
   PLACEMENT_STATUS,
@@ -17,6 +18,10 @@ function isMissingTableError(error, tableName) {
     error?.code === "ER_NO_SUCH_TABLE" &&
     (!tableName || error?.sqlMessage?.includes(`'${tableName}'`))
   );
+}
+
+function isDuplicateKeyError(error) {
+  return error?.code === "ER_DUP_ENTRY" || error?.errno === 1062;
 }
 
 const getExistingTable = async (tableNames) => {
@@ -578,6 +583,13 @@ const applyInternships = async (req, res) => {
       message: "Application submitted successfully",
     });
   } catch (error) {
+    if (isDuplicateKeyError(error)) {
+      return res.status(409).json({
+        success: false,
+        message: "You have already submitted this item.",
+      });
+    }
+
     console.error(error);
     res.status(500).json({
       success: false,
@@ -1005,6 +1017,184 @@ const getStudentEvaluations = async (req, res) => {
   }
 };
 
+const getCompanyRatingOptions = async (req, res) => {
+  try {
+    await ensureCompanyRatingTables();
+
+    const student_id = req.user.student_id;
+
+    const [placements] = await db.query(
+      `
+      SELECT
+        si.id AS student_internship_id,
+        si.student_id,
+        si.internship_id,
+        si.company_id,
+        si.status AS placement_status,
+        si.cohort_status,
+        si.end_date AS placement_end_date,
+        i.title AS internship_title,
+        i.end_date AS internship_end_date,
+        c.company_name,
+        ie.evaluation_id,
+        ie.submitted_at AS evaluation_submitted_at,
+        r.report_id,
+        r.faculty_submitted_at,
+        cr.rating_id,
+        cr.rating,
+        cr.comment,
+        cr.created_at AS rating_created_at,
+        cr.updated_at AS rating_updated_at
+      FROM student_internship si
+      JOIN internship i
+        ON si.internship_id = i.internship_id
+      JOIN company c
+        ON si.company_id = c.company_id
+      LEFT JOIN internship_evaluation ie
+        ON ie.student_id = si.student_id
+       AND ie.internship_id = si.internship_id
+      LEFT JOIN internship_report r
+        ON r.student_id = si.student_id
+       AND r.internship_id = si.internship_id
+      LEFT JOIN company_rating cr
+        ON cr.student_id = si.student_id
+       AND cr.internship_id = si.internship_id
+       AND cr.company_id = si.company_id
+      WHERE si.student_id = ?
+        AND (
+          LOWER(si.status) IN ('completed', 'complete')
+          OR COALESCE(si.end_date, i.end_date) <= CURDATE()
+          OR ie.evaluation_id IS NOT NULL
+          OR r.faculty_submitted_at IS NOT NULL
+          OR r.status = 'faculty_submitted'
+        )
+      ORDER BY COALESCE(si.end_date, ie.submitted_at, r.faculty_submitted_at, si.start_date) DESC, si.id DESC
+      `,
+      [student_id],
+    );
+
+    res.status(200).json({
+      success: true,
+      count: placements.length,
+      placements,
+    });
+  } catch (error) {
+    console.error("Fetch company rating options error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to fetch company rating options",
+    });
+  }
+};
+
+const submitCompanyRating = async (req, res) => {
+  try {
+    await ensureCompanyRatingTables();
+
+    const student_id = req.user.student_id;
+    const { internship_id, company_id, rating, comment } = req.body;
+    const numericRating = Number(rating);
+    const cleanComment = String(comment || "").trim();
+
+    if (!internship_id || !company_id) {
+      return res.status(400).json({
+        success: false,
+        message: "Internship and company are required",
+      });
+    }
+
+    if (!Number.isInteger(numericRating) || numericRating < 1 || numericRating > 5) {
+      return res.status(400).json({
+        success: false,
+        message: "Rating must be a whole number from 1 to 5",
+      });
+    }
+
+    if (!cleanComment) {
+      return res.status(400).json({
+        success: false,
+        message: "A comment is required",
+      });
+    }
+
+    const [[placement]] = await db.query(
+      `
+      SELECT
+        si.id,
+        si.student_id,
+        si.internship_id,
+        si.company_id,
+        si.status,
+        si.end_date AS placement_end_date,
+        i.title AS internship_title,
+        i.end_date AS internship_end_date,
+        c.company_name,
+        ie.evaluation_id,
+        r.faculty_submitted_at,
+        r.status AS report_status
+      FROM student_internship si
+      JOIN internship i
+        ON si.internship_id = i.internship_id
+      JOIN company c
+        ON si.company_id = c.company_id
+      LEFT JOIN internship_evaluation ie
+        ON ie.student_id = si.student_id
+       AND ie.internship_id = si.internship_id
+      LEFT JOIN internship_report r
+        ON r.student_id = si.student_id
+       AND r.internship_id = si.internship_id
+      WHERE si.student_id = ?
+        AND si.internship_id = ?
+        AND si.company_id = ?
+      LIMIT 1
+      `,
+      [student_id, internship_id, company_id],
+    );
+
+    const completedByStatus = ["completed", "complete"].includes(
+      String(placement?.status || "").toLowerCase(),
+    );
+    const completedByEndDate = Boolean(
+      placement?.placement_end_date || placement?.internship_end_date,
+    ) && new Date(placement.placement_end_date || placement.internship_end_date) <= new Date();
+    const completedByEvidence =
+      Boolean(placement?.evaluation_id) ||
+      Boolean(placement?.faculty_submitted_at) ||
+      placement?.report_status === REPORT_STATUS.FACULTY_SUBMITTED;
+
+    if (!placement || (!completedByStatus && !completedByEndDate && !completedByEvidence)) {
+      return res.status(403).json({
+        success: false,
+        message: "You can rate a company only after finishing the internship",
+      });
+    }
+
+    await db.query(
+      `
+      INSERT INTO company_rating
+        (student_id, internship_id, company_id, rating, comment)
+      VALUES (?, ?, ?, ?, ?)
+      ON DUPLICATE KEY UPDATE
+        rating = VALUES(rating),
+        comment = VALUES(comment),
+        updated_at = CURRENT_TIMESTAMP
+      `,
+      [student_id, internship_id, company_id, numericRating, cleanComment],
+    );
+
+    res.status(200).json({
+      success: true,
+      message: "Company rating submitted successfully",
+    });
+  } catch (error) {
+    console.error("Submit company rating error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to submit company rating",
+    });
+  }
+};
+
 const myInternship = async (req, res) => {
   try {
     const studentId = req.user.student_id;
@@ -1019,6 +1209,7 @@ const myInternship = async (req, res) => {
         i.start_date,
         i.end_date,
         si.start_date AS placement_start_date,
+        si.end_date AS placement_end_date,
         i.skills,
         c.company_name,
         COALESCE(i.location, c.location) AS location,
@@ -1114,7 +1305,7 @@ const uploadInternshipReport = async (req, res) => {
 
     const [[activeInternship]] = await db.query(
       `
-      SELECT si.internship_id, i.start_date
+      SELECT si.internship_id, i.start_date, i.end_date, si.end_date AS placement_end_date
       FROM student_internship si
       JOIN internship i
         ON si.internship_id = i.internship_id
@@ -1134,13 +1325,12 @@ const uploadInternshipReport = async (req, res) => {
       });
     }
 
-    if (
-      activeInternship.start_date &&
-      new Date(activeInternship.start_date) > new Date()
-    ) {
+    const internshipEndDate = activeInternship.placement_end_date || activeInternship.end_date;
+
+    if (!internshipEndDate || new Date(internshipEndDate) > new Date()) {
       return res.status(403).json({
         success: false,
-        message: "You can submit an internship report after the internship start date.",
+        message: "You can submit an internship report only after the internship end date.",
       });
     }
 
@@ -1199,6 +1389,13 @@ const uploadInternshipReport = async (req, res) => {
 
     res.json({ success: true, reportUrl });
   } catch (error) {
+    if (isDuplicateKeyError(error)) {
+      return res.status(409).json({
+        success: false,
+        message: "You have already submitted an internship report to your mentor.",
+      });
+    }
+
     console.log(error);
     res.status(500).json({ success: false });
   }
@@ -1603,4 +1800,6 @@ export {
   suggestedInternships,
   submitSignedReportToFaculty,
   getRecommendationLetter,
+  getCompanyRatingOptions,
+  submitCompanyRating,
 };

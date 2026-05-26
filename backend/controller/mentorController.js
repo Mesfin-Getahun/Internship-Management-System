@@ -16,7 +16,9 @@ const fetchStudents = async (req, res) => {
         s.email,
         s.department,
         si.status,
+        si.cohort_status,
         si.start_date AS placement_start_date,
+        si.end_date AS placement_end_date,
         i.internship_id,
         i.title AS internship_title,
         i.start_date,
@@ -25,8 +27,13 @@ const fetchStudents = async (req, res) => {
       FROM student s
       LEFT JOIN student_internship si
         ON s.student_id = si.student_id
-        AND LOWER(si.status) IN ('in progress', 'accepted', 'active', 'completed', 'complete')
-        AND si.cohort_status = 'current'
+       AND (
+         (
+           si.cohort_status = 'current'
+           AND LOWER(si.status) IN ('in progress', 'accepted', 'active')
+         )
+         OR LOWER(si.status) IN ('completed', 'complete')
+       )
       LEFT JOIN internship i
         ON si.internship_id = i.internship_id
       LEFT JOIN company c
@@ -80,9 +87,10 @@ const getMentorProfile = async (req, res) => {
           THEN si.student_id
         END) AS active_internships
       FROM student s
-      LEFT JOIN student_internship si
+      JOIN student_internship si
         ON s.student_id = si.student_id
-        AND si.cohort_status = 'current'
+       AND si.cohort_status = 'current'
+       AND LOWER(si.status) IN ('in progress', 'accepted', 'active')
       LEFT JOIN internship i
         ON si.internship_id = i.internship_id
       WHERE s.assigned_mentor = ?
@@ -166,7 +174,14 @@ const mentorSignReport = async (req, res) => {
 
     const [[report]] = await db.query(
       `
-      SELECT ir.report_id, ir.student_id, i.title AS internship_title
+      SELECT
+        ir.report_id,
+        ir.student_id,
+        ir.mentor_signed_url,
+        ir.signed_at,
+        ir.faculty_submitted_at,
+        ir.status,
+        i.title AS internship_title
       FROM internship_report ir
       LEFT JOIN internship i
         ON ir.internship_id = i.internship_id
@@ -182,6 +197,19 @@ const mentorSignReport = async (req, res) => {
       return res.status(404).json({
         success: false,
         message: "Report not found or access denied",
+      });
+    }
+
+    if (
+      report.mentor_signed_url ||
+      report.signed_at ||
+      report.faculty_submitted_at ||
+      report.status === REPORT_STATUS.SIGNED ||
+      report.status === REPORT_STATUS.FACULTY_SUBMITTED
+    ) {
+      return res.status(409).json({
+        success: false,
+        message: "This report has already been signed.",
       });
     }
 

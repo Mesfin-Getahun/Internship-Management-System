@@ -25,6 +25,15 @@ const getReportStatusLabel = (report) => {
   return "Submitted to Mentor";
 };
 
+const hasInternshipEnded = (internship) => {
+  const endDate = internship?.placement_end_date || internship?.end_date;
+  if (!endDate) return false;
+  const parsedEndDate = new Date(endDate);
+  if (Number.isNaN(parsedEndDate.getTime())) return false;
+  parsedEndDate.setHours(23, 59, 59, 999);
+  return parsedEndDate <= new Date();
+};
+
 const InternshipReport = () => {
   const { user } = useAuth();
   const [activeInternship, setActiveInternship] = useState(null);
@@ -75,6 +84,7 @@ const InternshipReport = () => {
       )
     : null;
   const hasSubmittedCurrentReport = Boolean(currentInternshipReport);
+  const internshipEnded = hasInternshipEnded(activeInternship);
 
   const handleFileChange = (e) => {
     const file = e.target.files[0];
@@ -88,6 +98,12 @@ const InternshipReport = () => {
 
     if (hasSubmittedCurrentReport) {
       setError("You have already submitted an internship report to your mentor.");
+      setSelectedFile(null);
+      return;
+    }
+
+    if (!internshipEnded) {
+      setError("You can submit the internship report only after the internship end date.");
       setSelectedFile(null);
       return;
     }
@@ -113,6 +129,11 @@ const InternshipReport = () => {
 
     if (hasSubmittedCurrentReport) {
       setError("You have already submitted an internship report to your mentor.");
+      return;
+    }
+
+    if (!internshipEnded) {
+      setError("You can submit the internship report only after the internship end date.");
       return;
     }
 
@@ -266,13 +287,15 @@ const InternshipReport = () => {
             {hasSubmittedCurrentReport
               ? "Your internship report has already been sent to your mentor."
               : activeInternship
-                ? `Active placement: ${activeInternship.title}`
+                ? internshipEnded
+                  ? `Finished placement: ${activeInternship.title}`
+                  : `Report submission opens after ${activeInternship.placement_end_date || activeInternship.end_date ? new Date(activeInternship.placement_end_date || activeInternship.end_date).toLocaleDateString() : 'the internship end date'}.`
                 : "No active internship placement found."}
           </p>
 
           <form className="space-y-6" onSubmit={handleUpload}>
             <div className={`p-6 border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-2xl text-center group transition-colors relative ${
-              hasSubmittedCurrentReport ? "cursor-not-allowed opacity-60" : "cursor-pointer hover:border-blue-400"
+              hasSubmittedCurrentReport || !internshipEnded ? "cursor-not-allowed opacity-60" : "cursor-pointer hover:border-blue-400"
             }`}>
               <input
                 type="file"
@@ -280,12 +303,14 @@ const InternshipReport = () => {
                 accept="application/pdf"
                 className="absolute inset-0 opacity-0 cursor-pointer"
                 onChange={handleFileChange}
-                disabled={hasSubmittedCurrentReport}
+                disabled={hasSubmittedCurrentReport || !internshipEnded}
               />
               <FontAwesomeIcon icon={faCloudUploadAlt} className="h-10 w-10 mx-auto text-slate-300 group-hover:text-blue-400 mb-3" />
               <p className="text-xs font-bold text-slate-500 dark:text-slate-400">
                 {hasSubmittedCurrentReport
                   ? "Report already submitted"
+                  : !internshipEnded
+                    ? "Available after internship ends"
                   : selectedFile
                     ? selectedFile.name
                     : "Upload PDF report"}
@@ -294,7 +319,7 @@ const InternshipReport = () => {
 
             <button
               className="w-full py-4 bg-blue-600 text-white rounded-2xl font-bold hover:bg-blue-700 shadow-xl shadow-blue-500/20 transition-all active:scale-95 disabled:opacity-50"
-              disabled={!selectedFile || !activeInternship || hasSubmittedCurrentReport || submitting}
+              disabled={!selectedFile || !activeInternship || !internshipEnded || hasSubmittedCurrentReport || submitting}
             >
               {submitting ? "Submitting..." : "Submit Report"}
             </button>

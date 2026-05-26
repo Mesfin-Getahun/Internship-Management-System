@@ -1,9 +1,38 @@
 import { Platform } from "react-native";
+import Constants from "expo-constants";
 
-const defaultBaseUrl =
-  Platform.OS === "android" ? "http://10.0.2.2:5000" : "http://localhost:5000";
+function getExpoDevHost() {
+  const hostUri =
+    Constants.expoConfig?.hostUri ||
+    Constants.manifest?.debuggerHost ||
+    Constants.manifest2?.extra?.expoClient?.hostUri ||
+    Constants.manifest2?.extra?.expoGo?.debuggerHost;
 
-const API_BASE_URL = (process.env.EXPO_PUBLIC_API_BASE_URL || defaultBaseUrl).replace(/\/$/, "");
+  if (!hostUri) {
+    return null;
+  }
+
+  return hostUri.replace(/^https?:\/\//, "").split(":")[0];
+}
+
+function getDefaultBaseUrl() {
+  if (Platform.OS === "web") {
+    return "http://localhost:5000";
+  }
+
+  const expoDevHost = getExpoDevHost();
+  if (expoDevHost && !["localhost", "127.0.0.1"].includes(expoDevHost)) {
+    return `http://${expoDevHost}:5000`;
+  }
+
+  return Platform.OS === "android" ? "http://10.0.2.2:5000" : "http://localhost:5000";
+}
+
+const API_BASE_URL = (process.env.EXPO_PUBLIC_API_BASE_URL || getDefaultBaseUrl()).replace(/\/$/, "");
+
+if (typeof __DEV__ !== "undefined" && __DEV__) {
+  console.log(`[API] Using backend ${API_BASE_URL}`);
+}
 
 let authToken = null;
 

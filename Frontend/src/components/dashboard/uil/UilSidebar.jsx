@@ -13,6 +13,7 @@ import {
   faBriefcase,
   faPlus,
   faKey,
+  faStar,
 } from "@fortawesome/free-solid-svg-icons";
 
 const UilSidebar = ({ activeTab, isOpen = false, onClose }) => {
@@ -34,6 +35,7 @@ const UilSidebar = ({ activeTab, isOpen = false, onClose }) => {
       icon: faBriefcase,
     },
     { id: "reports", label: "Fulfillment Reports", icon: faFileAlt },
+    { id: "company-ratings", label: "Company Ratings", icon: faStar },
     {
       id: "recommendation",
       label: "Recommendation Letter",

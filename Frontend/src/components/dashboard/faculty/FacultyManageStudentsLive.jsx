@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState, useRef } from 'react';
 import axios from 'axios';
 import { useAuth } from '../../../AuthContext';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faEye, faBriefcase, faSpinner, faUserMinus, faUserPen, faUpload, faTimes } from '@fortawesome/free-solid-svg-icons';
+import { faEye, faBriefcase, faSpinner, faUserMinus, faUserPen, faUpload, faTimes, faCheckCircle } from '@fortawesome/free-solid-svg-icons';
 import { getDepartmentOptions, matchesDepartment } from '../../../utils/departmentFilters';
 
 const getProfileStatus = (status) => {
@@ -56,6 +56,7 @@ const FacultyManageStudentsLive = () => {
   const [students, setStudents] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedDepartment, setSelectedDepartment] = useState('All Departments');
+  const [studentView, setStudentView] = useState('active');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [mentors, setMentors] = useState([]);
@@ -103,11 +104,17 @@ const FacultyManageStudentsLive = () => {
 
   const departments = useMemo(() => getDepartmentOptions(students), [students]);
 
+  const isCompletedPlacement = (student) =>
+    ['completed', 'complete'].includes(String(student.internship_status || '').toLowerCase());
+
   const filteredStudents = useMemo(() => {
     const query = searchTerm.trim().toLowerCase();
 
     return students.filter((student) => {
       if (!matchesDepartment(student, selectedDepartment)) return false;
+      const completed = isCompletedPlacement(student);
+      if (studentView === 'active' && completed) return false;
+      if (studentView === 'completed' && !completed) return false;
       if (!query) return true;
 
       const name = (student.full_name || '').toLowerCase();
@@ -122,7 +129,16 @@ const FacultyManageStudentsLive = () => {
         company.includes(query)
       );
     });
-  }, [searchTerm, selectedDepartment, students]);
+  }, [searchTerm, selectedDepartment, studentView, students]);
+
+  const studentCounts = useMemo(() => {
+    const completed = students.filter(isCompletedPlacement).length;
+    return {
+      all: students.length,
+      completed,
+      active: students.length - completed,
+    };
+  }, [students]);
 
   const getPlacementLabel = (student) => {
     if (!student.internship_id) return 'Not Placed';
@@ -270,6 +286,33 @@ const FacultyManageStudentsLive = () => {
         </div>
       </header>
 
+      <div className="flex flex-wrap gap-2 rounded-2xl border border-slate-100 bg-white p-2 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+        {[
+          ['active', 'Active / Current', studentCounts.active],
+          ['completed', 'Completed', studentCounts.completed],
+          ['all', 'All Students', studentCounts.all],
+        ].map(([id, label, count]) => (
+          <button
+            key={id}
+            type="button"
+            onClick={() => setStudentView(id)}
+            className={`inline-flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-black uppercase tracking-widest transition-all ${
+              studentView === id
+                ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-500/20'
+                : 'text-slate-500 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800'
+            }`}
+          >
+            {id === 'completed' && <FontAwesomeIcon icon={faCheckCircle} />}
+            {label}
+            <span className={`rounded-lg px-2 py-0.5 ${
+              studentView === id ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-300'
+            }`}>
+              {count}
+            </span>
+          </button>
+        ))}
+      </div>
+
       <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-100 dark:border-slate-800 overflow-hidden shadow-sm">
         {loading ? (
           <div className="flex justify-center items-center h-64 text-indigo-500">
@@ -294,6 +337,7 @@ const FacultyManageStudentsLive = () => {
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
                 {filteredStudents.map((student) => {
                   const profileStatus = getProfileStatus(student.profile_status);
+                  const completed = isCompletedPlacement(student);
 
                   return (
                   <tr key={student.student_id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors">
@@ -311,6 +355,12 @@ const FacultyManageStudentsLive = () => {
                       <div className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mt-1">
                         {student.company_name || getPlacementLabel(student)}
                       </div>
+                      {completed && (
+                        <div className="mt-2 inline-flex items-center gap-1 rounded-lg bg-emerald-100 px-2 py-1 text-[10px] font-black uppercase tracking-widest text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300">
+                          <FontAwesomeIcon icon={faCheckCircle} />
+                          Completed
+                        </div>
+                      )}
                     </td>
                     <td className="p-5 text-center">
                       {editingStudentId === student.student_id ? (

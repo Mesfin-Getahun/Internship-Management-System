@@ -15,6 +15,8 @@ import {
   submitSignedReportToFaculty,
   getRecommendationLetter,
   suggestedInternships,
+  getCompanyRatingOptions,
+  submitCompanyRating,
 } from "../controller/studentController.js";
 import { uploadApplicationFiles } from "../middleware/uploadApplicationFiles.js";
 import { uploadPDF } from "../middleware/uploadPDF.js";
@@ -157,6 +159,8 @@ studentRoute.get("/paymentApplication", authStudent, getPaymentApplication);
  *         description: Server error
  */
 studentRoute.get("/viewFeedbacks", authStudent, feedbacks);
+studentRoute.get("/company-ratings", authStudent, getCompanyRatingOptions);
+studentRoute.post("/company-ratings", authStudent, submitCompanyRating);
 studentRoute.get(
   "/recommendation-letter",
   authStudent,

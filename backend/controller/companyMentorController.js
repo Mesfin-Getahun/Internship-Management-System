@@ -7,6 +7,10 @@ import { createNotifications } from "../utils/notificationService.js";
 import { ensureMentorFeedbackAttachmentColumns } from "../utils/mentorFeedbackSchema.js";
 import { ensureInternshipEvaluationMentorColumns } from "../utils/internshipEvaluationSchema.js";
 
+function isDuplicateKeyError(error) {
+  return error?.code === "ER_DUP_ENTRY" || error?.errno === 1062;
+}
+
 // const fetchStudents = async (req, res) => {
 //   const mentorId = req.user.company_mentor_id;
 //   try {
@@ -36,6 +40,8 @@ const fetchStudents = async (req, res) => {
       });
     }
 
+    await ensureInternshipEvaluationMentorColumns();
+
     const query = `
       SELECT DISTINCT
         s.student_id,
@@ -54,6 +60,13 @@ const fetchStudents = async (req, res) => {
       WHERE si.company_mentor_id = ?
         AND si.cohort_status = 'current'
         AND LOWER(si.status) IN ('accepted', 'in progress', 'active')
+        AND NOT EXISTS (
+          SELECT 1
+          FROM internship_evaluation ie
+          WHERE ie.student_id = si.student_id
+            AND ie.internship_id = si.internship_id
+            AND (ie.company_mentor_id = si.company_mentor_id OR ie.company_mentor_id IS NULL)
+        )
     `;
 
     const [students] = await db.query(query, [company_mentor_id]);
@@ -234,6 +247,13 @@ const postEvaluation = async (req, res) => {
       total_mark: totalMark,
     });
   } catch (error) {
+    if (isDuplicateKeyError(error)) {
+      return res.status(409).json({
+        success: false,
+        message: "A final evaluation has already been submitted for this student and internship",
+      });
+    }
+
     console.error("Post evaluation error:", error);
     res.status(500).json({
       success: false,
@@ -443,10 +463,6 @@ const getFeedbacks = async (req, res) => {
         i.title AS internship_title,
         c.company_name
       FROM mentor_feedback mf
-      JOIN student_internship si
-        ON mf.student_id = si.student_id
-       AND mf.internship_id = si.internship_id
-       AND si.cohort_status = 'current'
       JOIN student s
         ON mf.student_id = s.student_id
       JOIN internship i

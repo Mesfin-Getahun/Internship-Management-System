@@ -14,6 +14,8 @@ import {
   createAcademicYear,
   closeCurrentAcademicYear,
   fulfillmentReports,
+  getCompanyRatings,
+  updateCompanyRatingAction,
   inviteCompany,
   verifyCompanyInvite,
   completeCompanyRegistration,
@@ -201,6 +203,8 @@ UILroute.get("/academic-years", authUIL, getAcademicYears);
 UILroute.post("/academic-years", authUIL, createAcademicYear);
 UILroute.post("/academic-years/close-current", authUIL, closeCurrentAcademicYear);
 UILroute.get("/fulfillmentReports", authUIL, fulfillmentReports);
+UILroute.get("/company-ratings", authUIL, getCompanyRatings);
+UILroute.put("/company-ratings/:company_id/action", authUIL, updateCompanyRatingAction);
 UILroute.get("/recommendation-letter", authUIL, getRecommendationLetter);
 UILroute.post(
   "/recommendation-letter",

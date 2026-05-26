@@ -70,12 +70,22 @@ const MentorOverview = () => {
       Number(profile?.active_internships || 0),
       derivedActiveInternships
     );
-    const pendingReports = reports.filter(
-      (report) => !['signed', 'approved'].includes((report.status || '').toLowerCase())
-    ).length;
-    const awaitingFeedback = students.filter((student) => {
-      const studentId = String(student.student_id || '');
-      return studentId && !feedbacks.some((feedback) => String(feedback.student_id || '') === studentId);
+    const isReportCompleted = (report) => {
+      const status = (report.status || '').toLowerCase();
+      return (
+        ['signed', 'approved', 'faculty_submitted'].includes(status) ||
+        Boolean(report.mentor_signed_url) ||
+        Boolean(report.signed_at) ||
+        Boolean(report.faculty_submitted_at)
+      );
+    };
+    const completedReports = reports.filter(isReportCompleted).length;
+    const pendingReports = reports.length - completedReports;
+    const awaitingFeedback = feedbacks.filter((feedback) => {
+      const replies = Array.isArray(feedback.faculty_replies)
+        ? feedback.faculty_replies
+        : [];
+      return replies.length === 0;
     }).length;
 
     const activities = [
@@ -125,7 +135,7 @@ const MentorOverview = () => {
         {
           label: 'Awaiting Feedback',
           val: awaitingFeedback,
-          sub: 'Needs comment',
+          sub: 'Needs faculty reply',
           icon: faClipboardCheck,
           path: '/mentor/feedback',
           cardClass: 'bg-amber-50 text-amber-600 dark:bg-amber-900/20 dark:text-amber-400',
@@ -143,7 +153,7 @@ const MentorOverview = () => {
       ],
       reportCompliance: reports.length === 0
         ? 0
-        : Math.round(((reports.length - pendingReports) / reports.length) * 100),
+        : Math.round((completedReports / reports.length) * 100),
       activities,
       reportCount: reports.length,
       feedbackCount: feedbacks.length,
@@ -233,13 +243,13 @@ const MentorOverview = () => {
           <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-100 dark:border-slate-800 p-6 shadow-sm">
             <h4 className="font-bold text-slate-800 dark:text-white mb-4">Report Compliance</h4>
             <div className="flex items-end justify-between mb-2">
-              <span className="text-xs font-bold text-slate-500">Weekly Submissions</span>
+              <span className="text-xs font-bold text-slate-500">Signed Reports</span>
               <span className="text-xs font-black text-teal-600">{overview.reportCompliance}%</span>
             </div>
             <div className="h-3 w-full bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
               <div className="h-full bg-teal-500 transition-all duration-1000" style={{ width: `${overview.reportCompliance}%` }}></div>
             </div>
-            <p className="text-[10px] text-slate-400 mt-3 italic">Maintain high compliance to ensure students stay on track for academic credit.</p>
+            <p className="text-[10px] text-slate-400 mt-3 italic">Sign submitted reports promptly to keep students on track for academic credit.</p>
           </div>
         </div>
       </div>

@@ -200,6 +200,7 @@ const getStudents = async (req, res) => {
 
         si.internship_id,
         si.id AS student_internship_id,
+        si.cohort_status,
         i.title AS internship_title,
         i.start_date,
         i.end_date,
@@ -211,8 +212,13 @@ const getStudents = async (req, res) => {
       FROM student s
       LEFT JOIN student_internship si
         ON s.student_id = si.student_id
-        AND LOWER(si.status) IN ('in progress', 'accepted', 'active', 'completed', 'complete', 'rejected')
-        AND si.cohort_status = 'current'
+        AND (
+          (
+            si.cohort_status = 'current'
+            AND LOWER(si.status) IN ('in progress', 'accepted', 'active', 'completed', 'complete', 'rejected')
+          )
+          OR LOWER(si.status) IN ('completed', 'complete')
+        )
       LEFT JOIN internship i
         ON si.internship_id = i.internship_id
       LEFT JOIN company c
@@ -249,10 +255,16 @@ const getMentors = async (req, res) => {
         m.email,
         m.phone_number,
         m.account_status,
-        COUNT(s.student_id) AS assigned_students_count
+        COUNT(DISTINCT CASE
+          WHEN si.cohort_status = 'current'
+            AND LOWER(si.status) IN ('accepted', 'in progress', 'active')
+          THEN s.student_id
+        END) AS assigned_students_count
       FROM mentor m
       LEFT JOIN student s
         ON s.assigned_mentor = m.mentor_id
+      LEFT JOIN student_internship si
+        ON si.student_id = s.student_id
       WHERE m.account_status = 'active'
       GROUP BY m.mentor_id, m.full_name, m.email, m.phone_number, m.account_status
       ORDER BY m.full_name
@@ -634,10 +646,11 @@ const updateInternshipCompletionStatus = async (req, res) => {
       `
       UPDATE student_internship
       SET status = ?,
+          cohort_status = CASE WHEN ? = 'completed' THEN 'archived' ELSE cohort_status END,
           end_date = CASE WHEN ? = 'completed' THEN COALESCE(end_date, CURRENT_DATE()) ELSE end_date END
       WHERE id = ?
       `,
-      [nextStatus, nextStatus, placement_id],
+      [nextStatus, nextStatus, nextStatus, placement_id],
     );
 
     res.status(200).json({

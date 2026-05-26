@@ -8,6 +8,7 @@ import {
   faHourglassHalf,
   faBriefcase,
   faCheckCircle,
+  faDownload,
   faGraduationCap,
   faSpinner,
 } from "@fortawesome/free-solid-svg-icons";
@@ -205,6 +206,32 @@ const UilOverview = () => {
     }));
   }, [fulfillmentRows]);
 
+  const handleExportGlobalStats = () => {
+    const escapeCsv = (value) => `"${String(value ?? "").replace(/"/g, '""')}"`;
+    const rows = [
+      ["Section", "Metric", "Value"],
+      ...displayStats.map((stat) => ["Summary", stat.label, stat.val]),
+      [],
+      ["Faculty", "Placements", "Fulfilled", "Completed", "Fulfillment Rate"],
+      ...facultyDistribution.map((row) => [
+        row.faculty,
+        row.placements,
+        row.fulfilled,
+        row.completed,
+        `${row.fulfilledPercent}%`,
+      ]),
+    ];
+    const csv = rows.map((row) => row.map(escapeCsv).join(",")).join("\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+
+    link.href = url;
+    link.download = `uil-global-stats-${new Date().toISOString().slice(0, 10)}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+
   const runAnalytics = () => {
     const placements = summarizePlacements(fulfillmentRows);
     const totalPlacements = placements.length;
@@ -240,7 +267,13 @@ const UilOverview = () => {
           </p>
         </div>
         <div className="flex gap-2">
-          <button className="px-4 py-2 bg-indigo-50 text-indigo-700 text-xs font-black uppercase tracking-widest rounded-xl hover:bg-indigo-100 transition-all border border-indigo-200/50">
+          <button
+            type="button"
+            onClick={handleExportGlobalStats}
+            disabled={loading}
+            className="inline-flex items-center gap-2 px-4 py-2 bg-indigo-50 text-indigo-700 text-xs font-black uppercase tracking-widest rounded-xl hover:bg-indigo-100 transition-all border border-indigo-200/50 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            <FontAwesomeIcon icon={faDownload} className="h-3.5 w-3.5" />
             Export Global Stats
           </button>
         </div>

@@ -10,6 +10,7 @@ import {
   getCurrentAcademicYear,
   listAcademicYears,
 } from "../utils/academicYear.js";
+import { ensureCompanyRatingTables } from "../utils/companyRatingSchema.js";
 
 const RECOMMENDATION_SETTING_KEYS = [
   "recommendation_letter_url",
@@ -861,6 +862,191 @@ const fulfillmentReports = async (req, res) => {
   }
 };
 
+const getCompanyRatings = async (req, res) => {
+  try {
+    await ensureCompanyRatingTables();
+
+    const [ratings] = await db.query(
+      `
+      SELECT
+        cr.rating_id,
+        cr.student_id,
+        s.full_name AS student_name,
+        cr.internship_id,
+        i.title AS internship_title,
+        cr.company_id,
+        c.company_name,
+        c.email AS company_email,
+        c.account_status,
+        c.status AS company_status,
+        cr.rating,
+        cr.comment,
+        cr.created_at,
+        cr.updated_at
+      FROM company_rating cr
+      JOIN company c
+        ON cr.company_id = c.company_id
+      LEFT JOIN student s
+        ON cr.student_id = s.student_id
+      LEFT JOIN internship i
+        ON cr.internship_id = i.internship_id
+      ORDER BY cr.created_at DESC, cr.rating_id DESC
+      `,
+    );
+
+    const [actions] = await db.query(
+      `
+      SELECT cra.*
+      FROM company_rating_action cra
+      JOIN (
+        SELECT company_id, MAX(action_id) AS action_id
+        FROM company_rating_action
+        GROUP BY company_id
+      ) latest
+        ON cra.company_id = latest.company_id
+       AND cra.action_id = latest.action_id
+      `,
+    );
+
+    const latestActionByCompany = new Map(
+      actions.map((action) => [String(action.company_id), action]),
+    );
+
+    const companies = Array.from(
+      ratings.reduce((acc, rating) => {
+        const key = String(rating.company_id);
+        const current =
+          acc.get(key) ||
+          {
+            company_id: rating.company_id,
+            company_name: rating.company_name,
+            company_email: rating.company_email,
+            account_status: rating.account_status,
+            company_status: rating.company_status,
+            rating_count: 0,
+            rating_total: 0,
+            latest_action: latestActionByCompany.get(key) || null,
+          };
+
+        current.rating_count += 1;
+        current.rating_total += Number(rating.rating || 0);
+        current.average_rating =
+          Math.round((current.rating_total / current.rating_count) * 100) / 100;
+        acc.set(key, current);
+        return acc;
+      }, new Map()).values(),
+    )
+      .map(({ rating_total, ...company }) => company)
+      .sort((a, b) => a.average_rating - b.average_rating);
+
+    res.status(200).json({
+      success: true,
+      count: ratings.length,
+      companies,
+      ratings,
+    });
+  } catch (error) {
+    console.error("Fetch company ratings error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to fetch company ratings",
+    });
+  }
+};
+
+const updateCompanyRatingAction = async (req, res) => {
+  try {
+    await ensureCompanyRatingTables();
+
+    const { company_id } = req.params;
+    const action = String(req.body?.action || "").trim().toLowerCase();
+    const note = String(req.body?.note || "").trim() || null;
+    const allowedActions = new Set(["warn", "appreciate", "ban"]);
+
+    if (!allowedActions.has(action)) {
+      return res.status(400).json({
+        success: false,
+        message: "action must be warn, appreciate, or ban",
+      });
+    }
+
+    const [[company]] = await db.query(
+      "SELECT company_id, company_name FROM company WHERE company_id = ? LIMIT 1",
+      [company_id],
+    );
+
+    if (!company) {
+      return res.status(404).json({
+        success: false,
+        message: "Company not found",
+      });
+    }
+
+    const [[summary]] = await db.query(
+      `
+      SELECT
+        COUNT(*) AS rating_count,
+        AVG(rating) AS average_rating
+      FROM company_rating
+      WHERE company_id = ?
+      `,
+      [company_id],
+    );
+
+    if (action === "ban") {
+      await db.query(
+        "UPDATE company SET account_status = 'inactive' WHERE company_id = ?",
+        [company_id],
+      );
+    } else if (action === "appreciate") {
+      await db.query(
+        "UPDATE company SET account_status = 'active', status = 'approved' WHERE company_id = ?",
+        [company_id],
+      );
+    }
+
+    await db.query(
+      `
+      INSERT INTO company_rating_action
+        (company_id, action, note, average_rating_snapshot, total_ratings_snapshot, created_by_uil_id)
+      VALUES (?, ?, ?, ?, ?, ?)
+      `,
+      [
+        company_id,
+        action,
+        note,
+        summary?.average_rating === null ? null : Number(summary.average_rating || 0),
+        Number(summary?.rating_count || 0),
+        req.user?.UIL_id || null,
+      ],
+    );
+
+    if (req.user?.UIL_id) {
+      await createLog(
+        req.user.UIL_id,
+        "COMPANY_RATING_ACTION",
+        `UIL marked ${company.company_name} with rating action ${action}`,
+      ).catch(() => null);
+    }
+
+    res.status(200).json({
+      success: true,
+      message:
+        action === "ban"
+          ? "Company banned successfully"
+          : action === "warn"
+            ? "Company warning recorded successfully"
+            : "Company appreciation recorded successfully",
+    });
+  } catch (error) {
+    console.error("Update company rating action error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to update company rating action",
+    });
+  }
+};
+
 const inviteCompany = async (req, res) => {
   try {
     const { company_name, email, frontend_url } = req.body;
@@ -1345,6 +1531,8 @@ export {
   createAcademicYear,
   closeCurrentAcademicYear,
   fulfillmentReports,
+  getCompanyRatings,
+  updateCompanyRatingAction,
   inviteCompany,
   verifyCompanyInvite,
   completeCompanyRegistration,

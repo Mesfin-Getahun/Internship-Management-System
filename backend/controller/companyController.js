@@ -11,6 +11,7 @@ import {
 } from "../utils/notificationService.js";
 import { getCurrentAcademicYear } from "../utils/academicYear.js";
 import { ensureCompanyMentorCompanyColumn } from "../utils/companyMentorSchema.js";
+import { ensureInternshipEvaluationMentorColumns } from "../utils/internshipEvaluationSchema.js";
 import {
   recordCompanyMentorAssignment,
 } from "../utils/mentorAssignmentHistorySchema.js";
@@ -25,6 +26,10 @@ const CURRENT_PLACEMENT_STATUSES = [
   PLACEMENT_STATUS.IN_PROGRESS,
   PLACEMENT_STATUS.ACTIVE,
 ];
+
+function isDuplicateKeyError(error) {
+  return error?.code === "ER_DUP_ENTRY" || error?.errno === 1062;
+}
 
 const getInternshipLockedUsage = async (internship_id, company_id) => {
   const [rows] = await db.query(
@@ -490,6 +495,7 @@ const deleteAccount = async (req, res) => {
 const getCompanyMentors = async (req, res) => {
   try {
     await ensureCompanyMentorCompanyColumn();
+    await ensureInternshipEvaluationMentorColumns();
 
     const company_id = req.user.company_id;
 
@@ -507,6 +513,13 @@ const getCompanyMentors = async (req, res) => {
         COUNT(DISTINCT CASE
           WHEN si.cohort_status = 'current'
             AND LOWER(si.status) IN ('accepted', 'in progress', 'active')
+            AND NOT EXISTS (
+              SELECT 1
+              FROM internship_evaluation ie
+              WHERE ie.student_id = si.student_id
+                AND ie.internship_id = si.internship_id
+                AND (ie.company_mentor_id = si.company_mentor_id OR ie.company_mentor_id IS NULL)
+            )
           THEN si.id
         END) AS assigned_students,
         COUNT(DISTINCT mf.feedback_id) AS feedback_count
@@ -1106,6 +1119,14 @@ const accept = async (req, res) => {
     });
   } catch (error) {
     await connection.rollback().catch(() => null);
+
+    if (isDuplicateKeyError(error)) {
+      return res.status(409).json({
+        success: false,
+        message: "This student already has this internship placement.",
+      });
+    }
+
     console.error(error);
     res
       .status(500)
