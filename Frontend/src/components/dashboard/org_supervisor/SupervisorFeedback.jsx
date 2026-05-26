@@ -21,6 +21,49 @@ const isCompletedPlacement = (student) => {
 
 const isCurrentPlacement = (student) => activeStatuses.has((student.status || '').toLowerCase()) && !isCompletedPlacement(student);
 
+const dayMs = 24 * 60 * 60 * 1000;
+
+const startOfDay = (value) => {
+  if (!value) return null;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return null;
+  date.setHours(0, 0, 0, 0);
+  return date;
+};
+
+const addDays = (date, days) => {
+  const next = new Date(date);
+  next.setDate(next.getDate() + days);
+  return next;
+};
+
+const formatDate = (value) => {
+  const date = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(date.getTime())) return 'Not set';
+  return date.toLocaleDateString();
+};
+
+const getCurrentFeedbackWeek = (student) => {
+  const start = startOfDay(student?.internship_start_date || student?.start_date);
+  const end = startOfDay(student?.internship_end_date || student?.end_date || student?.placement_end_date);
+  const current = startOfDay(new Date());
+
+  if (!start || !current || current < start) return null;
+  if (end && current > end) return null;
+
+  const elapsedDays = Math.floor((current - start) / dayMs);
+  const weekIndex = Math.floor(elapsedDays / 7);
+  const weekStart = addDays(start, weekIndex * 7);
+  const naturalWeekEnd = addDays(weekStart, 6);
+  const weekEnd = end && end < naturalWeekEnd ? end : naturalWeekEnd;
+
+  return {
+    weekNumber: weekIndex + 1,
+    weekStart,
+    weekEnd,
+  };
+};
+
 const SupervisorFeedback = () => {
   const { user } = useAuth();
   const [students, setStudents] = useState([]);
@@ -95,6 +138,26 @@ const SupervisorFeedback = () => {
     );
   }, [feedbacks, selectedStudent]);
 
+  const selectedFeedbackWeek = useMemo(
+    () => getCurrentFeedbackWeek(selectedStudent),
+    [selectedStudent],
+  );
+
+  const weeklyFeedbackAlreadySubmitted = useMemo(() => {
+    if (!selectedStudent || !selectedFeedbackWeek) return false;
+
+    return feedbacks.some(
+      (feedback) =>
+        String(feedback.student_id) === String(selectedStudent.student_id) &&
+        String(feedback.internship_id) === String(selectedStudent.internship_id) &&
+        Number(feedback.feedback_week) === selectedFeedbackWeek.weekNumber,
+    );
+  }, [feedbacks, selectedFeedbackWeek, selectedStudent]);
+
+  const feedbackScheduleLocked =
+    !selectedFeedbackWeek ||
+    (form.feedback_type === 'weekly' && weeklyFeedbackAlreadySubmitted);
+
   const handleSubmit = async (event) => {
     event.preventDefault();
 
@@ -105,6 +168,15 @@ const SupervisorFeedback = () => {
 
     if (!form.overall_comment.trim()) {
       toast.warn('Please enter feedback comments.');
+      return;
+    }
+
+    if (feedbackScheduleLocked) {
+      toast.warn(
+        weeklyFeedbackAlreadySubmitted
+          ? `Week ${selectedFeedbackWeek?.weekNumber || ''} feedback has already been submitted.`
+          : 'Feedback is available only after the internship start date and before the end date.',
+      );
       return;
     }
 
@@ -119,7 +191,7 @@ const SupervisorFeedback = () => {
       }
 
       await axios.post(
-        `${import.meta.env.VITE_BACKEND_URL}/api/company_mentor/feedBack/${selectedStudent.internship_id}/${selectedStudent.student_id}`,
+        `${import.meta.env.VITE_BACKEND_URL}/api/company_mentor/feedBack/${encodeURIComponent(selectedStudent.internship_id)}/${encodeURIComponent(selectedStudent.student_id)}`,
         formData,
         {
           headers: {
@@ -181,6 +253,26 @@ const SupervisorFeedback = () => {
               )}
             </select>
           </div>
+
+          {selectedStudent && (
+            <div className={`rounded-2xl border p-4 ${
+              selectedFeedbackWeek && !weeklyFeedbackAlreadySubmitted
+                ? 'border-emerald-100 bg-emerald-50 text-emerald-800 dark:border-emerald-900/50 dark:bg-emerald-900/20 dark:text-emerald-200'
+                : 'border-amber-100 bg-amber-50 text-amber-800 dark:border-amber-900/50 dark:bg-amber-900/20 dark:text-amber-200'
+            }`}>
+              <p className="text-[10px] font-black uppercase tracking-widest opacity-70">Weekly Feedback Schedule</p>
+              {selectedFeedbackWeek ? (
+                <p className="mt-1 text-sm font-bold">
+                  Week {selectedFeedbackWeek.weekNumber}: {formatDate(selectedFeedbackWeek.weekStart)} - {formatDate(selectedFeedbackWeek.weekEnd)}
+                  {weeklyFeedbackAlreadySubmitted ? ' already submitted.' : ' is open for feedback.'}
+                </p>
+              ) : (
+                <p className="mt-1 text-sm font-bold">
+                  Weekly feedback starts on {formatDate(selectedStudent.internship_start_date || selectedStudent.start_date)}.
+                </p>
+              )}
+            </div>
+          )}
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
@@ -282,7 +374,7 @@ const SupervisorFeedback = () => {
           <div className="flex justify-end pt-4 border-t border-slate-100 dark:border-slate-800">
             <button
               type="submit"
-              disabled={submitting || !selectedStudent}
+              disabled={submitting || !selectedStudent || feedbackScheduleLocked}
               className="px-8 py-4 bg-emerald-600 text-white rounded-2xl font-black uppercase tracking-widest text-xs hover:bg-emerald-700 transition-all shadow-xl shadow-emerald-600/20 active:scale-95 disabled:opacity-50 flex items-center gap-3"
             >
               <FontAwesomeIcon icon={submitting ? faSpinner : faPaperPlane} spin={submitting} />
@@ -318,7 +410,9 @@ const SupervisorFeedback = () => {
                   <div className="flex items-center justify-between gap-4 mb-3">
                     <div>
                       <p className="text-sm font-bold text-slate-800 dark:text-white">{feedback.student_name}</p>
-                      <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">{feedback.feedback_type || 'Feedback'}</p>
+                      <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">
+                        {feedback.feedback_week ? `Week ${feedback.feedback_week}` : feedback.feedback_type || 'Feedback'}
+                      </p>
                     </div>
                     <div className="text-right">
                       <p className="text-sm font-bold text-emerald-600">{Number(feedback.rating || 0).toFixed(1)} / 5</p>

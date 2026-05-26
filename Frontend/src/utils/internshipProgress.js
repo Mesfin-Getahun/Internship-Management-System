@@ -33,7 +33,7 @@ export const getInternshipProgressState = (placement = {}, today = new Date()) =
     };
   }
 
-  const startDate = startOfDay(placement.placement_start_date || placement.start_date);
+  const startDate = startOfDay(placement.start_date || placement.internship_start_date || placement.placement_start_date);
   const endDate = startOfDay(placement.end_date);
   const currentDate = startOfDay(today);
 

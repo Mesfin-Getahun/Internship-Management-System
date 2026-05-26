@@ -1,5 +1,6 @@
 import db from "../config/mysql.js";
 import { createNotification } from "./notificationService.js";
+import { ensureMentorFeedbackAttachmentColumns } from "./mentorFeedbackSchema.js";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const WEEK_MS = 7 * DAY_MS;
@@ -56,7 +57,7 @@ const getCurrentFeedbackWeek = (startDate, endDate, today = new Date()) => {
   };
 };
 
-const hasFeedbackForWeek = async ({ studentId, internshipId, companyMentorId, weekStart, weekEnd }) => {
+const hasFeedbackForWeek = async ({ studentId, internshipId, companyMentorId, feedbackWeek, weekStart, weekEnd }) => {
   const [rows] = await db.query(
     `
     SELECT feedback_id
@@ -64,11 +65,20 @@ const hasFeedbackForWeek = async ({ studentId, internshipId, companyMentorId, we
     WHERE student_id = ?
       AND internship_id = ?
       AND company_mentor_id = ?
-      AND created_at >= ?
-      AND created_at < ?
+      AND (
+        feedback_week = ?
+        OR (feedback_week IS NULL AND created_at >= ? AND created_at < ?)
+      )
     LIMIT 1
     `,
-    [studentId, internshipId, companyMentorId, toSqlDate(weekStart), toSqlDate(weekEnd)],
+    [
+      studentId,
+      internshipId,
+      companyMentorId,
+      feedbackWeek,
+      toSqlDate(weekStart),
+      toSqlDate(weekEnd),
+    ],
   );
 
   return rows.length > 0;
@@ -138,6 +148,7 @@ const fetchActiveCompanyMentorPlacements = async () => {
 
 const runWeeklyCompanyMentorFeedbackReminders = async (today = new Date()) => {
   try {
+    await ensureMentorFeedbackAttachmentColumns();
     const placements = await fetchActiveCompanyMentorPlacements();
     let createdCount = 0;
 
@@ -149,6 +160,7 @@ const runWeeklyCompanyMentorFeedbackReminders = async (today = new Date()) => {
         studentId: placement.student_id,
         internshipId: placement.internship_id,
         companyMentorId: placement.company_mentor_id,
+        feedbackWeek: week.weekIndex + 1,
         weekStart: week.weekStart,
         weekEnd: week.weekEnd,
       };

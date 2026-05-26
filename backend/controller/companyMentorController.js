@@ -6,10 +6,25 @@ import fs from "fs";
 import { createNotifications } from "../utils/notificationService.js";
 import { ensureMentorFeedbackAttachmentColumns } from "../utils/mentorFeedbackSchema.js";
 import { ensureInternshipEvaluationMentorColumns } from "../utils/internshipEvaluationSchema.js";
+import { getCurrentFeedbackWeek } from "../utils/companyMentorFeedbackReminder.js";
 
 function isDuplicateKeyError(error) {
   return error?.code === "ER_DUP_ENTRY" || error?.errno === 1062;
 }
+
+const toSqlDate = (date) => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+};
+
+const formatDate = (date) =>
+  date.toLocaleDateString("en-US", {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+  });
 
 // const fetchStudents = async (req, res) => {
 //   const mentorId = req.user.company_mentor_id;
@@ -383,7 +398,11 @@ const giveFeedBack = async (req, res) => {
       SELECT
         s.assigned_mentor,
         s.full_name,
-        i.title
+        i.title,
+        i.start_date AS internship_start_date,
+        i.end_date AS internship_end_date,
+        si.start_date AS placement_start_date,
+        si.end_date AS placement_end_date
       FROM student_internship si
       JOIN student s
         ON si.student_id = s.student_id
@@ -403,6 +422,62 @@ const giveFeedBack = async (req, res) => {
         success: false,
         message: "You can only give feedback for students assigned to you",
       });
+    }
+
+    const normalizedFeedbackType = feedback_type || "weekly";
+    let weeklyContext = {
+      feedbackWeek: null,
+      weekStartDate: null,
+      weekEndDate: null,
+    };
+
+    if (normalizedFeedbackType === "weekly") {
+      const week = getCurrentFeedbackWeek(
+        assignedPlacement.internship_start_date,
+        assignedPlacement.internship_end_date,
+      );
+
+      if (!week) {
+        const startsOn = assignedPlacement.internship_start_date
+          ? formatDate(new Date(assignedPlacement.internship_start_date))
+          : "the internship start date";
+
+        return res.status(400).json({
+          success: false,
+          message: `Weekly feedback is available only during the internship schedule. It starts on ${startsOn}.`,
+        });
+      }
+
+      weeklyContext = {
+        feedbackWeek: week.weekIndex + 1,
+        weekStartDate: toSqlDate(week.weekStart),
+        weekEndDate: toSqlDate(new Date(week.weekEnd.getTime() - 1)),
+      };
+
+      const [existingWeeklyFeedback] = await db.query(
+        `
+        SELECT feedback_id
+        FROM mentor_feedback
+        WHERE student_id = ?
+          AND internship_id = ?
+          AND company_mentor_id = ?
+          AND feedback_week = ?
+        LIMIT 1
+        `,
+        [
+          student_id,
+          internship_id,
+          company_mentor_id,
+          weeklyContext.feedbackWeek,
+        ],
+      );
+
+      if (existingWeeklyFeedback.length > 0) {
+        return res.status(409).json({
+          success: false,
+          message: `Weekly feedback for Week ${weeklyContext.feedbackWeek} has already been submitted.`,
+        });
+      }
     }
 
     const numericRating =
@@ -428,14 +503,18 @@ const giveFeedBack = async (req, res) => {
 
     await db.query(
       `INSERT INTO mentor_feedback
-       (student_id, internship_id, company_mentor_id, feedback_type, rating,
+       (student_id, internship_id, company_mentor_id, feedback_type,
+        feedback_week, week_start_date, week_end_date, rating,
         strengths, weaknesses, suggestions, overall_comment, attachment_url, attachment_name)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         student_id,
         internship_id,
         company_mentor_id,
-        feedback_type || "weekly",
+        normalizedFeedbackType,
+        weeklyContext.feedbackWeek,
+        weeklyContext.weekStartDate,
+        weeklyContext.weekEndDate,
         storedRating,
         strengths || null,
         weaknesses || null,
@@ -491,6 +570,9 @@ const getFeedbacks = async (req, res) => {
         mf.student_id,
         mf.internship_id,
         mf.feedback_type,
+        mf.feedback_week,
+        mf.week_start_date,
+        mf.week_end_date,
         mf.rating,
         mf.strengths,
         mf.weaknesses,

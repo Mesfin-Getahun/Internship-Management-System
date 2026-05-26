@@ -235,7 +235,7 @@ const addDays = (date, days) => {
 };
 
 const getInternshipCancellationState = (placement) => {
-  const startDate = placement?.placement_start_date || placement?.start_date;
+  const startDate = placement?.start_date || placement?.internship_start_date || placement?.placement_start_date;
   const deadline = addDays(startDate, INTERNSHIP_CANCEL_WINDOW_DAYS);
 
   if (!deadline) {
@@ -265,6 +265,7 @@ const getStudentCurrentInternshipLock = async (studentId) => {
       company_name,
       status,
       placement_id,
+      start_date,
       placement_start_date
     FROM (
       SELECT
@@ -274,6 +275,7 @@ const getStudentCurrentInternshipLock = async (studentId) => {
         c.company_name,
         si.status,
         si.id AS placement_id,
+        i.start_date,
         si.start_date AS placement_start_date
       FROM student_internship si
       JOIN internship i
@@ -281,7 +283,7 @@ const getStudentCurrentInternshipLock = async (studentId) => {
       LEFT JOIN company c
         ON si.company_id = c.company_id
       WHERE si.student_id = ?
-        AND si.cohort_status = 'current'
+        AND COALESCE(si.cohort_status, 'current') = 'current'
         AND LOWER(si.status) IN (?, ?, ?)
 
       UNION ALL
@@ -293,6 +295,7 @@ const getStudentCurrentInternshipLock = async (studentId) => {
         c.company_name,
         a.status,
         NULL AS placement_id,
+        i.start_date,
         NULL AS placement_start_date
       FROM application a
       JOIN internship i
@@ -691,7 +694,7 @@ const cancelCurrentInternship = async (req, res) => {
       WHERE si.id = ?
         AND si.student_id = ?
         AND LOWER(si.status) IN (?, ?, ?)
-        AND si.cohort_status = 'current'
+        AND COALESCE(si.cohort_status, 'current') = 'current'
       LIMIT 1
       FOR UPDATE
       `,
@@ -1232,7 +1235,7 @@ const myInternship = async (req, res) => {
         ON s.assigned_mentor = m.mentor_id
       WHERE si.student_id = ?
         AND LOWER(si.status) IN ('in progress', 'accepted', 'active')
-        AND si.cohort_status = 'current'
+        AND COALESCE(si.cohort_status, 'current') = 'current'
       ORDER BY
         CASE
           WHEN LOWER(si.status) IN ('in progress', 'active') THEN 0
