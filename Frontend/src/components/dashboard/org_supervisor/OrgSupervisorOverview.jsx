@@ -3,29 +3,54 @@ import { Link } from 'react-router-dom';
 import axios from 'axios';
 import { useAuth } from '../../../AuthContext';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faArrowRight, faCheckCircle, faCommentDots, faFileAlt, faSpinner, faUsers } from '@fortawesome/free-solid-svg-icons';
+import { faArrowRight, faCheckCircle, faCommentDots, faFileAlt, faHistory, faSpinner, faUsers } from '@fortawesome/free-solid-svg-icons';
+
+const activeStatuses = new Set(['accepted', 'in progress', 'active']);
+
+const studentKey = (student) => `${student.internship_id}_${student.student_id}`;
+
+const isCompletedPlacement = (student) => {
+  const status = (student.status || '').toLowerCase();
+  return (
+    student.roster_status === 'completed' ||
+    Number(student.is_completed) === 1 ||
+    Boolean(student.evaluation_id) ||
+    status === 'completed' ||
+    status === 'complete'
+  );
+};
+
+const isCurrentPlacement = (student) => activeStatuses.has((student.status || '').toLowerCase()) && !isCompletedPlacement(student);
+
+const getEvaluationPath = (student) =>
+  `/org-supervisor/evaluate/${encodeURIComponent(`${student.internship_id}_${student.student_id}`)}`;
 
 const OrgSupervisorOverview = () => {
   const { user } = useAuth();
   const [students, setStudents] = useState([]);
   const [feedbacks, setFeedbacks] = useState([]);
+  const [evaluations, setEvaluations] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchDashboardData = async () => {
       try {
         setLoading(true);
-        const [studentsRes, feedbacksRes] = await Promise.all([
+        const [studentsRes, feedbacksRes, evaluationsRes] = await Promise.all([
           axios.get(`${import.meta.env.VITE_BACKEND_URL}/api/company_mentor/students`, {
             headers: { Authorization: `Bearer ${user?.token}` },
           }),
           axios.get(`${import.meta.env.VITE_BACKEND_URL}/api/company_mentor/feedbacks`, {
             headers: { Authorization: `Bearer ${user?.token}` },
           }),
+          axios.get(`${import.meta.env.VITE_BACKEND_URL}/api/company_mentor/evaluations`, {
+            headers: { Authorization: `Bearer ${user?.token}` },
+          }),
         ]);
 
         setStudents(Array.isArray(studentsRes.data?.students) ? studentsRes.data.students : []);
         setFeedbacks(Array.isArray(feedbacksRes.data?.feedbacks) ? feedbacksRes.data.feedbacks : []);
+        setEvaluations(Array.isArray(evaluationsRes.data?.evaluations) ? evaluationsRes.data.evaluations : []);
       } catch (error) {
         console.error('Failed to load org supervisor overview.', error);
       } finally {
@@ -41,16 +66,18 @@ const OrgSupervisorOverview = () => {
   }, [user?.token]);
 
   const stats = useMemo(() => {
+    const currentStudents = students.filter(isCurrentPlacement);
+    const completedStudents = students.filter(isCompletedPlacement);
     const feedbackKeys = new Set(feedbacks.map((feedback) => `${feedback.internship_id}_${feedback.student_id}`));
-    const pendingFeedback = students.filter(
-      (student) => !feedbackKeys.has(`${student.internship_id}_${student.student_id}`)
-    ).length;
+    const evaluationKeys = new Set(evaluations.map((evaluation) => `${evaluation.internship_id}_${evaluation.student_id}`));
+    const pendingFeedback = currentStudents.filter((student) => !feedbackKeys.has(studentKey(student))).length;
+    const evaluationQueue = currentStudents.filter((student) => !evaluationKeys.has(studentKey(student)) && !student.evaluation_id).length;
 
     return [
       {
         id: 'students',
         label: 'Assigned Students',
-        value: students.length,
+        value: currentStudents.length,
         note: 'Students currently under your supervision.',
         icon: faUsers,
         path: '/org-supervisor/students',
@@ -59,7 +86,7 @@ const OrgSupervisorOverview = () => {
       {
         id: 'evaluation',
         label: 'Evaluation Queue',
-        value: students.length,
+        value: evaluationQueue,
         note: 'Students ready for attendance and final evaluation.',
         icon: faFileAlt,
         path: '/org-supervisor/evaluation',
@@ -77,14 +104,26 @@ const OrgSupervisorOverview = () => {
       {
         id: 'attendance',
         label: 'Attendance Workbench',
-        value: students.filter((student) => (student.status || '').toLowerCase() === 'in progress').length,
+        value: currentStudents.length,
         note: 'Active placements ready for attendance review.',
         icon: faCheckCircle,
         path: '/org-supervisor/attendance',
         color: 'text-rose-600',
       },
+      {
+        id: 'completed',
+        label: 'Completed History',
+        value: completedStudents.length,
+        note: 'Finished internships kept for later reference.',
+        icon: faHistory,
+        path: '/org-supervisor/students',
+        color: 'text-violet-600',
+      },
     ];
-  }, [feedbacks, students]);
+  }, [evaluations, feedbacks, students]);
+
+  const currentStudents = useMemo(() => students.filter(isCurrentPlacement), [students]);
+  const completedStudents = useMemo(() => students.filter(isCompletedPlacement), [students]);
 
   return (
     <div className="animate-fade-in space-y-8">
@@ -99,7 +138,7 @@ const OrgSupervisorOverview = () => {
         </div>
       ) : (
         <>
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-6">
             {stats.map((stat) => (
               <Link
                 key={stat.id}
@@ -132,20 +171,20 @@ const OrgSupervisorOverview = () => {
               </div>
 
               <div className="space-y-4">
-                {students.slice(0, 4).map((student) => (
+                {currentStudents.slice(0, 4).map((student) => (
                   <Link
-                    key={`${student.internship_id}_${student.student_id}`}
-                    to={`/org-supervisor/evaluate/${student.internship_id}_${student.student_id}`}
+                    key={studentKey(student)}
+                    to={getEvaluationPath(student)}
                     className="flex items-center justify-between p-4 rounded-2xl border border-slate-100 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/40 hover:border-emerald-300 transition-all"
                   >
                     <div>
                       <p className="font-bold text-slate-800 dark:text-white">{student.student_name}</p>
-                      <p className="text-sm text-slate-500 dark:text-slate-400">{student.department || 'Department'} • {student.internship_title || 'Internship'}</p>
+                      <p className="text-sm text-slate-500 dark:text-slate-400">{student.department || 'Department'} - {student.internship_title || 'Internship'}</p>
                     </div>
                     <span className="text-[10px] font-black uppercase tracking-widest text-emerald-600">Open</span>
                   </Link>
                 ))}
-                {students.length === 0 && (
+                {currentStudents.length === 0 && (
                   <p className="text-sm text-slate-500">No students are currently assigned to this supervisor account.</p>
                 )}
               </div>
@@ -162,8 +201,12 @@ const OrgSupervisorOverview = () => {
                 <div className="p-4 rounded-2xl bg-white/5 border border-white/10">
                   <p className="text-[10px] uppercase tracking-widest text-slate-400 font-black">Students In Progress</p>
                   <p className="text-2xl font-extrabold mt-2">
-                    {students.filter((student) => (student.status || '').toLowerCase() === 'in progress').length}
+                    {currentStudents.length}
                   </p>
+                </div>
+                <div className="p-4 rounded-2xl bg-white/5 border border-white/10">
+                  <p className="text-[10px] uppercase tracking-widest text-slate-400 font-black">Completed Internship History</p>
+                  <p className="text-2xl font-extrabold mt-2">{completedStudents.length}</p>
                 </div>
                 <div className="p-4 rounded-2xl bg-emerald-500/15 border border-emerald-400/20">
                   <p className="text-[10px] uppercase tracking-widest text-emerald-200 font-black">Best Next Step</p>

@@ -1,10 +1,12 @@
 import helmet from "helmet";
-import rateLimit from "express-rate-limit";
+import rateLimit, { ipKeyGenerator } from "express-rate-limit";
 
-const buildLimiter = ({ windowMs, max, message }) =>
+const buildLimiter = ({ windowMs, max, message, keyGenerator, skipSuccessfulRequests = false }) =>
   rateLimit({
     windowMs,
     max,
+    keyGenerator,
+    skipSuccessfulRequests,
     standardHeaders: true,
     legacyHeaders: false,
     message: {
@@ -12,6 +14,30 @@ const buildLimiter = ({ windowMs, max, message }) =>
       message,
     },
   });
+
+const normalizeLimiterValue = (value) =>
+  String(value || "")
+    .trim()
+    .toLowerCase();
+
+const getAuthLimiterKey = (req) => {
+  const body = req.body || {};
+  const role = normalizeLimiterValue(body.role);
+  const identifier = normalizeLimiterValue(
+    body.identifier ||
+      body.id ||
+      body.email ||
+      body.company_id ||
+      body.company_mentor_id ||
+      body.account_id,
+  );
+
+  if (identifier) {
+    return `auth:${role || "any"}:${identifier}`;
+  }
+
+  return `auth:ip:${ipKeyGenerator(req.ip)}`;
+};
 
 export const securityHeaders = helmet({
   crossOriginResourcePolicy: { policy: "cross-origin" },
@@ -38,8 +64,10 @@ export const globalLimiter = buildLimiter({
 
 export const authLimiter = buildLimiter({
   windowMs: 15 * 60 * 1000,
-  max: 20,
+  max: 60,
   message: "Too many authentication attempts. Please try again later.",
+  keyGenerator: getAuthLimiterKey,
+  skipSuccessfulRequests: true,
 });
 
 export const uploadLimiter = buildLimiter({

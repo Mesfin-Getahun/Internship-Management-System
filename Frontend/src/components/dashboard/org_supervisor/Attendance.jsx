@@ -4,6 +4,21 @@ import { useAuth } from '../../../AuthContext';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faCalendarCheck, faSpinner, faUsersSlash } from '@fortawesome/free-solid-svg-icons';
 
+const activeStatuses = new Set(['accepted', 'in progress', 'active']);
+
+const isCompletedPlacement = (student) => {
+  const status = (student.status || '').toLowerCase();
+  return (
+    student.roster_status === 'completed' ||
+    Number(student.is_completed) === 1 ||
+    Boolean(student.evaluation_id) ||
+    status === 'completed' ||
+    status === 'complete'
+  );
+};
+
+const isCurrentPlacement = (student) => activeStatuses.has((student.status || '').toLowerCase()) && !isCompletedPlacement(student);
+
 const Attendance = () => {
   const { user } = useAuth();
   const [students, setStudents] = useState([]);
@@ -31,12 +46,14 @@ const Attendance = () => {
     }
   }, [user?.token]);
 
+  const currentStudents = useMemo(() => students.filter(isCurrentPlacement), [students]);
+
   const summary = useMemo(
     () => ({
-      total: students.length,
-      active: students.filter((student) => (student.status || '').toLowerCase() === 'in progress').length,
+      total: currentStudents.length,
+      active: currentStudents.length,
     }),
-    [students],
+    [currentStudents],
   );
 
   return (
@@ -62,14 +79,14 @@ const Attendance = () => {
           <div className="flex justify-center py-20 text-emerald-500">
             <FontAwesomeIcon icon={faSpinner} spin size="2x" />
           </div>
-        ) : students.length === 0 ? (
+        ) : currentStudents.length === 0 ? (
           <div className="text-center py-14 text-slate-500">
             <FontAwesomeIcon icon={faUsersSlash} size="3x" className="text-slate-300 mb-4" />
-            <p className="font-bold text-slate-800 dark:text-white">No students assigned yet</p>
+            <p className="font-bold text-slate-800 dark:text-white">No current students assigned yet</p>
           </div>
         ) : (
           <div className="space-y-4">
-            {students.map((student) => (
+            {currentStudents.map((student) => (
               <div
                 key={`${student.internship_id}_${student.student_id}`}
                 className="flex items-center justify-between p-5 rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50/40 dark:bg-slate-900/30"

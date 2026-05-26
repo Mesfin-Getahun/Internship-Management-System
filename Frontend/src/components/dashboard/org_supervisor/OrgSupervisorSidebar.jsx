@@ -5,6 +5,20 @@ import { faTableCellsLarge, faUsers, faFileAlt, faSignOutAlt, faCommentDots, faS
 import { useAuth } from "../../../AuthContext";
 import axios from "axios";
 
+const activeStatuses = new Set(["accepted", "in progress", "active"]);
+
+const isCurrentPlacement = (student) => {
+  const status = (student.status || "").toLowerCase();
+  const completed =
+    student.roster_status === "completed" ||
+    Number(student.is_completed) === 1 ||
+    Boolean(student.evaluation_id) ||
+    status === "completed" ||
+    status === "complete";
+
+  return activeStatuses.has(status) && !completed;
+};
+
 const OrgSupervisorSidebar = ({ activeTab, isOpen = false, onClose }) => {
   const { logout, user } = useAuth();
   const navigate = useNavigate();
@@ -17,7 +31,7 @@ const OrgSupervisorSidebar = ({ activeTab, isOpen = false, onClose }) => {
           headers: { Authorization: `Bearer ${user?.token}` },
         });
         const students = Array.isArray(res.data?.students) ? res.data.students : [];
-        setStudentCount(students.length);
+        setStudentCount(students.filter(isCurrentPlacement).length);
       } catch (error) {
         console.error("Failed to load supervisor students.", error);
         setStudentCount(0);

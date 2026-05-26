@@ -6,6 +6,21 @@ import 'react-toastify/dist/ReactToastify.css';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faCommentDots, faFileAlt, faPaperPlane, faPaperclip, faSpinner, faStar, faTimes, faUsersSlash } from '@fortawesome/free-solid-svg-icons';
 
+const activeStatuses = new Set(['accepted', 'in progress', 'active']);
+
+const isCompletedPlacement = (student) => {
+  const status = (student.status || '').toLowerCase();
+  return (
+    student.roster_status === 'completed' ||
+    Number(student.is_completed) === 1 ||
+    Boolean(student.evaluation_id) ||
+    status === 'completed' ||
+    status === 'complete'
+  );
+};
+
+const isCurrentPlacement = (student) => activeStatuses.has((student.status || '').toLowerCase()) && !isCompletedPlacement(student);
+
 const SupervisorFeedback = () => {
   const { user } = useAuth();
   const [students, setStudents] = useState([]);
@@ -37,11 +52,12 @@ const SupervisorFeedback = () => {
       ]);
 
       const studentRows = Array.isArray(studentsRes.data?.students) ? studentsRes.data.students : [];
+      const currentRows = studentRows.filter(isCurrentPlacement);
       setStudents(studentRows);
       setFeedbacks(Array.isArray(feedbacksRes.data?.feedbacks) ? feedbacksRes.data.feedbacks : []);
 
-      if (!selectedKey && studentRows.length > 0) {
-        setSelectedKey(`${studentRows[0].internship_id}_${studentRows[0].student_id}`);
+      if (!selectedKey && currentRows.length > 0) {
+        setSelectedKey(`${currentRows[0].internship_id}_${currentRows[0].student_id}`);
       }
     } catch (error) {
       console.error('Failed to load supervisor feedback data.', error);
@@ -59,12 +75,14 @@ const SupervisorFeedback = () => {
     }
   }, [user?.token]);
 
+  const currentStudents = useMemo(() => students.filter(isCurrentPlacement), [students]);
+
   const selectedStudent = useMemo(
     () =>
-      students.find(
+      currentStudents.find(
         (student) => `${student.internship_id}_${student.student_id}` === selectedKey
       ) || null,
-    [selectedKey, students]
+    [currentStudents, selectedKey]
   );
 
   const studentFeedbacks = useMemo(() => {
@@ -150,12 +168,12 @@ const SupervisorFeedback = () => {
               value={selectedKey}
               onChange={(event) => setSelectedKey(event.target.value)}
               className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl py-3.5 px-4 text-slate-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500 font-semibold text-sm appearance-none cursor-pointer shadow-sm"
-              disabled={loading || students.length === 0}
+              disabled={loading || currentStudents.length === 0}
             >
-              {students.length === 0 ? (
-                <option value="">No students assigned</option>
+              {currentStudents.length === 0 ? (
+                <option value="">No current students assigned</option>
               ) : (
-                students.map((student) => (
+                currentStudents.map((student) => (
                   <option key={`${student.internship_id}_${student.student_id}`} value={`${student.internship_id}_${student.student_id}`}>
                     {student.student_name} - {student.internship_title || 'Internship'}
                   </option>

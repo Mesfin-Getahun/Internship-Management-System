@@ -37,6 +37,7 @@ const OrganizationSupervisorDashboard = () => {
               <Route path="feedback" element={<SupervisorFeedback />} />
               <Route path="change-password" element={<SupervisorChangePassword />} />
               <Route path="evaluate/:studentId" element={<SupervisorStudentEvaluation />} />
+              <Route path="evaluate/*" element={<SupervisorStudentEvaluation />} />
             </Routes>
           </div>
         </main>

@@ -1,6 +1,6 @@
 import React from 'react';
 
-const LoginForm = ({ email, password, setEmail, setPassword, onSubmit, onRegisterOrg }) => {
+const LoginForm = ({ email, password, setEmail, setPassword, onSubmit, onRegisterOrg, onForgotPassword }) => {
   return (
     <form className="pt-8 pb-4 px-2" onSubmit={onSubmit}>
       <div className="mb-5">
@@ -42,6 +42,7 @@ const LoginForm = ({ email, password, setEmail, setPassword, onSubmit, onRegiste
       <div className="text-center mb-6">
         <button
           type="button"
+          onClick={onForgotPassword}
           className="text-blue-600 dark:text-blue-400 font-semibold text-sm hover:underline"
         >
           Forgot password?

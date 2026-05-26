@@ -4,6 +4,20 @@ import { useAuth } from '../../../AuthContext';
 import NotificationBell from '../common/NotificationBell';
 import DashboardMenuButton from '../common/DashboardMenuButton';
 
+const activeStatuses = new Set(['accepted', 'in progress', 'active']);
+
+const isCurrentPlacement = (student) => {
+  const status = (student.status || '').toLowerCase();
+  const completed =
+    student.roster_status === 'completed' ||
+    Number(student.is_completed) === 1 ||
+    Boolean(student.evaluation_id) ||
+    status === 'completed' ||
+    status === 'complete';
+
+  return activeStatuses.has(status) && !completed;
+};
+
 const OrgSupervisorNavbar = ({ onMenuClick }) => {
   const { user } = useAuth();
   const [studentCount, setStudentCount] = useState(0);
@@ -15,7 +29,7 @@ const OrgSupervisorNavbar = ({ onMenuClick }) => {
           headers: { Authorization: `Bearer ${user?.token}` },
         });
         const students = Array.isArray(res.data?.students) ? res.data.students : [];
-        setStudentCount(students.length);
+        setStudentCount(students.filter(isCurrentPlacement).length);
       } catch (error) {
         console.error('Failed to load supervisor navbar data.', error);
       }

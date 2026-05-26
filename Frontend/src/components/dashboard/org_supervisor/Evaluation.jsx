@@ -5,6 +5,24 @@ import { useAuth } from '../../../AuthContext';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faChevronRight, faClipboardCheck, faSpinner, faUser, faUsersSlash } from '@fortawesome/free-solid-svg-icons';
 
+const activeStatuses = new Set(['accepted', 'in progress', 'active']);
+
+const isCompletedPlacement = (student) => {
+  const status = (student.status || '').toLowerCase();
+  return (
+    student.roster_status === 'completed' ||
+    Number(student.is_completed) === 1 ||
+    Boolean(student.evaluation_id) ||
+    status === 'completed' ||
+    status === 'complete'
+  );
+};
+
+const isCurrentPlacement = (student) => activeStatuses.has((student.status || '').toLowerCase()) && !isCompletedPlacement(student);
+
+const getEvaluationPath = (student) =>
+  `/org-supervisor/evaluate/${encodeURIComponent(`${student.internship_id}_${student.student_id}`)}`;
+
 const Evaluation = () => {
   const { user } = useAuth();
   const [students, setStudents] = useState([]);
@@ -44,6 +62,7 @@ const Evaluation = () => {
     () => new Set(evaluations.map((item) => `${item.internship_id}_${item.student_id}`)),
     [evaluations]
   );
+  const currentStudents = useMemo(() => students.filter(isCurrentPlacement), [students]);
 
   return (
     <div className="animate-fade-in">
@@ -58,21 +77,21 @@ const Evaluation = () => {
         <div className="flex items-center justify-center h-48 text-emerald-500">
           <FontAwesomeIcon icon={faSpinner} spin size="2x" />
         </div>
-      ) : students.length === 0 ? (
+      ) : currentStudents.length === 0 ? (
         <div className="bg-white dark:bg-slate-800 p-10 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 text-center">
           <FontAwesomeIcon icon={faUsersSlash} size="3x" className="text-slate-300 mb-4" />
-          <p className="text-xl font-bold text-slate-800 dark:text-white">No assigned students found</p>
-          <p className="text-slate-500 text-sm mt-2">Assigned interns will appear here once the company links them to your supervisor account.</p>
+          <p className="text-xl font-bold text-slate-800 dark:text-white">No current students need evaluation</p>
+          <p className="text-slate-500 text-sm mt-2">Current assigned interns will appear here until their final evaluation is submitted.</p>
         </div>
       ) : (
         <div className="space-y-4">
-          {students.map((student) => {
+          {currentStudents.map((student) => {
             const evaluationKey = `${student.internship_id}_${student.student_id}`;
             const hasEvaluation = evaluationKeys.has(evaluationKey);
 
             return (
               <Link
-                to={`/org-supervisor/evaluate/${student.internship_id}_${student.student_id}`}
+                to={getEvaluationPath(student)}
                 key={evaluationKey}
                 onClick={(event) => {
                   if (hasEvaluation) event.preventDefault();
@@ -91,7 +110,7 @@ const Evaluation = () => {
                     <div>
                       <h3 className="font-bold text-lg text-slate-800 dark:text-white">{student.student_name || 'Assigned Intern'}</h3>
                       <p className="text-sm text-slate-500 dark:text-slate-400">
-                        {student.department || 'Department unavailable'} • {student.company_name || 'Company'} • {student.internship_title || 'Internship'}
+                        {student.department || 'Department unavailable'} - {student.company_name || 'Company'} - {student.internship_title || 'Internship'}
                       </p>
                     </div>
                   </div>

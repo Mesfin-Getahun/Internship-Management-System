@@ -49,24 +49,44 @@ const fetchStudents = async (req, res) => {
         s.email,
         s.department,
         si.status,
+        si.cohort_status,
         si.id AS student_internship_id,
         si.internship_id,
+        si.start_date AS placement_start_date,
+        si.end_date AS placement_end_date,
         i.title AS internship_title,
-        c.company_name
+        i.start_date AS internship_start_date,
+        i.end_date AS internship_end_date,
+        c.company_name,
+        ie.evaluation_id,
+        ie.submitted_at AS evaluation_submitted_at,
+        CASE
+          WHEN LOWER(si.status) IN ('completed', 'complete')
+            OR ie.evaluation_id IS NOT NULL
+          THEN 1
+          ELSE 0
+        END AS is_completed,
+        CASE
+          WHEN LOWER(si.status) IN ('completed', 'complete')
+            OR ie.evaluation_id IS NOT NULL
+          THEN 'completed'
+          ELSE 'current'
+        END AS roster_status
       FROM student_internship si
       JOIN student s ON si.student_id = s.student_id
       JOIN internship i ON si.internship_id = i.internship_id
       JOIN company c ON i.company_id = c.company_id
+      LEFT JOIN internship_evaluation ie
+        ON ie.student_id = si.student_id
+       AND ie.internship_id = si.internship_id
+       AND (ie.company_mentor_id = si.company_mentor_id OR ie.company_mentor_id IS NULL)
       WHERE si.company_mentor_id = ?
-        AND si.cohort_status = 'current'
-        AND LOWER(si.status) IN ('accepted', 'in progress', 'active')
-        AND NOT EXISTS (
-          SELECT 1
-          FROM internship_evaluation ie
-          WHERE ie.student_id = si.student_id
-            AND ie.internship_id = si.internship_id
-            AND (ie.company_mentor_id = si.company_mentor_id OR ie.company_mentor_id IS NULL)
+        AND (
+          (COALESCE(si.cohort_status, 'current') = 'current' AND LOWER(si.status) IN ('accepted', 'in progress', 'active'))
+          OR LOWER(si.status) IN ('completed', 'complete')
+          OR ie.evaluation_id IS NOT NULL
         )
+      ORDER BY is_completed ASC, s.full_name ASC
     `;
 
     const [students] = await db.query(query, [company_mentor_id]);
@@ -107,6 +127,8 @@ const postEvaluation = async (req, res) => {
         s.department,
         s.assigned_mentor,
         i.internship_id,
+        si.end_date AS placement_end_date,
+        i.end_date AS internship_end_date,
         i.title AS internship_title,
         c.company_name,
         cm.full_name AS supervisor
@@ -122,7 +144,7 @@ const postEvaluation = async (req, res) => {
       WHERE si.company_mentor_id = ?
         AND si.internship_id = ?
         AND s.student_id = ?
-        AND si.cohort_status = 'current'
+        AND COALESCE(si.cohort_status, 'current') = 'current'
       LIMIT 1
       `,
       [company_mentor_id, internship_id, student_id]
@@ -132,6 +154,25 @@ const postEvaluation = async (req, res) => {
       return res.status(404).json({
         success: false,
         message: "Assigned student not found for this company mentor",
+      });
+    }
+
+    const internshipEndDate = student.placement_end_date || student.internship_end_date;
+
+    if (!internshipEndDate) {
+      return res.status(400).json({
+        success: false,
+        message: "The internship end date is not set, so final evaluation cannot be submitted yet",
+      });
+    }
+
+    const endDate = new Date(internshipEndDate);
+    endDate.setHours(23, 59, 59, 999);
+
+    if (Number.isNaN(endDate.getTime()) || endDate > new Date()) {
+      return res.status(400).json({
+        success: false,
+        message: "Final evaluation and attendance can be submitted only after the internship end date",
       });
     }
 
@@ -351,7 +392,7 @@ const giveFeedBack = async (req, res) => {
       WHERE si.company_mentor_id = ?
         AND si.student_id = ?
         AND si.internship_id = ?
-        AND si.cohort_status = 'current'
+        AND COALESCE(si.cohort_status, 'current') = 'current'
       LIMIT 1
       `,
       [company_mentor_id, student_id, internship_id],

@@ -7,6 +7,7 @@ import AdminOverview from "../../components/dashboard/admin/AdminOverview.jsx";
 import AuditLogs from "../../components/dashboard/admin/AuditLogs.jsx";
 import PlatformMonitoring from "../../components/dashboard/admin/PlatformMonitoring.jsx";
 import DataBackup from "../../components/dashboard/admin/DataBackup.jsx";
+import UserPasswordResets from "../../components/dashboard/admin/UserPasswordResets.jsx";
 import DashboardChangePassword from "../../components/dashboard/common/DashboardChangePassword.jsx";
 
 const AdminDashboard = () => {
@@ -17,6 +18,7 @@ const AdminDashboard = () => {
     overview: "Admin Overview",
     logs: "Audit Logs",
     monitoring: "Platform Monitoring",
+    "user-passwords": "User Password Resets",
     "change-password": "Change Password",
     "data-backup": "Data & Backup",
   };
@@ -38,6 +40,7 @@ const AdminDashboard = () => {
             <Route path="overview" element={<AdminOverview />} />
             <Route path="logs" element={<AuditLogs />} />
             <Route path="monitoring" element={<PlatformMonitoring />} />
+            <Route path="user-passwords" element={<UserPasswordResets />} />
             <Route path="change-password" element={<DashboardChangePassword />} />
             <Route path="data-backup" element={<DataBackup />} />
             <Route path="*" element={<Navigate to="overview" replace />} />

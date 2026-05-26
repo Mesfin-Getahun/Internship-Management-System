@@ -8,7 +8,7 @@ import { useAuth } from '../../../AuthContext';
 import { toast, ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faSpinner } from '@fortawesome/free-solid-svg-icons';
+import { faArrowLeft, faLock, faSpinner } from '@fortawesome/free-solid-svg-icons';
 
 const evaluationSections = {
     general: ['grooming', 'workAttitude', 'consistency', 'selfConfidence', 'communicationSkills'],
@@ -16,15 +16,73 @@ const evaluationSections = {
     professional: ['technicalSkills', 'organizationSkills', 'coordinationSkills', 'responsibilitySkills', 'problemSolvingSkills'],
 };
 
+const activeStatuses = new Set(['accepted', 'in progress', 'active']);
+
+const isCurrentPlacement = (student) => {
+    const status = (student.status || '').toLowerCase();
+    const completed =
+        student.roster_status === 'completed' ||
+        Number(student.is_completed) === 1 ||
+        Boolean(student.evaluation_id) ||
+        status === 'completed' ||
+        status === 'complete';
+
+    return activeStatuses.has(status) && !completed;
+};
+
+const parseEvaluationTarget = (value) => {
+    let rawValue = String(value || '');
+
+    try {
+        rawValue = decodeURIComponent(rawValue);
+    } catch {
+        // Keep the raw route value if decoding fails.
+    }
+
+    const separatorIndex = rawValue.indexOf('_');
+
+    if (separatorIndex === -1) {
+        return {
+            internshipId: 'default',
+            studentId: rawValue,
+        };
+    }
+
+    return {
+        internshipId: rawValue.slice(0, separatorIndex),
+        studentId: rawValue.slice(separatorIndex + 1),
+    };
+};
+
+const getPlacementEndDate = (student) =>
+    student?.placement_end_date || student?.internship_end_date || student?.end_date || null;
+
+const hasInternshipEnded = (student) => {
+    const endDate = getPlacementEndDate(student);
+    if (!endDate) return false;
+
+    const end = new Date(endDate);
+    if (Number.isNaN(end.getTime())) return false;
+
+    end.setHours(23, 59, 59, 999);
+    return end <= new Date();
+};
+
+const formatDate = (dateValue) => {
+    if (!dateValue) return 'not set';
+    const date = new Date(dateValue);
+    if (Number.isNaN(date.getTime())) return 'not set';
+    return date.toLocaleDateString();
+};
+
 const SupervisorStudentEvaluation = () => {
-    const { studentId: paramId } = useParams(); // Format should be internshipId_studentId
+    const { studentId, '*': wildcardId } = useParams(); // Format should be internshipId_studentId
+    const paramId = studentId || wildcardId || '';
     const navigate = useNavigate();
     const { user } = useAuth();
     
-    // Parse the composite ID parameter injected by MyStudents link
-    const parts = paramId ? paramId.split('_') : [];
-    const internshipId = parts.length > 1 ? parts[0] : 'default';
-    const trueStudentId = parts.length > 1 ? parts[1] : paramId;
+    // Parse only the first separator because student IDs may also contain underscores.
+    const { internshipId, studentId: trueStudentId } = parseEvaluationTarget(paramId);
 
     const [step, setStep] = useState(1);
     const [attendanceData, setAttendanceData] = useState({});
@@ -72,15 +130,18 @@ const SupervisorStudentEvaluation = () => {
                 headers: { Authorization: `Bearer ${user?.token}` }
              });
              const students = res.data.students || res.data || [];
-             const match = students.find(s => 
-                (s.student_id || s.id || '').toString() === trueStudentId.toString()
+             const match = students.find(s =>
+                (s.student_id || s.id || '').toString() === trueStudentId.toString() &&
+                (s.internship_id || '').toString() === internshipId.toString()
              );
-             setStudentProfile(match || { 
-                id: trueStudentId, 
-                name: match?.student_name || match?.full_name || 'Assigned Intern', 
-                universityId: trueStudentId.substring(0,8), 
-                department: match?.department || 'Target Department',
-                company: match?.company_name || 'Your Company'
+             setStudentProfile(match || {
+                id: trueStudentId,
+                student_id: trueStudentId,
+                name: 'Assigned Intern',
+                universityId: trueStudentId?.substring(0,8) || 'N/A',
+                department: 'Target Department',
+                company: 'Your Company',
+                internship_id: internshipId,
              });
           } catch (err) {
              console.error("Failed fetching profile to evaluate.", err);
@@ -96,7 +157,7 @@ const SupervisorStudentEvaluation = () => {
           }
        };
        if (user?.token) fetchRoster();
-    }, [user, trueStudentId]);
+    }, [internshipId, trueStudentId, user?.token]);
 
     const handleNext = (data) => {
         if (step === 1) {
@@ -166,6 +227,56 @@ const SupervisorStudentEvaluation = () => {
 
     if (!studentProfile) {
         return <div className="text-center text-red-500 bg-slate-900 p-8 rounded-2xl font-bold">Invalid target identity requested.</div>;
+    }
+
+    const canEvaluate = isCurrentPlacement(studentProfile) && hasInternshipEnded(studentProfile);
+    const endDateLabel = formatDate(getPlacementEndDate(studentProfile));
+
+    if (!canEvaluate) {
+        return (
+            <div className="bg-slate-900 p-8 rounded-3xl shadow-2xl max-w-5xl mx-auto border border-slate-800 animate-fade-in">
+                <ToastContainer theme="dark" position="bottom-right" />
+                <div className="flex flex-col gap-6">
+                    <button
+                        type="button"
+                        onClick={() => navigate('/org-supervisor/evaluation')}
+                        className="inline-flex w-fit items-center gap-2 rounded-xl border border-slate-700 bg-slate-800 px-4 py-2 text-xs font-black uppercase tracking-widest text-slate-300 transition-all hover:bg-slate-700"
+                    >
+                        <FontAwesomeIcon icon={faArrowLeft} />
+                        Back
+                    </button>
+
+                    <div className="rounded-3xl border border-amber-500/20 bg-amber-500/10 p-8">
+                        <div className="mb-5 flex h-14 w-14 items-center justify-center rounded-2xl bg-amber-500/15 text-amber-300">
+                            <FontAwesomeIcon icon={faLock} size="lg" />
+                        </div>
+                        <h2 className="text-3xl font-extrabold text-white tracking-tight">Assessment Not Available Yet</h2>
+                        <p className="mt-3 max-w-3xl text-sm leading-relaxed text-slate-300">
+                            The page is available, but the attendance and final evaluation form stays locked until this student's internship duration is finished.
+                        </p>
+
+                        <div className="mt-8 grid grid-cols-1 gap-4 md:grid-cols-2">
+                            <div className="rounded-2xl border border-slate-700 bg-slate-800/70 p-5">
+                                <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Student</p>
+                                <p className="mt-2 text-lg font-bold text-white">{studentProfile.student_name || studentProfile.name || 'Assigned Intern'}</p>
+                                <p className="mt-1 text-sm text-slate-400">{studentProfile.student_id || studentProfile.id || trueStudentId}</p>
+                            </div>
+                            <div className="rounded-2xl border border-slate-700 bg-slate-800/70 p-5">
+                                <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Internship End Date</p>
+                                <p className="mt-2 text-lg font-bold text-amber-200">{endDateLabel}</p>
+                                <p className="mt-1 text-sm text-slate-400">{studentProfile.internship_title || 'Internship placement'}</p>
+                            </div>
+                        </div>
+
+                        <div className="mt-6 rounded-2xl border border-slate-700 bg-slate-950/40 p-5">
+                            <p className="text-sm font-semibold text-slate-300">
+                                Attendance entry, performance scoring, final submission, and PDF generation are disabled for now.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        );
     }
 
     return (

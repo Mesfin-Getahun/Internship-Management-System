@@ -78,6 +78,9 @@ const DashboardChangePassword = ({ description }) => {
     confirmPassword: "",
   });
   const [submitting, setSubmitting] = useState(false);
+  const [resetSubmitting, setResetSubmitting] = useState(false);
+
+  const canUseForgotPassword = ["organization", "org_supervisor", "admin"].includes(user?.role);
 
   const handleChange = (event) => {
     const { name, value } = event.target;
@@ -134,6 +137,36 @@ const DashboardChangePassword = ({ description }) => {
       toast.error(error.response?.data?.message || "Failed to change password.");
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const handleForgotPassword = async () => {
+    const id = getUserId(user);
+    const role = getBackendRole(user?.role);
+    const identifier = user?.email || id;
+
+    if (!identifier || !role || !canUseForgotPassword) {
+      toast.error("Forgot password is not available for this account.");
+      return;
+    }
+
+    try {
+      setResetSubmitting(true);
+      const res = await axios.post(`${import.meta.env.VITE_BACKEND_URL}/api/change-password/forgot`, {
+        role,
+        identifier,
+      });
+      const tempPassword = res.data?.temporary_password;
+      toast.success(
+        tempPassword
+          ? `${res.data?.message || "Temporary password generated."} Temporary password: ${tempPassword}`
+          : res.data?.message || "Temporary password sent to your email.",
+      );
+    } catch (error) {
+      console.error(error);
+      toast.error(error.response?.data?.message || "Failed to reset password.");
+    } finally {
+      setResetSubmitting(false);
     }
   };
 
@@ -206,6 +239,17 @@ const DashboardChangePassword = ({ description }) => {
           <FontAwesomeIcon icon={submitting ? faSpinner : faKey} spin={submitting} />
           {submitting ? "Updating..." : "Change Password"}
         </button>
+
+        {canUseForgotPassword && (
+          <button
+            type="button"
+            onClick={handleForgotPassword}
+            disabled={resetSubmitting}
+            className="w-full rounded-xl border border-slate-200 px-5 py-3 text-sm font-black text-slate-600 hover:bg-slate-50 disabled:opacity-60 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
+          >
+            {resetSubmitting ? "Sending temporary password..." : "Forgot current password?"}
+          </button>
+        )}
       </form>
     </div>
   );

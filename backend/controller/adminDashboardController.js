@@ -4,6 +4,12 @@ import os from "os";
 import path from "path";
 import db from "../config/mysql.js";
 import { fetchSystemLogs, insertSystemLog } from "../utils/systemLogService.js";
+import { sendEmail } from "../utils/sendEmail.js";
+import { resolveAccountRole } from "../utils/accountRoleConfig.js";
+import {
+  generateTemporaryPassword,
+  resetAccountPassword,
+} from "../utils/passwordReset.js";
 
 const backupDir = path.resolve("./backups");
 
@@ -230,6 +236,113 @@ const DEACTIVATABLE_ACCOUNT_TABLES = Object.freeze({
     label: "Company",
   },
 });
+
+const ADMIN_RESETTABLE_ROLES = new Set(["student", "faculty", "mentor", "uil"]);
+
+const getResetRoleLabel = (role) => {
+  switch (String(role || "").toLowerCase()) {
+    case "student":
+      return "Student";
+    case "faculty":
+      return "Faculty";
+    case "mentor":
+      return "Faculty mentor";
+    case "uil":
+      return "UIL";
+    default:
+      return "Account";
+  }
+};
+
+export const resetUserPassword = async (req, res) => {
+  try {
+    const role = String(req.params.role || "").trim().toLowerCase();
+    const accountId = req.params.id;
+    const roleConfig = resolveAccountRole(role);
+
+    if (!ADMIN_RESETTABLE_ROLES.has(role) || !roleConfig || !accountId) {
+      return res.status(400).json({
+        success: false,
+        message: "Admin password reset is available only for student, faculty, faculty mentor, and UIL accounts.",
+      });
+    }
+
+    const { table, idColumn } = roleConfig;
+    const [rows] = await db.query(
+      `SELECT ${idColumn} AS account_id, email FROM \`${table}\` WHERE \`${idColumn}\` = ? LIMIT 1`,
+      [accountId],
+    );
+
+    if (rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: `${getResetRoleLabel(role)} not found.`,
+      });
+    }
+
+    const account = rows[0];
+    const temporaryPassword = generateTemporaryPassword();
+    const resetResult = await resetAccountPassword({
+      table,
+      idColumn,
+      accountId: account.account_id,
+      temporaryPassword,
+    });
+
+    if (resetResult.affectedRows === 0) {
+      return res.status(404).json({
+        success: false,
+        message: `${getResetRoleLabel(role)} not found.`,
+      });
+    }
+
+    let emailSent = false;
+    let emailWarning = null;
+
+    if (account.email) {
+      try {
+        await sendEmail(
+          account.email,
+          "Your password was reset by admin",
+          `
+            <h2>Password Reset</h2>
+            <p>An administrator reset your ${getResetRoleLabel(role)} account password.</p>
+            <p><b>Temporary password:</b> ${temporaryPassword}</p>
+            <p>Please sign in and change this password immediately.</p>
+          `,
+        );
+        emailSent = true;
+      } catch (emailError) {
+        console.error("Admin password reset email error:", emailError);
+        emailWarning = "Password was reset, but the email could not be sent.";
+      }
+    } else {
+      emailWarning = "Password was reset, but this account has no email address.";
+    }
+
+    await insertSystemLog({
+      actorId: req.user.admin_id,
+      action: "PASSWORD_RESET_BY_ADMIN",
+      description: `${getResetRoleLabel(role)} password reset: ${account.account_id}`,
+    }).catch(() => null);
+
+    res.status(200).json({
+      success: true,
+      message: emailSent
+        ? "Temporary password sent to the account email."
+        : "Temporary password generated. Email delivery is unavailable.",
+      emailSent,
+      emailWarning,
+      temporary_password: emailSent ? undefined : temporaryPassword,
+    });
+  } catch (error) {
+    console.error("Reset user password error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to reset user password.",
+    });
+  }
+};
 
 export const deactivateUserAccount = async (req, res) => {
   try {

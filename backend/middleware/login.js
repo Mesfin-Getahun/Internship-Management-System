@@ -3,6 +3,7 @@ import db from "../config/mysql.js";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import ACCOUNT_ROLE_CONFIG from "../utils/accountRoleConfig.js";
+import { ensureMustChangePasswordColumn } from "../utils/passwordReset.js";
 
 const router = express.Router();
 
@@ -135,6 +136,7 @@ router.post("/", async (req, res) => {
     // Company login (EMAIL or company_id based)
     const tryCompanyLogin = async () => {
       if (!identifier) return null;
+      await ensureMustChangePasswordColumn("company");
 
       const [rows] = await db.query(
         "SELECT * FROM company WHERE email = ? OR company_id = ? LIMIT 1",
@@ -177,6 +179,18 @@ router.post("/", async (req, res) => {
           blocked: true,
           status: 403,
           message: "Company account was rejected",
+        };
+      }
+
+      if (company.must_change_password) {
+        return {
+          user: sanitizeUser(company),
+          role: "company",
+          firstLogin: true,
+          setupToken: createPasswordSetupToken({
+            id: company.company_id,
+            role: "company",
+          }),
         };
       }
 
