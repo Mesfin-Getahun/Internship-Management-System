@@ -4,6 +4,7 @@ import * as xlsx from "xlsx";
 import {
   recordFacultyMentorAssignment,
 } from "../utils/mentorAssignmentHistorySchema.js";
+import { MENTOR_STUDENT_LIMIT } from "../utils/internshipRules.js";
 
 const escapeCsvValue = (value) => {
   if (value === null || value === undefined) {
@@ -71,7 +72,7 @@ const assignMentor = async (req, res) => {
 
     // 3️⃣ Check if mentor exists
     const [mentors] = await connection.query(
-      "SELECT mentor_id FROM mentor WHERE mentor_id = ? AND account_status = 'active'",
+      "SELECT mentor_id FROM mentor WHERE mentor_id = ? AND account_status = 'active' FOR UPDATE",
       [mentor_id],
     );
 
@@ -84,6 +85,23 @@ const assignMentor = async (req, res) => {
     }
 
     // 4️⃣ Assign mentor
+    if (String(students[0].assigned_mentor || "") !== String(mentor_id)) {
+      const [assignedRows] = await connection.query(
+        "SELECT student_id FROM student WHERE assigned_mentor = ? FOR UPDATE",
+        [mentor_id],
+      );
+
+      if (assignedRows.length >= MENTOR_STUDENT_LIMIT) {
+        await connection.rollback();
+        return res.status(409).json({
+          success: false,
+          message: `A faculty mentor can supervise a maximum of ${MENTOR_STUDENT_LIMIT} students`,
+          assigned_students: assignedRows.length,
+          limit: MENTOR_STUDENT_LIMIT,
+        });
+      }
+    }
+
     const [result] = await connection.query(
       "UPDATE student SET assigned_mentor = ? WHERE student_id = ?",
       [mentor_id, student_id],
@@ -255,16 +273,10 @@ const getMentors = async (req, res) => {
         m.email,
         m.phone_number,
         m.account_status,
-        COUNT(DISTINCT CASE
-          WHEN si.cohort_status = 'current'
-            AND LOWER(si.status) IN ('accepted', 'in progress', 'active')
-          THEN s.student_id
-        END) AS assigned_students_count
+        COUNT(DISTINCT s.student_id) AS assigned_students_count
       FROM mentor m
       LEFT JOIN student s
         ON s.assigned_mentor = m.mentor_id
-      LEFT JOIN student_internship si
-        ON si.student_id = s.student_id
       WHERE m.account_status = 'active'
       GROUP BY m.mentor_id, m.full_name, m.email, m.phone_number, m.account_status
       ORDER BY m.full_name
@@ -449,7 +461,7 @@ const changeMentor = async (req, res) => {
     }
 
     const [mentors] = await connection.query(
-      "SELECT mentor_id FROM mentor WHERE mentor_id = ? AND account_status = 'active'",
+      "SELECT mentor_id FROM mentor WHERE mentor_id = ? AND account_status = 'active' FOR UPDATE",
       [new_mentor_id],
     );
 
@@ -459,6 +471,23 @@ const changeMentor = async (req, res) => {
         success: false,
         message: "Active mentor not found",
       });
+    }
+
+    if (String(students[0].assigned_mentor || "") !== String(new_mentor_id)) {
+      const [assignedRows] = await connection.query(
+        "SELECT student_id FROM student WHERE assigned_mentor = ? FOR UPDATE",
+        [new_mentor_id],
+      );
+
+      if (assignedRows.length >= MENTOR_STUDENT_LIMIT) {
+        await connection.rollback();
+        return res.status(409).json({
+          success: false,
+          message: `A faculty mentor can supervise a maximum of ${MENTOR_STUDENT_LIMIT} students`,
+          assigned_students: assignedRows.length,
+          limit: MENTOR_STUDENT_LIMIT,
+        });
+      }
     }
 
     await connection.query(

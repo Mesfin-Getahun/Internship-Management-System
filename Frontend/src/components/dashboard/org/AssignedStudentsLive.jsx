@@ -177,8 +177,12 @@ const AssignedStudentsLive = () => {
                           >
                             <option value="">{isAssigned ? 'Choose a new mentor...' : 'Choose organizational mentor...'}</option>
                             {companyMentors.map((mentor) => (
-                              <option key={mentor.company_mentor_id} value={mentor.company_mentor_id}>
-                                {mentor.full_name}
+                              <option
+                                key={mentor.company_mentor_id}
+                                value={mentor.company_mentor_id}
+                                disabled={Number(mentor.assigned_students || 0) >= 10 && String(mentor.company_mentor_id) !== currentMentorId}
+                              >
+                                {mentor.full_name} ({Number(mentor.assigned_students || 0)} / 10)
                               </option>
                             ))}
                           </select>

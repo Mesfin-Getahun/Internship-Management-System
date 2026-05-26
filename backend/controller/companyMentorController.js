@@ -7,6 +7,7 @@ import { createNotifications } from "../utils/notificationService.js";
 import { ensureMentorFeedbackAttachmentColumns } from "../utils/mentorFeedbackSchema.js";
 import { ensureInternshipEvaluationMentorColumns } from "../utils/internshipEvaluationSchema.js";
 import { getCurrentFeedbackWeek } from "../utils/companyMentorFeedbackReminder.js";
+import { validateAttendanceRecordsForInternship } from "../utils/internshipRules.js";
 
 function isDuplicateKeyError(error) {
   return error?.code === "ER_DUP_ENTRY" || error?.errno === 1062;
@@ -142,7 +143,9 @@ const postEvaluation = async (req, res) => {
         s.department,
         s.assigned_mentor,
         i.internship_id,
+        si.start_date AS placement_start_date,
         si.end_date AS placement_end_date,
+        i.start_date AS internship_start_date,
         i.end_date AS internship_end_date,
         i.title AS internship_title,
         c.company_name,
@@ -213,6 +216,21 @@ const postEvaluation = async (req, res) => {
       return res.status(409).json({
         success: false,
         message: "A final evaluation has already been submitted for this student and internship",
+      });
+    }
+
+    const attendanceValidation = validateAttendanceRecordsForInternship({
+      attendanceData,
+      startDate: student.placement_start_date || student.internship_start_date,
+      endDate: student.placement_end_date || student.internship_end_date,
+    });
+
+    if (!attendanceValidation.valid) {
+      return res.status(400).json({
+        success: false,
+        message: attendanceValidation.message,
+        expected_months: attendanceValidation.expectedMonths,
+        submitted_months: attendanceValidation.submittedMonths,
       });
     }
 

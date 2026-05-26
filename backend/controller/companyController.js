@@ -20,6 +20,12 @@ import {
   PLACEMENT_STATUS,
   isPendingApplication,
 } from "../utils/statusRules.js";
+import {
+  MENTOR_STUDENT_LIMIT,
+  isFutureDateOnly,
+  parseDateOnly,
+  validateAttendanceRecordsForInternship,
+} from "../utils/internshipRules.js";
 
 const CURRENT_PLACEMENT_STATUSES = [
   PLACEMENT_STATUS.ACCEPTED,
@@ -98,7 +104,24 @@ const postInternship = async (req, res) => {
       });
     }
 
-    if (new Date(end_date) < new Date(start_date)) {
+    if (!isFutureDateOnly(start_date)) {
+      return res.status(400).json({
+        success: false,
+        message: "Start date must be a future date",
+      });
+    }
+
+    const parsedStartDate = parseDateOnly(start_date);
+    const parsedEndDate = parseDateOnly(end_date);
+
+    if (!parsedStartDate || !parsedEndDate) {
+      return res.status(400).json({
+        success: false,
+        message: "Start date and end date must be valid dates",
+      });
+    }
+
+    if (parsedEndDate < parsedStartDate) {
       return res.status(400).json({
         success: false,
         message: "End date cannot be before start date",
@@ -257,7 +280,24 @@ const updateInternship = async (req, res) => {
       });
     }
 
-    if (new Date(nextEndDate) < new Date(nextStartDate)) {
+    if (!isFutureDateOnly(nextStartDate)) {
+      return res.status(400).json({
+        success: false,
+        message: "Start date must be a future date",
+      });
+    }
+
+    const parsedStartDate = parseDateOnly(nextStartDate);
+    const parsedEndDate = parseDateOnly(nextEndDate);
+
+    if (!parsedStartDate || !parsedEndDate) {
+      return res.status(400).json({
+        success: false,
+        message: "Start date and end date must be valid dates",
+      });
+    }
+
+    if (parsedEndDate < parsedStartDate) {
       return res.status(400).json({
         success: false,
         message: "End date cannot be before start date",
@@ -1289,7 +1329,8 @@ const assignMentor = async (req, res) => {
        FROM company_mentor
        WHERE company_mentor_id = ?
          AND company_id = ?
-         AND account_status = 'active'`,
+         AND account_status = 'active'
+       FOR UPDATE`,
       [resolvedMentorId, company_id],
     );
 
@@ -1298,6 +1339,31 @@ const assignMentor = async (req, res) => {
       return res
         .status(404)
         .json({ success: false, message: "Active company mentor not found" });
+    }
+
+    if (
+      String(existing[0].company_mentor_id || "") !== String(resolvedMentorId)
+    ) {
+      const [assignedRows] = await connection.query(
+        `SELECT id
+         FROM student_internship
+         WHERE company_mentor_id = ?
+           AND company_id = ?
+           AND COALESCE(cohort_status, 'current') = 'current'
+           AND LOWER(status) IN (?, ?, ?)
+         FOR UPDATE`,
+        [resolvedMentorId, company_id, ...CURRENT_PLACEMENT_STATUSES],
+      );
+
+      if (assignedRows.length >= MENTOR_STUDENT_LIMIT) {
+        await connection.rollback();
+        return res.status(409).json({
+          success: false,
+          message: `A company mentor can supervise a maximum of ${MENTOR_STUDENT_LIMIT} students`,
+          assigned_students: assignedRows.length,
+          limit: MENTOR_STUDENT_LIMIT,
+        });
+      }
     }
 
     // Assign the mentor
@@ -1345,10 +1411,16 @@ const postEvaluation = async (req, res) => {
       `
       SELECT 
           s.*,
+          si.start_date AS placement_start_date,
+          si.end_date AS placement_end_date,
+          i.start_date AS internship_start_date,
+          i.end_date AS internship_end_date,
           cm.full_name AS supervisor
       FROM student s
       JOIN student_internship si 
           ON s.student_id = si.student_id
+      JOIN internship i
+          ON si.internship_id = i.internship_id
       JOIN company_mentor cm
           ON si.company_mentor_id = cm.company_mentor_id
       WHERE si.internship_id = ?
@@ -1360,6 +1432,21 @@ const postEvaluation = async (req, res) => {
       return res.status(404).json({
         success: false,
         message: "Student not found",
+      });
+    }
+
+    const attendanceValidation = validateAttendanceRecordsForInternship({
+      attendanceData,
+      startDate: student.placement_start_date || student.internship_start_date,
+      endDate: student.placement_end_date || student.internship_end_date,
+    });
+
+    if (!attendanceValidation.valid) {
+      return res.status(400).json({
+        success: false,
+        message: attendanceValidation.message,
+        expected_months: attendanceValidation.expectedMonths,
+        submitted_months: attendanceValidation.submittedMonths,
       });
     }
 

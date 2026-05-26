@@ -75,6 +75,27 @@ const formatDate = (dateValue) => {
     return date.toLocaleDateString();
 };
 
+const getInternshipMonthCount = (startValue, endValue) => {
+    if (!startValue || !endValue) return 1;
+
+    const startDate = new Date(startValue);
+    const endDate = new Date(endValue);
+
+    if (Number.isNaN(startDate.getTime()) || Number.isNaN(endDate.getTime()) || endDate < startDate) {
+        return 1;
+    }
+
+    let months =
+        (endDate.getFullYear() - startDate.getFullYear()) * 12 +
+        (endDate.getMonth() - startDate.getMonth());
+
+    if (endDate.getDate() > startDate.getDate()) {
+        months += 1;
+    }
+
+    return Math.max(1, months);
+};
+
 const SupervisorStudentEvaluation = () => {
     const { studentId, '*': wildcardId } = useParams(); // Format should be internshipId_studentId
     const paramId = studentId || wildcardId || '';
@@ -90,23 +111,35 @@ const SupervisorStudentEvaluation = () => {
     const [studentProfile, setStudentProfile] = useState(null);
     const [loading, setLoading] = useState(true);
 
+    const internshipMonthCount = getInternshipMonthCount(
+        studentProfile?.placement_start_date || studentProfile?.internship_start_date || studentProfile?.start_date,
+        getPlacementEndDate(studentProfile)
+    );
+
     const buildAttendanceRecords = () => {
        const absentDays = attendanceData.absentDays || {};
        const records = {};
 
-       Object.entries(absentDays).forEach(([weekKey, absentCount], index) => {
-          const absent = Math.max(0, Math.min(5, Number(absentCount || 0)));
-          const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'];
-          const weekLabel = `Week_${index + 1}`;
+       Array.from({ length: internshipMonthCount }, (_, monthIndex) => {
+          const monthKey = `Month_${monthIndex + 1}`;
+          const monthAbsentDays = absentDays[monthKey] || {};
 
-          records[weekLabel] = Object.fromEntries(
-             days.map((day, dayIndex) => [day, dayIndex < absent ? 'A' : 'P'])
+          records[monthKey] = Object.fromEntries(
+             ['week1', 'week2', 'week3', 'week4'].map((weekKey, weekIndex) => {
+                const absent = Math.max(0, Math.min(5, Number(monthAbsentDays[weekKey] || 0)));
+                const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'];
+
+                return [
+                   `Week_${weekIndex + 1}`,
+                   Object.fromEntries(
+                      days.map((day, dayIndex) => [day, dayIndex < absent ? 'A' : 'P'])
+                   ),
+                ];
+             })
           );
        });
 
-       return {
-          Month_1: records,
-       };
+       return records;
     };
 
     const buildAssessmentPayload = () => ({
@@ -200,7 +233,7 @@ const SupervisorStudentEvaluation = () => {
     const renderStep = () => {
         switch (step) {
             case 1:
-                return <AttendanceForm onNext={handleNext} initialData={attendanceData} />;
+                return <AttendanceForm onNext={handleNext} initialData={attendanceData} monthCount={internshipMonthCount} />;
             case 2:
                 return <PerformanceForm onNext={handleNext} onBack={handleBack} initialData={performanceData} />;
             case 3:

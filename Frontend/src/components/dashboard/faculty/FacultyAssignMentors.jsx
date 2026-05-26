@@ -179,6 +179,8 @@ const FacultyAssignMentors = () => {
             {mentors.map((m) => {
               const mentorId = m.mentor_id || m.id;
               const load = Number(m.assigned_students_count || m.load || 0);
+              const remainingSlots = Math.max(0, 10 - load);
+              const wouldExceedLimit = selectedStudents.length > remainingSlots;
               return (
               <div key={mentorId} className={`p-6 rounded-2xl border transition-all shadow-sm ${
                 load >= 10 
@@ -192,14 +194,14 @@ const FacultyAssignMentors = () => {
                   </div>
                   <button 
                     onClick={() => handleAssign(mentorId)}
-                    disabled={load >= 10 || selectedStudents.length === 0 || assigningMentorId === mentorId}
+                    disabled={load >= 10 || selectedStudents.length === 0 || wouldExceedLimit || assigningMentorId === mentorId}
                     className={`px-5 py-2.5 rounded-xl text-xs font-bold transition-all shadow-lg active:scale-95 uppercase tracking-wider ${
-                      load >= 10 || selectedStudents.length === 0 || assigningMentorId === mentorId
+                      load >= 10 || selectedStudents.length === 0 || wouldExceedLimit || assigningMentorId === mentorId
                         ? 'bg-slate-100 dark:bg-slate-800 text-slate-400 shadow-none cursor-not-allowed border border-slate-200 dark:border-slate-700' 
                         : 'bg-indigo-600 text-white hover:bg-indigo-700 shadow-indigo-500/20 border border-indigo-600'
                     }`}
                   >
-                    {assigningMentorId === mentorId ? 'Assigning...' : 'Assign'}
+                    {assigningMentorId === mentorId ? 'Assigning...' : wouldExceedLimit ? `${remainingSlots} slot(s) left` : 'Assign'}
                   </button>
                 </div>
                 <div className="space-y-2">

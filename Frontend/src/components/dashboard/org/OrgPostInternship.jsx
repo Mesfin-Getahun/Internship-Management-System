@@ -5,6 +5,15 @@ import { useSearchParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { useAuth } from '../../../AuthContext';
 
+const getDateOffset = (days) => {
+  const date = new Date();
+  date.setDate(date.getDate() + days);
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
 const OrgPostInternship = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
@@ -23,6 +32,8 @@ const OrgPostInternship = () => {
     start_date: '',
     end_date: '',
   });
+
+  const tomorrow = getDateOffset(1);
 
   useEffect(() => {
     // If editing, attempt to pre-fetch the existing listing
@@ -76,6 +87,11 @@ const OrgPostInternship = () => {
     e.preventDefault();
     if (!formData.title || !formData.description || !formData.start_date || !formData.end_date) {
       toast.warn('Please fill out the title, description, start date, and end date.');
+      return;
+    }
+
+    if (formData.start_date <= getDateOffset(0)) {
+      toast.warn('Start date must be a future date.');
       return;
     }
 
@@ -160,12 +176,12 @@ const OrgPostInternship = () => {
 
             <div className="space-y-2">
               <label className="block text-slate-700 dark:text-slate-300 font-bold text-xs uppercase tracking-widest">Start Date *</label>
-              <input name="start_date" value={formData.start_date} onChange={handleInputChange} type="date" required className="w-full px-5 py-4 rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all font-semibold" />
+              <input name="start_date" value={formData.start_date} onChange={handleInputChange} type="date" min={tomorrow} required className="w-full px-5 py-4 rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all font-semibold" />
             </div>
 
             <div className="space-y-2">
               <label className="block text-slate-700 dark:text-slate-300 font-bold text-xs uppercase tracking-widest">End Date *</label>
-              <input name="end_date" value={formData.end_date} onChange={handleInputChange} type="date" required className="w-full px-5 py-4 rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all font-semibold" />
+              <input name="end_date" value={formData.end_date} onChange={handleInputChange} type="date" min={formData.start_date || tomorrow} required className="w-full px-5 py-4 rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all font-semibold" />
             </div>
 
             <div className="md:col-span-2 space-y-2">
