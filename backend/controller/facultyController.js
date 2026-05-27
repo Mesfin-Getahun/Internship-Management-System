@@ -5,6 +5,12 @@ import {
   recordFacultyMentorAssignment,
 } from "../utils/mentorAssignmentHistorySchema.js";
 import { MENTOR_STUDENT_LIMIT } from "../utils/internshipRules.js";
+import {
+  calculateKnownInternshipGrade,
+  ensureInternshipGradeColumns,
+  normalizeMark,
+} from "../utils/internshipGradeSchema.js";
+import { ensureEvaluatorTables } from "../utils/evaluatorSchema.js";
 
 const escapeCsvValue = (value) => {
   if (value === null || value === undefined) {
@@ -151,6 +157,10 @@ const assignMentor = async (req, res) => {
 
 const companyEvaluation = async (req, res) => {
   try {
+    await ensureInternshipGradeColumns(db);
+    await ensureEvaluatorTables(db);
+    await ensureEvaluatorTables(db);
+
     const faculty_name = req.user.faculty_name;
 
     const [evaluations] = await db.query(
@@ -158,6 +168,9 @@ const companyEvaluation = async (req, res) => {
       SELECT 
         ie.evaluation_id,
         ie.total_mark,
+        ie.faculty_attendance_mark,
+        ie.faculty_attendance_graded_by,
+        ie.faculty_attendance_graded_at,
         ie.assessment_pdf_url,
         ie.attendance_pdf_url,
         ie.submitted_at,
@@ -170,7 +183,17 @@ const companyEvaluation = async (req, res) => {
         i.internship_id,
         i.title AS internship_title,
         i.company_id,
-        c.company_name
+        c.company_name,
+        r.mentor_report_mark,
+        r.mentor_report_graded_at,
+        pg.final_presentation_mark,
+        pg.presentation_status,
+        (
+          COALESCE(ie.total_mark, 0) +
+          COALESCE(ie.faculty_attendance_mark, 0) +
+          COALESCE(r.mentor_report_mark, 0) +
+          COALESCE(pg.final_presentation_mark, 0)
+        ) AS known_total_mark
     
       FROM internship_evaluation ie
       JOIN student s 
@@ -179,6 +202,27 @@ const companyEvaluation = async (req, res) => {
           ON ie.internship_id = i.internship_id
       JOIN company c
           ON i.company_id = c.company_id
+      LEFT JOIN internship_report r
+          ON r.student_id = ie.student_id
+         AND r.internship_id = ie.internship_id
+      LEFT JOIN (
+        SELECT
+          student_id,
+          internship_id,
+          CASE
+            WHEN COUNT(*) >= 2 AND COUNT(DISTINCT mark) = 1 THEN MAX(mark)
+            ELSE NULL
+          END AS final_presentation_mark,
+          CASE
+            WHEN COUNT(*) >= 2 AND COUNT(DISTINCT mark) = 1 THEN 'agreed'
+            WHEN COUNT(*) >= 2 THEN 'disputed'
+            ELSE 'pending'
+          END AS presentation_status
+        FROM presentation_grade
+        GROUP BY student_id, internship_id
+      ) pg
+          ON pg.student_id = ie.student_id
+         AND pg.internship_id = ie.internship_id
     
       WHERE s.faculty = ?
       ORDER BY ie.submitted_at DESC
@@ -211,7 +255,19 @@ const getStudents = async (req, res) => {
         s.full_name,
         s.email,
         s.department,
-        s.profile_status,
+        CASE
+          WHEN NULLIF(TRIM(COALESCE(s.full_name, '')), '') IS NOT NULL
+           AND NULLIF(TRIM(COALESCE(s.email, '')), '') IS NOT NULL
+           AND NULLIF(TRIM(COALESCE(s.phone_number, '')), '') IS NOT NULL
+           AND NULLIF(TRIM(COALESCE(s.department, '')), '') IS NOT NULL
+           AND (
+             NULLIF(TRIM(COALESCE(s.skills, '')), '') IS NOT NULL
+             OR NULLIF(TRIM(COALESCE(s.technical_skills, '')), '') IS NOT NULL
+             OR NULLIF(TRIM(COALESCE(s.soft_skills, '')), '') IS NOT NULL
+           )
+          THEN 'complete'
+          ELSE 'incomplete'
+        END AS profile_status,
         s.assigned_mentor AS university_mentor_id,
         m.full_name AS university_mentor_name,
         m.account_status AS university_mentor_status,
@@ -305,6 +361,8 @@ const getMentors = async (req, res) => {
 
 const facultyViewReports = async (req, res) => {
   try {
+    await ensureInternshipGradeColumns(db);
+
     const faculty = req.user.faculty_name;
 
     const [reports] = await db.query(
@@ -320,6 +378,8 @@ const facultyViewReports = async (req, res) => {
         r.status AS raw_status,
         r.submission_date AS created_at,
         r.faculty_submitted_at AS submitted_at,
+        r.mentor_report_mark,
+        r.mentor_report_graded_at,
         CASE
           WHEN r.mentor_signed_url IS NOT NULL
             OR r.signed_at IS NOT NULL
@@ -364,6 +424,90 @@ const facultyViewReports = async (req, res) => {
     res.status(500).json({
       success: false,
       message: "Failed to fetch faculty reports",
+    });
+  }
+};
+
+const gradeAttendance = async (req, res) => {
+  try {
+    await ensureInternshipGradeColumns(db);
+
+    const faculty = req.user.faculty_name;
+    const facultyId = req.user.faculty_id || null;
+    const { evaluation_id } = req.params;
+    const attendanceMark = normalizeMark(req.body?.attendance_mark, 10);
+
+    if (!evaluation_id) {
+      return res.status(400).json({
+        success: false,
+        message: "Evaluation ID is required",
+      });
+    }
+
+    if (attendanceMark === null) {
+      return res.status(400).json({
+        success: false,
+        message: "Attendance mark must be a number from 0 to 10",
+      });
+    }
+
+    const [[evaluationRow]] = await db.query(
+      `
+      SELECT
+        ie.evaluation_id,
+        ie.total_mark,
+        ie.faculty_attendance_mark,
+        r.mentor_report_mark,
+        s.student_id,
+        s.faculty
+      FROM internship_evaluation ie
+      JOIN student s
+        ON ie.student_id = s.student_id
+      LEFT JOIN internship_report r
+        ON r.student_id = ie.student_id
+       AND r.internship_id = ie.internship_id
+      WHERE ie.evaluation_id = ?
+        AND s.faculty = ?
+      LIMIT 1
+      `,
+      [evaluation_id, faculty],
+    );
+
+    if (!evaluationRow) {
+      return res.status(404).json({
+        success: false,
+        message: "Evaluation not found under your faculty",
+      });
+    }
+
+    await db.query(
+      `
+      UPDATE internship_evaluation
+      SET faculty_attendance_mark = ?,
+          faculty_attendance_graded_by = ?,
+          faculty_attendance_graded_at = NOW()
+      WHERE evaluation_id = ?
+      `,
+      [attendanceMark, facultyId, evaluation_id],
+    );
+
+    const knownTotalMark = calculateKnownInternshipGrade({
+      companyMark: evaluationRow.total_mark,
+      attendanceMark,
+      reportMark: evaluationRow.mentor_report_mark,
+    });
+
+    res.status(200).json({
+      success: true,
+      message: "Attendance grade saved successfully",
+      attendance_mark: attendanceMark,
+      known_total_mark: knownTotalMark,
+    });
+  } catch (error) {
+    console.error("Grade attendance error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to save attendance grade",
     });
   }
 };
@@ -794,6 +938,8 @@ const getFacultyProfile = async (req, res) => {
 
 const evaluation = async (req, res) => {
   try {
+    await ensureInternshipGradeColumns(db);
+
     const { evaluation_id } = req.params;
 
     // 1️⃣ Validate param
@@ -810,6 +956,9 @@ const evaluation = async (req, res) => {
       SELECT 
         ie.evaluation_id,
         ie.total_mark,
+        ie.faculty_attendance_mark,
+        ie.faculty_attendance_graded_by,
+        ie.faculty_attendance_graded_at,
         ie.assessment_pdf_url,
         ie.attendance_pdf_url,
         ie.submitted_at,
@@ -819,11 +968,42 @@ const evaluation = async (req, res) => {
         s.email AS student_email,
 
         i.internship_id,
-        i.title AS internship_title
+        i.title AS internship_title,
+        r.mentor_report_mark,
+        r.mentor_report_graded_at,
+        pg.final_presentation_mark,
+        pg.presentation_status,
+        (
+          COALESCE(ie.total_mark, 0) +
+          COALESCE(ie.faculty_attendance_mark, 0) +
+          COALESCE(r.mentor_report_mark, 0) +
+          COALESCE(pg.final_presentation_mark, 0)
+        ) AS known_total_mark
 
       FROM internship_evaluation ie
       JOIN student s ON ie.student_id = s.student_id
       JOIN internship i ON ie.internship_id = i.internship_id
+      LEFT JOIN internship_report r
+        ON r.student_id = ie.student_id
+       AND r.internship_id = ie.internship_id
+      LEFT JOIN (
+        SELECT
+          student_id,
+          internship_id,
+          CASE
+            WHEN COUNT(*) >= 2 AND COUNT(DISTINCT mark) = 1 THEN MAX(mark)
+            ELSE NULL
+          END AS final_presentation_mark,
+          CASE
+            WHEN COUNT(*) >= 2 AND COUNT(DISTINCT mark) = 1 THEN 'agreed'
+            WHEN COUNT(*) >= 2 THEN 'disputed'
+            ELSE 'pending'
+          END AS presentation_status
+        FROM presentation_grade
+        GROUP BY student_id, internship_id
+      ) pg
+        ON pg.student_id = ie.student_id
+       AND pg.internship_id = ie.internship_id
       WHERE ie.evaluation_id = ?
       `,
       [evaluation_id],
@@ -920,6 +1100,7 @@ const uploadStudents = async (req, res) => {
 export {
   assignMentor,
   companyEvaluation,
+  gradeAttendance,
   deleteMentor,
   changeMentor,
   getStudents,

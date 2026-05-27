@@ -5,6 +5,7 @@ import {
   provideFeedback,
   reviewReport,
   mentorSignReport,
+  gradeReport,
   companyMentorFeedback,
   getSingleFeedback,
 } from "../controller/mentorController.js";
@@ -48,6 +49,7 @@ mentorRoute.get("/profile", authMentor, getMentorProfile);
  *         description: Reports fetched successfully
  */
 mentorRoute.get("/reports", authMentor, reviewReport);
+mentorRoute.put("/reports/:report_id/grade", authMentor, gradeReport);
 
 /**
  * @swagger

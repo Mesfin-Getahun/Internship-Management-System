@@ -94,6 +94,7 @@ const FacultyReply = ({ feedback }) => (
 
 const FeedbackAndEvaluation = () => {
   const [feedbacks, setFeedbacks] = useState([]);
+  const [evaluations, setEvaluations] = useState([]);
   const [ratingOptions, setRatingOptions] = useState([]);
   const [ratingForms, setRatingForms] = useState({});
   const [ratingSubmitting, setRatingSubmitting] = useState('');
@@ -105,11 +106,14 @@ const FeedbackAndEvaluation = () => {
     const fetchFeedback = async () => {
       try {
         setLoading(true);
-        const [feedbackRes, ratingRes] = await Promise.all([
+        const [feedbackRes, ratingRes, evaluationsRes] = await Promise.all([
           axios.get(`${import.meta.env.VITE_BACKEND_URL}/api/student/viewFeedbacks`, {
             headers: { Authorization: `Bearer ${user?.token}` }
           }),
           axios.get(`${import.meta.env.VITE_BACKEND_URL}/api/student/company-ratings`, {
+            headers: { Authorization: `Bearer ${user?.token}` }
+          }),
+          axios.get(`${import.meta.env.VITE_BACKEND_URL}/api/student/evaluations`, {
             headers: { Authorization: `Bearer ${user?.token}` }
           }),
         ]);
@@ -121,6 +125,7 @@ const FeedbackAndEvaluation = () => {
         }
 
         const placements = Array.isArray(ratingRes.data?.placements) ? ratingRes.data.placements : [];
+        setEvaluations(Array.isArray(evaluationsRes.data?.evaluations) ? evaluationsRes.data.evaluations : []);
         setRatingOptions(placements);
         setRatingForms(Object.fromEntries(
           placements.map((placement) => {
@@ -319,6 +324,43 @@ const FeedbackAndEvaluation = () => {
                 </div>
               );
             })}
+          </div>
+        </section>
+      )}
+
+      {evaluations.length > 0 && (
+        <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-700 dark:bg-slate-900">
+          <div className="mb-5">
+            <h2 className="text-xl font-bold text-slate-800 dark:text-white">Internship Grade</h2>
+            <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+              Current recorded marks toward your internship grade.
+            </p>
+          </div>
+          <div className="space-y-4">
+            {evaluations.map((evaluation) => (
+              <div key={evaluation.evaluation_id} className="rounded-2xl border border-slate-100 bg-slate-50/70 p-5 dark:border-slate-800 dark:bg-slate-800/40">
+                <div className="mb-4">
+                  <p className="font-bold text-slate-800 dark:text-white">{evaluation.internship_title || 'Internship'}</p>
+                  <p className="text-xs font-bold uppercase tracking-widest text-slate-400">{evaluation.company_name || 'Host organization'}</p>
+                </div>
+                <div className="grid gap-3 sm:grid-cols-4">
+                  {[
+                    ['Company', evaluation.total_mark, 40],
+                    ['Attendance', evaluation.faculty_attendance_mark, 10],
+                    ['Report', evaluation.mentor_report_mark, 20],
+                    ['Presentation', evaluation.final_presentation_mark, 30],
+                    ['Known Total', evaluation.known_total_mark, 100],
+                  ].map(([label, value, max]) => (
+                    <div key={label} className="rounded-xl bg-white p-4 dark:bg-slate-900">
+                      <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">{label}</p>
+                      <p className="mt-2 text-xl font-black text-slate-800 dark:text-white">
+                        {value ?? '-'}<span className="text-xs text-slate-400"> / {max}</span>
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
           </div>
         </section>
       )}

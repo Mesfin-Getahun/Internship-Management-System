@@ -5,6 +5,7 @@ import { FontAwesome } from "@expo/vector-icons";
 import InputField from "../components/ui/InputField";
 import Button from "../components/ui/Button";
 import { login } from "../services/authService";
+import { getApiBaseUrl } from "../services/apiClient";
 
 export default function LoginScreen() {
   const router = useRouter();
@@ -112,6 +113,7 @@ export default function LoginScreen() {
             <View className="mt-6 rounded-2xl bg-slate-50 px-4 py-4">
               <Text className="text-xs font-semibold uppercase tracking-[1.4px] text-slate-400">Backend Login</Text>
               <Text className="mt-2 text-sm font-semibold text-slate-700">Use your student ID or email</Text>
+              <Text className="mt-1 text-xs font-semibold text-slate-400">{getApiBaseUrl()}</Text>
               <Text className="mt-1 text-sm text-slate-500">
                 If this is your first login, the app will send you to change your password before opening the
                 dashboard.

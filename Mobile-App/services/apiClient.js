@@ -84,10 +84,10 @@ export async function apiRequest(
     });
   } catch (error) {
     if (error.name === "AbortError") {
-      throw new Error("Request timed out. Please check your connection and backend server.");
+      throw new Error(`Request timed out while connecting to ${API_BASE_URL}. Check that your phone and backend are on the same network.`);
     }
 
-    throw new Error("Network request failed. Please confirm your phone can reach the backend server.");
+    throw new Error(`Network request failed for ${API_BASE_URL}. Please confirm your phone can reach the backend server.`);
   } finally {
     clearTimeout(timeoutId);
   }

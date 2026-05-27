@@ -5,6 +5,8 @@ import createLog from "../utils/createLog.js";
 import { createNotification } from "../utils/notificationService.js";
 import { ensureMentorFeedbackAttachmentColumns } from "../utils/mentorFeedbackSchema.js";
 import { ensureInternshipEvaluationMentorColumns } from "../utils/internshipEvaluationSchema.js";
+import { ensureInternshipGradeColumns } from "../utils/internshipGradeSchema.js";
+import { ensureEvaluatorTables } from "../utils/evaluatorSchema.js";
 import { ensureCompanyRatingTables } from "../utils/companyRatingSchema.js";
 import {
   APPLICATION_STATUS,
@@ -813,6 +815,45 @@ const serializeList = (value) => {
   return value ?? null;
 };
 
+const parseProfileList = (value) => {
+  if (Array.isArray(value)) return value.filter(Boolean);
+  if (!value) return [];
+
+  if (typeof value === "string") {
+    try {
+      const parsed = JSON.parse(value);
+      if (Array.isArray(parsed)) return parsed.filter(Boolean);
+    } catch {
+      // Fall back to comma-separated values.
+    }
+
+    return value
+      .split(",")
+      .map((item) => item.trim())
+      .filter(Boolean);
+  }
+
+  return [];
+};
+
+const getComputedProfileStatus = (student) => {
+  const requiredValues = [
+    student.full_name,
+    student.email,
+    student.phone_number,
+    student.department,
+  ];
+
+  const hasRequiredText = requiredValues.every(
+    (value) => String(value || "").trim().length > 0,
+  );
+  const hasSkills =
+    parseProfileList(student.technical_skills || student.skills).length > 0 ||
+    parseProfileList(student.soft_skills).length > 0;
+
+  return hasRequiredText && hasSkills ? "complete" : "incomplete";
+};
+
 const updateProfile = async (req, res) => {
   try {
     const student_id = req.user.student_id; // from auth middleware
@@ -854,6 +895,17 @@ const updateProfile = async (req, res) => {
       hashedPassword = await bcrypt.hash(password, 10);
     }
 
+    const nextProfile = {
+      ...existing[0],
+      full_name: full_name || existing[0].full_name,
+      email: email || existing[0].email,
+      phone_number: phone_number || existing[0].phone_number,
+      skills: skills ?? existing[0].skills,
+      technical_skills: technical_skills ?? existing[0].technical_skills,
+      soft_skills: soft_skills ?? existing[0].soft_skills,
+    };
+    const profileStatus = getComputedProfileStatus(nextProfile);
+
     const query = `
       UPDATE student
       SET
@@ -868,7 +920,8 @@ const updateProfile = async (req, res) => {
         linkedin = ?,
         github = ?,
         portfolio = ?,
-        password = ?
+        password = ?,
+        profile_status = ?
       WHERE student_id = ?
     `;
 
@@ -885,6 +938,7 @@ const updateProfile = async (req, res) => {
       github ?? existing[0].github,
       portfolio ?? existing[0].portfolio,
       hashedPassword,
+      profileStatus,
       student_id,
     ]);
 
@@ -933,6 +987,8 @@ const updateProfile = async (req, res) => {
 
 const getStudentReports = async (req, res) => {
   try {
+    await ensureInternshipGradeColumns(db);
+
     const student_id = req.user.student_id;
 
     const [reports] = await db.query(
@@ -948,6 +1004,8 @@ const getStudentReports = async (req, res) => {
         r.faculty_submitted_at,
         r.signed_at,
         r.mentor_id,
+        r.mentor_report_mark,
+        r.mentor_report_graded_at,
         i.title AS internship_title,
         c.company_name
       FROM internship_report r
@@ -975,6 +1033,8 @@ const getStudentReports = async (req, res) => {
 const getStudentEvaluations = async (req, res) => {
   try {
     await ensureInternshipEvaluationMentorColumns();
+    await ensureInternshipGradeColumns(db);
+    await ensureEvaluatorTables(db);
 
     const student_id = req.user.student_id;
 
@@ -989,11 +1049,23 @@ const getStudentEvaluations = async (req, res) => {
         ie.assessment_pdf_url,
         ie.attendance_pdf_url,
         ie.total_mark,
+        ie.faculty_attendance_mark,
+        ie.faculty_attendance_graded_at,
         ie.submitted_at,
         ie.submitted_at AS created_at,
         i.title AS internship_title,
         c.company_name,
-        cm.full_name AS company_mentor_name
+        cm.full_name AS company_mentor_name,
+        r.mentor_report_mark,
+        r.mentor_report_graded_at,
+        pg.final_presentation_mark,
+        pg.presentation_status,
+        (
+          COALESCE(ie.total_mark, 0) +
+          COALESCE(ie.faculty_attendance_mark, 0) +
+          COALESCE(r.mentor_report_mark, 0) +
+          COALESCE(pg.final_presentation_mark, 0)
+        ) AS known_total_mark
       FROM internship_evaluation ie
       LEFT JOIN internship i
         ON ie.internship_id = i.internship_id
@@ -1001,6 +1073,27 @@ const getStudentEvaluations = async (req, res) => {
         ON i.company_id = c.company_id
       LEFT JOIN company_mentor cm
         ON ie.company_mentor_id = cm.company_mentor_id
+      LEFT JOIN internship_report r
+        ON r.student_id = ie.student_id
+       AND r.internship_id = ie.internship_id
+      LEFT JOIN (
+        SELECT
+          student_id,
+          internship_id,
+          CASE
+            WHEN COUNT(*) >= 2 AND COUNT(DISTINCT mark) = 1 THEN MAX(mark)
+            ELSE NULL
+          END AS final_presentation_mark,
+          CASE
+            WHEN COUNT(*) >= 2 AND COUNT(DISTINCT mark) = 1 THEN 'agreed'
+            WHEN COUNT(*) >= 2 THEN 'disputed'
+            ELSE 'pending'
+          END AS presentation_status
+        FROM presentation_grade
+        GROUP BY student_id, internship_id
+      ) pg
+        ON pg.student_id = ie.student_id
+       AND pg.internship_id = ie.internship_id
       WHERE ie.student_id = ?
       ORDER BY ie.submitted_at DESC, ie.evaluation_id DESC
       `,

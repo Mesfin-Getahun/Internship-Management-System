@@ -4,6 +4,8 @@ import { useAuth } from '../../../AuthContext';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faSearch, faTimes, faStar, faBuilding, faFileAlt, faSpinner, faCommentSlash, faPaperclip } from '@fortawesome/free-solid-svg-icons';
 import { getDepartmentOptions, matchesDepartment } from '../../../utils/departmentFilters';
+import { ToastContainer, toast } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 
 const EvaluationModal = ({ evaluation, onClose }) => {
   if (!evaluation) return null;
@@ -54,6 +56,23 @@ const EvaluationModal = ({ evaluation, onClose }) => {
                {renderStars(rating)}
                <span className="font-bold text-slate-700 dark:text-slate-300">({rating}.0 / 5.0)</span>
             </div>
+          </div>
+
+          <div className="grid gap-4 md:grid-cols-4">
+            {[
+              ['Company', evaluation.total_mark, 40],
+              ['Attendance', evaluation.faculty_attendance_mark, 10],
+              ['Report', evaluation.mentor_report_mark, 20],
+              ['Presentation', evaluation.final_presentation_mark, 30],
+              ['Known Total', evaluation.known_total_mark, 100],
+            ].map(([label, value, max]) => (
+              <div key={label} className="rounded-2xl border border-slate-100 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-800/50">
+                <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">{label}</p>
+                <p className="mt-2 text-xl font-black text-slate-800 dark:text-white">
+                  {value ?? '-'}<span className="text-xs text-slate-400"> / {max}</span>
+                </p>
+              </div>
+            ))}
           </div>
 
           <div>
@@ -113,6 +132,8 @@ const FacultyOrgEvaluations = () => {
   const [loading, setLoading] = useState(true);
   const [detailLoading, setDetailLoading] = useState(false);
   const [detailLoadingId, setDetailLoadingId] = useState(null);
+  const [gradeForms, setGradeForms] = useState({});
+  const [savingGradeId, setSavingGradeId] = useState(null);
   const { user } = useAuth();
 
   useEffect(() => {
@@ -128,6 +149,12 @@ const FacultyOrgEvaluations = () => {
         ]);
         const data = evaluationsRes.data.evaluations || evaluationsRes.data || [];
         setEvaluations(data);
+        setGradeForms(Object.fromEntries(
+          data.map((evaluation) => [
+            String(evaluation.evaluation_id),
+            evaluation.faculty_attendance_mark ?? '',
+          ])
+        ));
         setStudents(Array.isArray(studentsRes.data?.students) ? studentsRes.data.students : []);
       } catch (err) {
          console.error(err);
@@ -192,8 +219,51 @@ const FacultyOrgEvaluations = () => {
     }
   };
 
+  const handleAttendanceGradeChange = (evaluationId, value) => {
+    setGradeForms((prev) => ({
+      ...prev,
+      [String(evaluationId)]: value,
+    }));
+  };
+
+  const saveAttendanceGrade = async (evaluation) => {
+    const evaluationId = evaluation.evaluation_id;
+    const attendanceMark = Number(gradeForms[String(evaluationId)]);
+
+    if (!Number.isFinite(attendanceMark) || attendanceMark < 0 || attendanceMark > 10) {
+      toast.warn('Attendance grade must be from 0 to 10.');
+      return;
+    }
+
+    try {
+      setSavingGradeId(evaluationId);
+      const res = await axios.put(
+        `${import.meta.env.VITE_BACKEND_URL}/api/faculty/companyEvaluation/${encodeURIComponent(evaluationId)}/attendance-grade`,
+        { attendance_mark: attendanceMark },
+        { headers: { Authorization: `Bearer ${user?.token}` } }
+      );
+
+      setEvaluations((prev) => prev.map((item) => (
+        String(item.evaluation_id) === String(evaluationId)
+          ? {
+              ...item,
+              faculty_attendance_mark: res.data?.attendance_mark ?? attendanceMark,
+              known_total_mark: res.data?.known_total_mark ?? item.known_total_mark,
+            }
+          : item
+      )));
+      toast.success(res.data?.message || 'Attendance grade saved.');
+    } catch (err) {
+      console.error(err);
+      toast.error(err.response?.data?.message || 'Failed to save attendance grade.');
+    } finally {
+      setSavingGradeId(null);
+    }
+  };
+
   return (
     <div className="animate-fade-in space-y-8 pb-12">
+      <ToastContainer theme="colored" position="top-right" autoClose={3000} hideProgressBar />
       <EvaluationModal evaluation={selectedEvaluation} onClose={() => setSelectedEvaluation(null)} />
       
       <header>
@@ -243,7 +313,9 @@ const FacultyOrgEvaluations = () => {
                   <th className="p-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Organization</th>
                   <th className="p-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Internship</th>
                   <th className="p-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Rating</th>
+                  <th className="p-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Total Grade</th>
                   <th className="p-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Files</th>
+                  <th className="p-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Attendance Grade</th>
                   <th className="p-4 text-[10px] font-black uppercase tracking-widest text-slate-400 text-right">Action</th>
                 </tr>
               </thead>
@@ -277,6 +349,23 @@ const FacultyOrgEvaluations = () => {
                         </div>
                       </td>
                       <td className="p-4">
+                        <div className="rounded-xl border border-slate-100 bg-slate-50 px-4 py-3 dark:border-slate-700 dark:bg-slate-800">
+                          <p className="text-lg font-black text-slate-800 dark:text-white">
+                            {e.known_total_mark ?? 0}
+                            <span className="text-xs text-slate-400"> / 100</span>
+                          </p>
+                          <p className={`mt-1 text-[10px] font-black uppercase tracking-widest ${
+                            e.presentation_status === 'disputed'
+                              ? 'text-rose-500'
+                              : e.presentation_status === 'agreed'
+                                ? 'text-emerald-500'
+                                : 'text-amber-500'
+                          }`}>
+                            Presentation: {e.presentation_status || 'pending'}
+                          </p>
+                        </div>
+                      </td>
+                      <td className="p-4">
                         <div className="flex gap-2">
                           <a
                             href={e.assessment_pdf_url || '#'}
@@ -302,6 +391,29 @@ const FacultyOrgEvaluations = () => {
                           >
                             Attendance
                           </a>
+                        </div>
+                      </td>
+                      <td className="p-4">
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="number"
+                            min="0"
+                            max="10"
+                            step="0.01"
+                            value={gradeForms[String(e.evaluation_id)] ?? ''}
+                            onChange={(event) => handleAttendanceGradeChange(e.evaluation_id, event.target.value)}
+                            className="w-20 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+                            placeholder="0"
+                          />
+                          <span className="text-xs font-bold text-slate-400">/10</span>
+                          <button
+                            type="button"
+                            onClick={() => saveAttendanceGrade(e)}
+                            disabled={savingGradeId === e.evaluation_id}
+                            className="rounded-lg bg-emerald-600 px-3 py-2 text-[10px] font-black uppercase tracking-widest text-white transition-all hover:bg-emerald-700 disabled:opacity-60"
+                          >
+                            {savingGradeId === e.evaluation_id ? 'Saving' : 'Save'}
+                          </button>
                         </div>
                       </td>
                       <td className="p-4 text-right">

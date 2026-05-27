@@ -4,6 +4,7 @@ import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import ACCOUNT_ROLE_CONFIG from "../utils/accountRoleConfig.js";
 import { ensureMustChangePasswordColumn } from "../utils/passwordReset.js";
+import { ensureEvaluatorTables } from "../utils/evaluatorSchema.js";
 
 const router = express.Router();
 
@@ -222,6 +223,10 @@ router.post("/", async (req, res) => {
       result = await tryLoginByRole("uil");
     if (!result && identifier)
       result = await tryLoginByRole("company_mentor");
+    if (!result && identifier) {
+      await ensureEvaluatorTables(db);
+      result = await tryLoginByRole("evaluator");
+    }
 
     if (!result) {
       result = await tryCompanyLogin();

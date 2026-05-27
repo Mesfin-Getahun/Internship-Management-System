@@ -3,6 +3,10 @@ import db from "../config/mysql.js";
 import { createNotification } from "../utils/notificationService.js";
 import { ensureMentorFeedbackAttachmentColumns } from "../utils/mentorFeedbackSchema.js";
 import { REPORT_STATUS } from "../utils/statusRules.js";
+import {
+  ensureInternshipGradeColumns,
+  normalizeMark,
+} from "../utils/internshipGradeSchema.js";
 
 const fetchStudents = async (req, res) => {
   const mentorId = req.user.mentor_id;
@@ -118,6 +122,8 @@ const getMentorProfile = async (req, res) => {
 const reviewReport = async (req, res) => {
   const mentor_id = req.user.mentor_id;
   try {
+    await ensureInternshipGradeColumns(db);
+
     const [reports] = await db.query(
       `
       SELECT
@@ -129,6 +135,8 @@ const reviewReport = async (req, res) => {
         ir.submission_date,
         ir.signed_at,
         ir.faculty_submitted_at,
+        ir.mentor_report_mark,
+        ir.mentor_report_graded_at,
         ir.internship_id,
         s.student_id,
         s.full_name AS student_name
@@ -245,6 +253,94 @@ const mentorSignReport = async (req, res) => {
     res.status(500).json({
       success: false,
       message: "Failed to upload signed report",
+    });
+  }
+};
+
+const gradeReport = async (req, res) => {
+  try {
+    await ensureInternshipGradeColumns(db);
+
+    const mentor_id = req.user.mentor_id;
+    const { report_id } = req.params;
+    const reportMark = normalizeMark(req.body?.report_mark, 20);
+
+    if (!report_id) {
+      return res.status(400).json({
+        success: false,
+        message: "Report ID is required",
+      });
+    }
+
+    if (reportMark === null) {
+      return res.status(400).json({
+        success: false,
+        message: "Report mark must be a number from 0 to 20",
+      });
+    }
+
+    const [[report]] = await db.query(
+      `
+      SELECT
+        ir.report_id,
+        ir.student_id,
+        ir.mentor_signed_url,
+        ir.signed_at,
+        ir.status
+      FROM internship_report ir
+      JOIN student s
+        ON ir.student_id = s.student_id
+      WHERE ir.report_id = ?
+        AND s.assigned_mentor = ?
+      LIMIT 1
+      `,
+      [report_id, mentor_id],
+    );
+
+    if (!report) {
+      return res.status(404).json({
+        success: false,
+        message: "Report not found or access denied",
+      });
+    }
+
+    if (!report.mentor_signed_url && !report.signed_at && report.status !== REPORT_STATUS.SIGNED) {
+      return res.status(400).json({
+        success: false,
+        message: "Upload the signed report before grading it",
+      });
+    }
+
+    await db.query(
+      `
+      UPDATE internship_report
+      SET mentor_report_mark = ?,
+          mentor_report_graded_at = NOW(),
+          mentor_id = ?
+      WHERE report_id = ?
+      `,
+      [reportMark, mentor_id, report_id],
+    );
+
+    await createNotification({
+      recipientRole: "student",
+      recipientId: report.student_id,
+      title: "Report grade submitted",
+      message: `Your faculty mentor graded your internship report: ${reportMark}/20.`,
+      type: "report",
+      link: "/student/reports",
+    });
+
+    res.status(200).json({
+      success: true,
+      message: "Report grade saved successfully",
+      report_mark: reportMark,
+    });
+  } catch (error) {
+    console.error("Grade report error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to save report grade",
     });
   }
 };
@@ -562,6 +658,7 @@ export {
   provideFeedback,
   reviewReport,
   mentorSignReport,
+  gradeReport,
   companyMentorFeedback,
   getSingleFeedback,
 };

@@ -242,6 +242,11 @@ const InternshipReport = () => {
                         Status: {getReportStatusLabel(report)} - {report.created_at ? new Date(report.created_at).toLocaleDateString() : "Recent"}
                       </p>
                       <p className="text-xs text-slate-500 mt-1">{report.company_name || "Host organization"}</p>
+                      {report.mentor_report_mark !== null && report.mentor_report_mark !== undefined && (
+                        <p className="mt-2 text-xs font-black uppercase tracking-widest text-teal-600">
+                          Report Grade: {report.mentor_report_mark} / 20
+                        </p>
+                      )}
                     </div>
 
                     <div className="flex flex-wrap gap-2">

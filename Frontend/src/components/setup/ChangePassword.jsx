@@ -54,6 +54,8 @@ const ChangePassword = () => {
         return getAnyAvailableId('UIL_id', 'uil_id', 'id');
       case 'org_supervisor':
         return getAnyAvailableId('company_mentor_id', 'id');
+      case 'evaluator':
+        return getAnyAvailableId('evaluator_id', 'id');
       default:
         return getAnyAvailableId(
           'student_id',
@@ -64,6 +66,7 @@ const ChangePassword = () => {
           'UIL_id',
           'uil_id',
           'company_mentor_id',
+          'evaluator_id',
           'id'
         );
     }
@@ -81,6 +84,7 @@ const ChangePassword = () => {
       case 'organization': return '/organization';
       case 'uil': return '/uil';
       case 'org_supervisor': return '/org-supervisor';
+      case 'evaluator': return '/evaluator';
       default: return '/login';
     }
   };

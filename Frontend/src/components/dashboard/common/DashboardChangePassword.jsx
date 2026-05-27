@@ -13,6 +13,7 @@ const roleDescriptions = {
   organization: "Update your organization account password.",
   uil: "Update your UIL account password.",
   org_supervisor: "Update your company mentor account password.",
+  evaluator: "Update your presentation evaluator account password.",
 };
 
 const getBackendRole = (role) => {
@@ -21,6 +22,8 @@ const getBackendRole = (role) => {
       return "company";
     case "org_supervisor":
       return "company_mentor";
+    case "evaluator":
+      return "evaluator";
     case "uil":
       return "UIL";
     default:
@@ -54,6 +57,8 @@ const getUserId = (user) => {
       return getAnyAvailableId(user, "UIL_id", "uil_id", "id");
     case "org_supervisor":
       return getAnyAvailableId(user, "company_mentor_id", "id");
+    case "evaluator":
+      return getAnyAvailableId(user, "evaluator_id", "id");
     default:
       return getAnyAvailableId(
         user,
@@ -65,6 +70,7 @@ const getUserId = (user) => {
         "UIL_id",
         "uil_id",
         "company_mentor_id",
+        "evaluator_id",
         "id",
       );
   }

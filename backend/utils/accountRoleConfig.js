@@ -29,6 +29,11 @@ const ACCOUNT_ROLE_CONFIG = Object.freeze({
     idColumn: "company_mentor_id",
     normalizedRole: "company_mentor",
   },
+  evaluator: {
+    table: "evaluator",
+    idColumn: "evaluator_id",
+    normalizedRole: "evaluator",
+  },
   company: {
     table: "company",
     idColumn: "company_id",

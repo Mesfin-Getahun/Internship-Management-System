@@ -4,6 +4,7 @@ import {
   changeMentor,
   companyEvaluation,
   deleteMentor,
+  gradeAttendance,
   getStudents,
   getMentors,
   getPaymentData,
@@ -14,6 +15,11 @@ import {
   updateInternshipCompletionStatus,
   uploadStudents,
 } from "../controller/facultyController.js";
+import {
+  assignPresentationEvaluators,
+  createEvaluator,
+  listFacultyEvaluators,
+} from "../controller/evaluatorController.js";
 import { authFaculty } from "../middleware/auth.js";
 import { spreadsheetUpload } from "../middleware/fileUploadLimits.js";
 import { uploadLimiter } from "../middleware/security.js";
@@ -67,6 +73,11 @@ facultyRoute.post("/assignMentor", authFaculty, assignMentor);
  *         description: List of company evaluations fetched successfully
  */
 facultyRoute.get("/companyEvaluation", authFaculty, companyEvaluation);
+facultyRoute.put(
+  "/companyEvaluation/:evaluation_id/attendance-grade",
+  authFaculty,
+  gradeAttendance,
+);
 
 /**
  * @swagger
@@ -95,6 +106,13 @@ facultyRoute.get("/students", authFaculty, getStudents);
  *         description: Faculty mentor list returned successfully
  */
 facultyRoute.get("/mentors", authFaculty, getMentors);
+facultyRoute.get("/evaluators", authFaculty, listFacultyEvaluators);
+facultyRoute.post("/evaluators", authFaculty, createEvaluator);
+facultyRoute.post(
+  "/presentation-evaluators/assign",
+  authFaculty,
+  assignPresentationEvaluators,
+);
 
 /**
  * @swagger

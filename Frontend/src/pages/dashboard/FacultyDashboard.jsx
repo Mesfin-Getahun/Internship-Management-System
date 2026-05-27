@@ -11,6 +11,7 @@ import FacultyOrgEvaluations from '../../components/dashboard/faculty/FacultyOrg
 import FacultyMonitorProgress from '../../components/dashboard/faculty/FacultyMonitorProgress';
 import FacultyStipendManagement from '../../components/dashboard/faculty/FacultyStipendManagementLive.jsx';
 import FacultyProfile from '../../components/dashboard/faculty/FacultyProfileLive.jsx';
+import FacultyPresentationEvaluators from '../../components/dashboard/faculty/FacultyPresentationEvaluators.jsx';
 import DashboardChangePassword from '../../components/dashboard/common/DashboardChangePassword.jsx';
 
 const FacultyDashboard = () => {
@@ -37,6 +38,7 @@ const FacultyDashboard = () => {
             <Route path="assign-mentors" element={<FacultyAssignMentors />} />
             <Route path="monitor-progress" element={<FacultyMonitorProgress />} />
             <Route path="org-evaluations" element={<FacultyOrgEvaluations />} />
+            <Route path="presentation-evaluators" element={<FacultyPresentationEvaluators />} />
             <Route path="reports" element={<FacultyReports />} />
             <Route path="stipend-management" element={<FacultyStipendManagement />} />
             <Route path="profile" element={<FacultyProfile />} />

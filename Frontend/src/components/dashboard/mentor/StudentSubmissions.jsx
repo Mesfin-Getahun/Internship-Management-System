@@ -21,6 +21,8 @@ const StudentSubmissions = () => {
   const [reportsDb, setReportsDb] = useState([]);
   const [loading, setLoading] = useState(true);
   const [uploadingReportId, setUploadingReportId] = useState(null);
+  const [gradeForms, setGradeForms] = useState({});
+  const [gradingReportId, setGradingReportId] = useState(null);
 
   const fetchReports = async () => {
     try {
@@ -28,7 +30,14 @@ const StudentSubmissions = () => {
       const res = await axios.get(`${import.meta.env.VITE_BACKEND_URL}/api/mentor/reports`, {
         headers: { Authorization: `Bearer ${user?.token}` },
       });
-      setReportsDb(Array.isArray(res.data?.reports) ? res.data.reports : []);
+      const reports = Array.isArray(res.data?.reports) ? res.data.reports : [];
+      setReportsDb(reports);
+      setGradeForms(Object.fromEntries(
+        reports.map((report) => [
+          String(report.report_id),
+          report.mentor_report_mark ?? '',
+        ])
+      ));
     } catch (err) {
       console.error(err);
       toast.error(err.response?.data?.message || 'Failed to load student reports.');
@@ -143,6 +152,47 @@ const StudentSubmissions = () => {
     }
   };
 
+  const handleGradeChange = (reportId, value) => {
+    setGradeForms((prev) => ({
+      ...prev,
+      [String(reportId)]: value,
+    }));
+  };
+
+  const saveReportGrade = async (report) => {
+    const reportId = report.report_id;
+    const reportMark = Number(gradeForms[String(reportId)]);
+
+    if (!Number.isFinite(reportMark) || reportMark < 0 || reportMark > 20) {
+      toast.warn('Report grade must be from 0 to 20.');
+      return;
+    }
+
+    try {
+      setGradingReportId(reportId);
+      const res = await axios.put(
+        `${import.meta.env.VITE_BACKEND_URL}/api/mentor/reports/${encodeURIComponent(reportId)}/grade`,
+        { report_mark: reportMark },
+        { headers: { Authorization: `Bearer ${user?.token}` } }
+      );
+
+      setReportsDb((prev) => prev.map((item) => (
+        String(item.report_id) === String(reportId)
+          ? {
+              ...item,
+              mentor_report_mark: res.data?.report_mark ?? reportMark,
+            }
+          : item
+      )));
+      toast.success(res.data?.message || 'Report grade saved.');
+    } catch (err) {
+      console.error(err);
+      toast.error(err.response?.data?.message || 'Failed to save report grade.');
+    } finally {
+      setGradingReportId(null);
+    }
+  };
+
   return (
     <div className="animate-fade-in space-y-8 pb-12">
       <ToastContainer theme="colored" position="top-right" autoClose={3000} hideProgressBar />
@@ -224,6 +274,7 @@ const StudentSubmissions = () => {
                   <th className="p-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Student</th>
                   <th className="p-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Submitted</th>
                   <th className="p-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Status</th>
+                  <th className="p-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Report Grade</th>
                   <th className="p-4 text-[10px] font-black uppercase tracking-widest text-slate-400 text-right">Actions</th>
                 </tr>
               </thead>
@@ -231,7 +282,7 @@ const StudentSubmissions = () => {
                 {submissions.map((report) => {
                   const isSigned = ['signed', 'approved'].includes(
                     (report.status || '').toLowerCase()
-                  ) || Boolean(report.faculty_submitted_at) || (report.status || '').toLowerCase() === 'faculty_submitted';
+                  ) || Boolean(report.mentor_signed_url) || Boolean(report.faculty_submitted_at) || (report.status || '').toLowerCase() === 'faculty_submitted';
 
                   return (
                     <tr
@@ -264,6 +315,30 @@ const StudentSubmissions = () => {
                         >
                           {isSigned ? 'Signed' : report.status || 'Submitted'}
                         </span>
+                      </td>
+                      <td className="p-4">
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="number"
+                            min="0"
+                            max="20"
+                            step="0.01"
+                            value={gradeForms[String(report.report_id)] ?? ''}
+                            onChange={(event) => handleGradeChange(report.report_id, event.target.value)}
+                            disabled={!isSigned}
+                            className="w-20 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-teal-500 disabled:opacity-50 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+                            placeholder="0"
+                          />
+                          <span className="text-xs font-bold text-slate-400">/20</span>
+                          <button
+                            type="button"
+                            onClick={() => saveReportGrade(report)}
+                            disabled={!isSigned || gradingReportId === report.report_id}
+                            className="rounded-lg bg-teal-600 px-3 py-2 text-[10px] font-black uppercase tracking-widest text-white transition-all hover:bg-teal-700 disabled:opacity-60"
+                          >
+                            {gradingReportId === report.report_id ? 'Saving' : 'Save'}
+                          </button>
+                        </div>
                       </td>
                       <td className="p-4">
                         <div className="flex flex-wrap justify-end gap-2">

@@ -417,6 +417,53 @@ const authCompanyMentor = async (req, res, next) => {
   }
 };
 
+const authEvaluator = async (req, res, next) => {
+  try {
+    const authHeader = req.headers.authorization;
+
+    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+      return res
+        .status(401)
+        .json({ success: false, message: "No token, authorization denied" });
+    }
+
+    const token = authHeader.split(" ")[1];
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+
+    if (!hasExpectedRole(decoded, "evaluator")) {
+      return res
+        .status(403)
+        .json({ success: false, message: "Evaluator access required" });
+    }
+
+    const [rows] = await db.query(
+      "SELECT * FROM evaluator WHERE evaluator_id = ?",
+      [decoded.id],
+    );
+
+    const user = rows[0];
+    if (user) {
+      delete user.password;
+    }
+
+    if (!user) {
+      return res
+        .status(404)
+        .json({ success: false, message: "User not found" });
+    }
+    if (isInactiveAccount(user)) {
+      return rejectInactiveAccount(res);
+    }
+    req.user = user;
+    next();
+  } catch (error) {
+    console.error("Auth error:", error.message);
+    return res
+      .status(401)
+      .json({ success: false, message: "Invalid token or session expired" });
+  }
+};
+
 export {
   authStudent,
   authAdmin,
@@ -425,4 +472,5 @@ export {
   authUIL,
   authFaculty,
   authCompanyMentor,
+  authEvaluator,
 };

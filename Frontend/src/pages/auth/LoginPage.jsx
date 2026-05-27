@@ -48,6 +48,8 @@ const LoginPage = () => {
         return "/uil";
       case "org_supervisor":
         return "/org-supervisor";
+      case "evaluator":
+        return "/evaluator";
       default:
         return "/login";
     }
