@@ -25,6 +25,7 @@ import {
   MENTOR_STUDENT_LIMIT,
   isFutureDateOnly,
   parseDateOnly,
+  validateMinimumInternshipDuration,
   validateAttendanceRecordsForInternship,
 } from "../utils/internshipRules.js";
 
@@ -128,6 +129,21 @@ const postInternship = async (req, res) => {
       return res.status(400).json({
         success: false,
         message: "End date cannot be before start date",
+      });
+    }
+
+    const durationValidation = validateMinimumInternshipDuration({
+      department,
+      startDate: start_date,
+      endDate: end_date,
+    });
+
+    if (!durationValidation.valid) {
+      return res.status(400).json({
+        success: false,
+        message: durationValidation.message,
+        required_minimum_months: durationValidation.requiredMonths,
+        duration_months: durationValidation.durationMonths,
       });
     }
 
@@ -307,6 +323,22 @@ const updateInternship = async (req, res) => {
       });
     }
 
+    const nextDepartment = department || existing[0].department;
+    const durationValidation = validateMinimumInternshipDuration({
+      department: nextDepartment,
+      startDate: nextStartDate,
+      endDate: nextEndDate,
+    });
+
+    if (!durationValidation.valid) {
+      return res.status(400).json({
+        success: false,
+        message: durationValidation.message,
+        required_minimum_months: durationValidation.requiredMonths,
+        duration_months: durationValidation.durationMonths,
+      });
+    }
+
     // Update internship
     const query = `
       UPDATE internship
@@ -321,7 +353,7 @@ const updateInternship = async (req, res) => {
       nextStartDate,
       nextEndDate,
       requirements || skills || skill || existing[0].skills,
-      department || existing[0].department,
+      nextDepartment,
       location || existing[0].location,
       internship_id,
     ]);

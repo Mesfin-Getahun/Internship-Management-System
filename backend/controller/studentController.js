@@ -14,6 +14,11 @@ import {
   REPORT_STATUS,
   isPendingApplication,
 } from "../utils/statusRules.js";
+import {
+  durationMonthsForInternship,
+  normalizeDepartment,
+  requiredInternshipMonths,
+} from "../utils/internshipRules.js";
 
 function isMissingTableError(error, tableName) {
   return (
@@ -65,23 +70,6 @@ const getPaymentTableInfo = async () => {
   };
 };
 
-const TWO_MONTH_DEPARTMENTS = new Set([
-  "computer science",
-  "information technology",
-  "information system",
-  "information systems",
-  "cyber security",
-  "cybersecurity",
-  "it education",
-  "information technology education",
-]);
-
-const normalizeDepartment = (department = "") =>
-  String(department).trim().toLowerCase().replace(/\s+/g, " ");
-
-const requiredInternshipMonths = (department) =>
-  TWO_MONTH_DEPARTMENTS.has(normalizeDepartment(department)) ? 2 : 4;
-
 const splitTerms = (value) => {
   if (!value) return [];
 
@@ -113,22 +101,43 @@ const splitTerms = (value) => {
 
 const uniqueTerms = (terms) => Array.from(new Set(terms.filter(Boolean)));
 
+const SOFTWARE_RELATED_DEPARTMENTS = new Set([
+  "computer science",
+  "information technology",
+  "information system",
+  "information systems",
+  "cyber security",
+  "cybersecurity",
+  "it education",
+  "information technology education",
+  "software engineering",
+  "software engineer",
+  "software development",
+]);
+
+const SOFTWARE_PROFILE_TERMS = [
+  "software",
+  "web",
+  "developer",
+  "development",
+  "programming",
+  "database",
+  "network",
+  "cyber",
+  "technology",
+  "system",
+];
+
 const departmentProfileTerms = (department) => {
   const normalized = normalizeDepartment(department);
+  const departmentTerms = splitTerms(department);
+  const departmentsToCheck = departmentTerms.length > 0 ? departmentTerms : [normalized];
 
-  if (TWO_MONTH_DEPARTMENTS.has(normalized)) {
-    return [
-      "software",
-      "web",
-      "developer",
-      "development",
-      "programming",
-      "database",
-      "network",
-      "cyber",
-      "technology",
-      "system",
-    ];
+  if (
+    requiredInternshipMonths(normalized) === 2 ||
+    departmentsToCheck.some((item) => SOFTWARE_RELATED_DEPARTMENTS.has(item))
+  ) {
+    return SOFTWARE_PROFILE_TERMS;
   }
 
   return [];
@@ -148,9 +157,12 @@ const getStudentProfileTerms = (student = {}) =>
 const internshipMatchesStudentProfile = (internship = {}, student = {}) => {
   const studentDepartment = normalizeDepartment(student.department);
   const internshipDepartment = normalizeDepartment(internship.department);
+  const internshipDepartmentTerms = splitTerms(internship.department);
   const profileTerms = getStudentProfileTerms(student);
   const internshipTerms = uniqueTerms([
     internshipDepartment,
+    ...internshipDepartmentTerms,
+    ...departmentProfileTerms(internship.department),
     ...splitTerms(internship.skills),
     ...splitTerms(internship.requirements),
     ...splitTerms(internship.title),
@@ -159,9 +171,16 @@ const internshipMatchesStudentProfile = (internship = {}, student = {}) => {
 
   const targetDepartmentMatched =
     Boolean(studentDepartment && internshipDepartment) &&
-    (studentDepartment === internshipDepartment ||
-      studentDepartment.includes(internshipDepartment) ||
-      internshipDepartment.includes(studentDepartment));
+    (internshipDepartmentTerms.length > 0
+      ? internshipDepartmentTerms.some(
+          (targetDepartment) =>
+            studentDepartment === targetDepartment ||
+            studentDepartment.includes(targetDepartment) ||
+            targetDepartment.includes(studentDepartment),
+        )
+      : studentDepartment === internshipDepartment ||
+        studentDepartment.includes(internshipDepartment) ||
+        internshipDepartment.includes(studentDepartment));
 
   const matchedSkills = profileTerms.filter((term) =>
     internshipTerms.some(
@@ -185,28 +204,6 @@ const internshipMatchesStudentProfile = (internship = {}, student = {}) => {
       matchedSkills.length * 2 +
       (isGeneralPost ? 1 : 0),
   };
-};
-
-const durationMonthsFromDates = (startDate, endDate) => {
-  if (!startDate || !endDate) return null;
-
-  const start = new Date(startDate);
-  const end = new Date(endDate);
-
-  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) || end < start) {
-    return null;
-  }
-
-  const days = Math.floor((end - start) / (1000 * 60 * 60 * 24)) + 1;
-  return Math.round((days / 30) * 10) / 10;
-};
-
-const durationMonthsForInternship = (internship) => {
-  const dateDuration = durationMonthsFromDates(internship.start_date, internship.end_date);
-  if (dateDuration !== null) return dateDuration;
-
-  const parsedDuration = Number.parseFloat(internship.duration);
-  return Number.isFinite(parsedDuration) ? parsedDuration : null;
 };
 
 const withDurationEligibility = (internship, department) => {

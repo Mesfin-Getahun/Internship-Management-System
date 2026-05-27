@@ -39,6 +39,85 @@ const isFutureDateOnly = (value) => {
   return Boolean(date && date > getTodayDateOnly());
 };
 
+const TWO_MONTH_DEPARTMENTS = new Set([
+  "computer science",
+  "information technology",
+  "information system",
+  "information systems",
+  "cyber security",
+  "cybersecurity",
+  "it education",
+  "information technology education",
+]);
+
+const normalizeDepartment = (department = "") =>
+  String(department).trim().toLowerCase().replace(/\s+/g, " ");
+
+const splitDepartmentTerms = (department = "") =>
+  String(department || "")
+    .split(/[,;|/]+/)
+    .map((term) => normalizeDepartment(term))
+    .filter(Boolean);
+
+const requiredInternshipMonths = (department) => {
+  const departments = splitDepartmentTerms(department);
+
+  if (departments.length === 0) return 4;
+
+  return departments.every((item) => TWO_MONTH_DEPARTMENTS.has(item)) ? 2 : 4;
+};
+
+const durationMonthsFromDates = (startDate, endDate) => {
+  if (!startDate || !endDate) return null;
+
+  const start = new Date(startDate);
+  const end = new Date(endDate);
+
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) || end < start) {
+    return null;
+  }
+
+  const days = Math.floor((end - start) / (1000 * 60 * 60 * 24)) + 1;
+  return Math.round((days / 30) * 10) / 10;
+};
+
+const durationMonthsForInternship = (internship) => {
+  const dateDuration = durationMonthsFromDates(internship.start_date, internship.end_date);
+  if (dateDuration !== null) return dateDuration;
+
+  const parsedDuration = Number.parseFloat(internship.duration);
+  return Number.isFinite(parsedDuration) ? parsedDuration : null;
+};
+
+const validateMinimumInternshipDuration = ({ department, startDate, endDate }) => {
+  const requiredMonths = requiredInternshipMonths(department);
+  const durationMonths = durationMonthsFromDates(startDate, endDate);
+
+  if (durationMonths === null) {
+    return {
+      valid: false,
+      requiredMonths,
+      durationMonths,
+      message: "Internship start and end dates are required to validate duration",
+    };
+  }
+
+  if (durationMonths < requiredMonths) {
+    return {
+      valid: false,
+      requiredMonths,
+      durationMonths,
+      message: `Internship duration must be at least ${requiredMonths} month(s) for this department. Current duration is ${durationMonths} month(s).`,
+    };
+  }
+
+  return {
+    valid: true,
+    requiredMonths,
+    durationMonths,
+  };
+};
+
 const getInternshipMonthCount = (startValue, endValue) => {
   const startDate = parseDateOnly(startValue);
   const endDate = parseDateOnly(endValue);
@@ -143,8 +222,12 @@ const validateAttendanceRecordsForInternship = ({
 
 export {
   MENTOR_STUDENT_LIMIT,
+  durationMonthsForInternship,
   getInternshipMonthCount,
   isFutureDateOnly,
+  normalizeDepartment,
   parseDateOnly,
+  requiredInternshipMonths,
+  validateMinimumInternshipDuration,
   validateAttendanceRecordsForInternship,
 };
