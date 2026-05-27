@@ -335,7 +335,11 @@ const getStudents = async (req, res) => {
         si.start_date AS placement_start_date,
         si.end_date AS placement_end_date,
         si.status AS internship_status,
-        c.company_name
+        c.company_name,
+        r.report_id AS presentation_report_id,
+        r.report_url AS presentation_report_url,
+        r.mentor_signed_url AS presentation_signed_report_url,
+        r.faculty_submitted_at AS presentation_report_submitted_at
 
       FROM student s
       LEFT JOIN student_internship si
@@ -351,6 +355,20 @@ const getStudents = async (req, res) => {
         ON si.internship_id = i.internship_id
       LEFT JOIN company c
         ON i.company_id = c.company_id
+      LEFT JOIN internship_report r
+        ON r.report_id = (
+          SELECT r2.report_id
+          FROM internship_report r2
+          WHERE r2.student_id = s.student_id
+            AND r2.internship_id = si.internship_id
+            AND r2.mentor_signed_url IS NOT NULL
+            AND (
+              r2.faculty_submitted_at IS NOT NULL
+              OR r2.status = 'faculty_submitted'
+            )
+          ORDER BY COALESCE(r2.faculty_submitted_at, r2.signed_at, r2.submission_date) DESC, r2.report_id DESC
+          LIMIT 1
+        )
       LEFT JOIN mentor m
         ON s.assigned_mentor = m.mentor_id
       WHERE s.faculty = ?

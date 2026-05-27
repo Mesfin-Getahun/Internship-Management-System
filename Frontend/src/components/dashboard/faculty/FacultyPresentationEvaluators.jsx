@@ -48,7 +48,13 @@ const FacultyPresentationEvaluators = () => {
       setEvaluators(Array.isArray(evaluatorsRes.data?.evaluators) ? evaluatorsRes.data.evaluators : []);
       setStudents(
         (Array.isArray(studentsRes.data?.students) ? studentsRes.data.students : [])
-          .filter((student) => student.student_id && student.internship_id && isCompletedPlacement(student))
+          .filter((student) =>
+            student.student_id &&
+            student.internship_id &&
+            isCompletedPlacement(student) &&
+            student.presentation_signed_report_url &&
+            student.presentation_report_submitted_at
+          )
       );
     } catch (error) {
       console.error(error);
@@ -162,7 +168,7 @@ const FacultyPresentationEvaluators = () => {
       <ToastContainer theme="colored" position="top-right" autoClose={3500} hideProgressBar />
       <header>
         <h2 className="text-3xl font-bold text-slate-800 dark:text-white tracking-tight">Presentation Evaluators</h2>
-        <p className="text-slate-500 text-sm mt-1">Create examiner accounts and assign the same two evaluators after the internship is completed.</p>
+        <p className="text-slate-500 text-sm mt-1">Create examiner accounts and assign the same two evaluators after the internship is completed and the signed report reaches faculty.</p>
       </header>
 
       <form onSubmit={createEvaluator} className="grid gap-4 rounded-3xl border border-slate-100 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900 md:grid-cols-[1fr_1fr_1fr_auto] md:items-end">
@@ -247,7 +253,7 @@ const FacultyPresentationEvaluators = () => {
             <div className="max-h-[470px] space-y-3 overflow-y-auto pr-2">
               {students.length === 0 ? (
                 <div className="rounded-2xl border border-dashed border-slate-200 p-8 text-center text-sm text-slate-500 dark:border-slate-700">
-                  No completed student placements available for presentation assignment.
+                  No completed student placements with signed faculty-submitted reports are available for presentation assignment.
                 </div>
               ) : students.map((student) => {
                 const key = `${student.student_id}_${student.internship_id}`;
@@ -270,6 +276,7 @@ const FacultyPresentationEvaluators = () => {
                       <div>
                         <p className="font-bold text-slate-800 dark:text-white">{student.full_name || student.student_name}</p>
                         <p className="text-xs text-slate-500">{student.internship_title || 'Internship'} - {student.company_name || 'Company'}</p>
+                        <p className="mt-1 text-[10px] font-black uppercase tracking-widest text-emerald-600">Signed report ready</p>
                       </div>
                     </div>
                   </button>

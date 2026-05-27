@@ -224,6 +224,32 @@ const assignPresentationEvaluators = async (req, res) => {
         });
       }
 
+      const [reportRows] = await connection.query(
+        `
+        SELECT report_id
+        FROM internship_report
+        WHERE student_id = ?
+          AND internship_id = ?
+          AND mentor_signed_url IS NOT NULL
+          AND (
+            faculty_submitted_at IS NOT NULL
+            OR status = 'faculty_submitted'
+          )
+        ORDER BY COALESCE(faculty_submitted_at, signed_at, submission_date) DESC, report_id DESC
+        LIMIT 1
+        FOR UPDATE
+        `,
+        [studentId, internshipId],
+      );
+
+      if (reportRows.length === 0) {
+        await connection.rollback();
+        return res.status(409).json({
+          success: false,
+          message: `Student ${studentId} needs a signed report submitted to faculty before presentation evaluators can be assigned`,
+        });
+      }
+
       normalizedStudents.push({ studentId, internshipId });
     }
 
@@ -282,6 +308,19 @@ const assignPresentationEvaluators = async (req, res) => {
 
     await connection.commit();
 
+    await Promise.all(
+      evaluatorIds.map((evaluatorId) =>
+        createNotification({
+          recipientRole: "evaluator",
+          recipientId: evaluatorId,
+          title: "Presentation reports assigned",
+          message: `${normalizedStudents.length} student report(s) are ready for presentation evaluation.`,
+          type: "evaluation",
+          link: "/evaluator/assignments",
+        }),
+      ),
+    ).catch(() => null);
+
     res.status(200).json({
       success: true,
       message: "Presentation evaluators assigned successfully",
@@ -323,6 +362,10 @@ const getEvaluatorAssignments = async (req, res) => {
         s.department,
         i.title AS internship_title,
         c.company_name,
+        r.report_id,
+        r.report_url,
+        r.mentor_signed_url,
+        r.faculty_submitted_at AS report_submitted_at,
         pair.evaluator_id AS assigned_evaluator_id,
         pair_e.full_name AS assigned_evaluator_name,
         pg.evaluator_id AS grade_evaluator_id,
@@ -336,6 +379,20 @@ const getEvaluatorAssignments = async (req, res) => {
         ON a.internship_id = i.internship_id
       LEFT JOIN company c
         ON i.company_id = c.company_id
+      LEFT JOIN internship_report r
+        ON r.report_id = (
+          SELECT r2.report_id
+          FROM internship_report r2
+          WHERE r2.student_id = a.student_id
+            AND r2.internship_id = a.internship_id
+            AND r2.mentor_signed_url IS NOT NULL
+            AND (
+              r2.faculty_submitted_at IS NOT NULL
+              OR r2.status = 'faculty_submitted'
+            )
+          ORDER BY COALESCE(r2.faculty_submitted_at, r2.signed_at, r2.submission_date) DESC, r2.report_id DESC
+          LIMIT 1
+        )
       JOIN presentation_evaluator_assignment pair
         ON pair.student_id = a.student_id
        AND pair.internship_id = a.internship_id
@@ -365,6 +422,11 @@ const getEvaluatorAssignments = async (req, res) => {
         internship_title: row.internship_title,
         company_name: row.company_name,
         assigned_at: row.assigned_at,
+        report_id: row.report_id,
+        report_url: row.report_url,
+        mentor_signed_url: row.mentor_signed_url,
+        evaluator_report_url: row.mentor_signed_url || row.report_url,
+        report_submitted_at: row.report_submitted_at,
         evaluators: [],
       };
 

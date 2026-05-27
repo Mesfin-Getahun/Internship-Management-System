@@ -4,7 +4,7 @@ import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import { useAuth } from '../../AuthContext';
 import DashboardChangePassword from '../../components/dashboard/common/DashboardChangePassword.jsx';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faClipboardCheck, faKey, faRightFromBracket, faSpinner, faUsers } from '@fortawesome/free-solid-svg-icons';
+import { faClipboardCheck, faFileArrowDown, faKey, faRightFromBracket, faSpinner, faUsers } from '@fortawesome/free-solid-svg-icons';
 import { toast, ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 
@@ -156,6 +156,7 @@ const EvaluatorAssignments = () => {
                 <tr>
                   <th className="p-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Student</th>
                   <th className="p-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Evaluators</th>
+                  <th className="p-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Report</th>
                   <th className="p-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Marks</th>
                   <th className="p-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Status</th>
                   <th className="p-4 text-[10px] font-black uppercase tracking-widest text-slate-400 text-right">Your Mark</th>
@@ -173,6 +174,22 @@ const EvaluatorAssignments = () => {
                       </td>
                       <td className="p-4 text-sm font-semibold text-slate-600 dark:text-slate-300">
                         {assignment.evaluators?.map((item) => item.full_name).join(', ') || 'Assigned pair'}
+                      </td>
+                      <td className="p-4">
+                        {assignment.evaluator_report_url ? (
+                          <a
+                            href={assignment.evaluator_report_url}
+                            target="_blank"
+                            rel="noreferrer"
+                            download
+                            className="inline-flex items-center gap-2 rounded-xl bg-slate-900 px-3 py-2 text-xs font-black uppercase tracking-widest text-white transition-all hover:bg-slate-700 dark:bg-slate-100 dark:text-slate-900 dark:hover:bg-white"
+                          >
+                            <FontAwesomeIcon icon={faFileArrowDown} />
+                            Download
+                          </a>
+                        ) : (
+                          <span className="text-xs font-bold text-rose-500">Missing</span>
+                        )}
                       </td>
                       <td className="p-4 text-sm text-slate-600 dark:text-slate-300">
                         {assignment.grades?.length
