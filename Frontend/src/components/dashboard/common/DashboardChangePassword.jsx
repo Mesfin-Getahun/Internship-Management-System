@@ -86,7 +86,7 @@ const DashboardChangePassword = ({ description }) => {
   const [submitting, setSubmitting] = useState(false);
   const [resetSubmitting, setResetSubmitting] = useState(false);
 
-  const canUseForgotPassword = ["organization", "org_supervisor", "admin"].includes(user?.role);
+  const canUseForgotPassword = ["organization", "company", "org_supervisor", "company_mentor", "admin"].includes(user?.role);
 
   const handleChange = (event) => {
     const { name, value } = event.target;

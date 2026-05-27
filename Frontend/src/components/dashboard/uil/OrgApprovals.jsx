@@ -4,8 +4,16 @@ import { useAuth } from '../../../AuthContext';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faTimes, faEye, faSpinner, faDownload } from '@fortawesome/free-solid-svg-icons';
 
-const OrgDetailModal = ({ org, onClose, onApprove, onReject, processing }) => {
+const OrgDetailModal = ({ org, onClose, onApprove, onReject, processingAction }) => {
     if (!org) return null;
+
+    const isProcessing = Boolean(processingAction);
+    const isRejectProcessing =
+      processingAction?.action === 'reject' &&
+      String(processingAction?.id) === String(org.company_id);
+    const isApproveProcessing =
+      processingAction?.action === 'approve' &&
+      String(processingAction?.id) === String(org.company_id);
 
     const profilePic = org.profile_pic || org.company_profile_pic;
     const licenseUrl = org.company_license_url || org.license_url;
@@ -29,7 +37,7 @@ const OrgDetailModal = ({ org, onClose, onApprove, onReject, processing }) => {
             <div className="bg-white rounded-2xl shadow-xl p-8 max-w-3xl w-full max-h-[90vh] overflow-y-auto m-4">
                 <div className="flex justify-between items-center mb-6">
                     <h3 className="text-2xl font-bold text-slate-800">{org.company_name}</h3>
-                    <button onClick={onClose} className="text-slate-500 hover:text-slate-800" disabled={processing}>
+                    <button onClick={onClose} className="text-slate-500 hover:text-slate-800" disabled={isProcessing}>
                         <FontAwesomeIcon icon={faTimes} size="lg" />
                     </button>
                 </div>
@@ -91,18 +99,26 @@ const OrgDetailModal = ({ org, onClose, onApprove, onReject, processing }) => {
                 {org.status === 'pending' && (
                   <div className="mt-8 flex justify-end gap-3">
                       <button 
-                          onClick={() => onReject(org.company_id)}
-                          disabled={processing}
+                          type="button"
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            onReject(org.company_id);
+                          }}
+                          disabled={isProcessing}
                           className="px-6 py-2 bg-red-600 text-white text-sm font-bold rounded-lg hover:bg-red-700 disabled:opacity-50"
                       >
-                          {processing ? 'Processing...' : 'Reject'}
+                          {isRejectProcessing ? 'Processing...' : 'Reject'}
                       </button>
                       <button 
-                          onClick={() => onApprove(org.company_id)}
-                          disabled={processing}
+                          type="button"
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            onApprove(org.company_id);
+                          }}
+                          disabled={isProcessing}
                           className="px-6 py-2 bg-green-600 text-white text-sm font-bold rounded-lg hover:bg-green-700 disabled:opacity-50"
                       >
-                          {processing ? 'Processing...' : 'Approve'}
+                          {isApproveProcessing ? 'Processing...' : 'Approve'}
                       </button>
                   </div>
                 )}
@@ -117,7 +133,7 @@ const OrgApprovals = () => {
   const [activeTab, setActiveTab] = useState('pending');
   const [selectedOrg, setSelectedOrg] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [processing, setProcessing] = useState(false);
+  const [processingAction, setProcessingAction] = useState(null);
   const [exporting, setExporting] = useState(false);
   const [error, setError] = useState('');
   const { user } = useAuth();
@@ -162,7 +178,7 @@ const OrgApprovals = () => {
     }
 
     try {
-      setProcessing(true);
+      setProcessingAction({ id: company_id, action: 'approve' });
       setError('');
       await axios.put(`${import.meta.env.VITE_BACKEND_URL}/api/UIL/acceptCompany/${encodeURIComponent(company_id)}`, {}, {
         headers: { Authorization: `Bearer ${user?.token}` }
@@ -174,7 +190,7 @@ const OrgApprovals = () => {
       console.error("Failed to approve company", err);
       setError(err.response?.data?.message || 'Failed to approve company.');
     } finally {
-      setProcessing(false);
+      setProcessingAction(null);
     }
   };
 
@@ -185,7 +201,7 @@ const OrgApprovals = () => {
     }
 
     try {
-       setProcessing(true);
+       setProcessingAction({ id: company_id, action: 'reject' });
        setError('');
        await axios.put(`${import.meta.env.VITE_BACKEND_URL}/api/UIL/rejectCompany/${encodeURIComponent(company_id)}`, {}, {
          headers: { Authorization: `Bearer ${user?.token}` }
@@ -197,7 +213,7 @@ const OrgApprovals = () => {
        console.error("Failed to reject company", err);
        setError(err.response?.data?.message || 'Failed to reject company.');
     } finally {
-       setProcessing(false);
+       setProcessingAction(null);
     }
   };
 
@@ -324,7 +340,15 @@ const OrgApprovals = () => {
                     </td>
                     <td className="p-5">
                       <div className="flex justify-end gap-2">
-                         <button className="p-2.5 bg-slate-50 text-slate-400 hover:bg-indigo-50 hover:text-indigo-600 rounded-xl transition-all shadow-sm" title="View Details">
+                         <button
+                            type="button"
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              setSelectedOrg(org);
+                            }}
+                            className="p-2.5 bg-slate-50 text-slate-400 hover:bg-indigo-50 hover:text-indigo-600 rounded-xl transition-all shadow-sm"
+                            title="View Details"
+                         >
                             <FontAwesomeIcon icon={faEye} className="h-5 w-5" />
                          </button>
                       </div>
@@ -342,7 +366,7 @@ const OrgApprovals = () => {
          onClose={() => setSelectedOrg(null)} 
          onApprove={handleApprove}
          onReject={handleReject}
-         processing={processing}
+         processingAction={processingAction}
       />
 
       <div className="p-6 bg-indigo-50 rounded-3xl border border-indigo-100 flex items-center gap-4">

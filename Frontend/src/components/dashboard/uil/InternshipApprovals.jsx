@@ -4,19 +4,26 @@ import { useAuth } from '../../../AuthContext';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faTimes, faEye, faSpinner, faCheckCircle, faTimesCircle, faCheckSquare, faDownload } from '@fortawesome/free-solid-svg-icons';
 
-const InternshipDetailModal = ({ internship, onClose, onApprove, onReject, processing }) => {
+const InternshipDetailModal = ({ internship, onClose, onApprove, onReject, processingAction }) => {
     if (!internship) return null;
     const status = String(internship.status || 'pending').toLowerCase();
     const isPending = status === 'pending' || status === '';
     const isApproved = status === 'approved';
     const formatDate = (date) => date ? new Date(date).toLocaleDateString() : 'TBD';
+    const isProcessing = Boolean(processingAction);
+    const isRejectProcessing =
+      processingAction?.action === 'reject' &&
+      String(processingAction?.id) === String(internship.internship_id);
+    const isApproveProcessing =
+      processingAction?.action === 'approve' &&
+      String(processingAction?.id) === String(internship.internship_id);
 
     return (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50 p-4">
             <div className="bg-white rounded-2xl shadow-xl p-8 max-w-lg w-full">
                 <div className="flex justify-between items-center mb-6 border-b border-slate-100 pb-4">
                     <h3 className="text-2xl font-bold text-slate-800 tracking-tight">{internship.title}</h3>
-                    <button onClick={onClose} className="text-slate-400 hover:text-slate-800 transition-colors" disabled={processing}>
+                    <button onClick={onClose} className="text-slate-400 hover:text-slate-800 transition-colors" disabled={isProcessing}>
                         <FontAwesomeIcon icon={faTimes} size="lg" />
                     </button>
                 </div>
@@ -56,19 +63,19 @@ const InternshipDetailModal = ({ internship, onClose, onApprove, onReject, proce
                     <div className="mt-8 flex gap-3 pt-6 border-t border-slate-100">
                         <button 
                             onClick={() => onReject(internship.internship_id)}
-                            disabled={processing}
+                            disabled={isProcessing}
                             className="flex-1 flex justify-center items-center gap-2 py-3 bg-red-50 text-red-600 hover:bg-red-600 hover:text-white rounded-xl font-bold transition-all disabled:opacity-50"
                         >
                             <FontAwesomeIcon icon={faTimesCircle} />
-                            {processing ? 'Processing...' : 'Reject Internship'}
+                            {isRejectProcessing ? 'Processing...' : 'Reject Internship'}
                         </button>
                         <button 
                             onClick={() => onApprove(internship.internship_id)}
-                            disabled={processing}
+                            disabled={isProcessing}
                             className="flex-1 flex justify-center items-center gap-2 py-3 bg-indigo-50 text-indigo-600 hover:bg-indigo-600 hover:text-white rounded-xl font-bold transition-all disabled:opacity-50"
                         >
                             <FontAwesomeIcon icon={faCheckCircle} />
-                            {processing ? 'Processing...' : 'Approve Internship'}
+                            {isApproveProcessing ? 'Processing...' : 'Approve Internship'}
                         </button>
                     </div>
                 ) : (
@@ -91,7 +98,7 @@ const InternshipApprovals = () => {
   const [search, setSearch] = useState('');
   const [selectedInternship, setSelectedInternship] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [processing, setProcessing] = useState(false);
+  const [processingAction, setProcessingAction] = useState(null);
   const [exporting, setExporting] = useState(false);
   const [error, setError] = useState('');
   const { user } = useAuth();
@@ -138,7 +145,7 @@ const InternshipApprovals = () => {
     }
 
     try {
-      setProcessing(true);
+      setProcessingAction({ id: internship_id, action: 'approve' });
       setError('');
       await axios.put(`${import.meta.env.VITE_BACKEND_URL}/api/UIL/approveInternship/${encodeURIComponent(internship_id)}`, {}, {
         headers: { Authorization: `Bearer ${user?.token}` }
@@ -149,7 +156,7 @@ const InternshipApprovals = () => {
       console.error("Failed to approve internship", err);
       setError(err.response?.data?.message || 'Failed to approve internship.');
     } finally {
-      setProcessing(false);
+      setProcessingAction(null);
     }
   };
 
@@ -160,7 +167,7 @@ const InternshipApprovals = () => {
     }
 
     try {
-      setProcessing(true);
+      setProcessingAction({ id: internship_id, action: 'reject' });
       setError('');
       await axios.put(`${import.meta.env.VITE_BACKEND_URL}/api/UIL/rejectInternship/${encodeURIComponent(internship_id)}`, { reason: "Administratively rejected." }, {
         headers: { Authorization: `Bearer ${user?.token}` }
@@ -171,7 +178,7 @@ const InternshipApprovals = () => {
       console.error("Failed to reject internship", err);
       setError(err.response?.data?.message || 'Failed to reject internship.');
     } finally {
-      setProcessing(false);
+      setProcessingAction(null);
     }
   };
 
@@ -381,7 +388,7 @@ const InternshipApprovals = () => {
           onClose={() => setSelectedInternship(null)}
           onApprove={handleApprove}
           onReject={handleReject}
-          processing={processing}
+          processingAction={processingAction}
       />
     </div>
   );

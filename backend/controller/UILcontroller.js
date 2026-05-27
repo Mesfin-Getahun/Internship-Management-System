@@ -6,6 +6,10 @@ import { uploadToCloudinary } from "../utils/cloudinaryUpload.js";
 import createLog from "../utils/createLog.js";
 import { escapeHtml } from "../utils/security.js";
 import {
+  createNotification,
+  createNotifications,
+} from "../utils/notificationService.js";
+import {
   buildAcademicYearWindow,
   getCurrentAcademicYear,
   listAcademicYears,
@@ -24,6 +28,8 @@ const getEmailFailurePayload = () => ({
   emailWarning:
     "Status was updated, but the notification email could not be sent.",
 });
+
+const normalizeEmail = (email) => String(email || "").trim().toLowerCase();
 
 const escapeCsvValue = (value) => {
   if (value === null || value === undefined) {
@@ -376,7 +382,17 @@ const approveInternship = async (req, res) => {
     const { internship_id } = req.params;
 
     const [existing] = await db.query(
-      "SELECT status FROM internship WHERE internship_id = ?",
+      `
+      SELECT
+        i.status,
+        i.title,
+        c.company_id,
+        c.company_name,
+        c.email
+      FROM internship i
+      JOIN company c ON i.company_id = c.company_id
+      WHERE i.internship_id = ?
+      `,
       [internship_id],
     );
 
@@ -396,6 +412,31 @@ const approveInternship = async (req, res) => {
       "UPDATE internship SET status = 'approved' WHERE internship_id = ?",
       [internship_id],
     );
+
+    await createNotification({
+      recipientRole: "company",
+      recipientId: existing[0].company_id,
+      title: "Internship post approved",
+      message: `Your internship post ${existing[0].title || ""} was approved by UIL.`,
+      type: "approval",
+      link: "/organization/vacancies",
+    });
+
+    let emailResult = { emailSent: true };
+    try {
+      await sendEmail(
+        existing[0].email,
+        "Internship Post Approved",
+        `
+          <h2>Hello ${escapeHtml(existing[0].company_name || "Company")}</h2>
+          <p>Your internship post <b>${escapeHtml(existing[0].title || "Internship")}</b> has been approved by UIL.</p>
+          <p>Students can now review and apply for it.</p>
+        `,
+      );
+    } catch (emailError) {
+      console.error("Internship approval email failed:", emailError);
+      emailResult = getEmailFailurePayload();
+    }
     // 🔥 Save Log
     if (req.user?.UIL_id) {
       await createLog(
@@ -405,9 +446,13 @@ const approveInternship = async (req, res) => {
       );
     }
 
-    res
-      .status(200)
-      .json({ success: true, message: "Internship approved successfully" });
+    res.status(200).json({
+      success: true,
+      message: emailResult.emailSent
+        ? "Internship approved and company notified"
+        : "Internship approved, but email notification failed",
+      ...emailResult,
+    });
   } catch (error) {
     console.error("Approve internship error:", error);
     res.status(500).json({
@@ -423,7 +468,17 @@ const rejectInternship = async (req, res) => {
     const { reason } = req.body; // optional
 
     const [existing] = await db.query(
-      "SELECT status FROM internship WHERE internship_id = ?",
+      `
+      SELECT
+        i.status,
+        i.title,
+        c.company_id,
+        c.company_name,
+        c.email
+      FROM internship i
+      JOIN company c ON i.company_id = c.company_id
+      WHERE i.internship_id = ?
+      `,
       [internship_id],
     );
 
@@ -438,6 +493,31 @@ const rejectInternship = async (req, res) => {
       [internship_id],
     );
 
+    await createNotification({
+      recipientRole: "company",
+      recipientId: existing[0].company_id,
+      title: "Internship post rejected",
+      message: `Your internship post ${existing[0].title || ""} was rejected by UIL.`,
+      type: "approval",
+      link: "/organization/vacancies",
+    });
+
+    let emailResult = { emailSent: true };
+    try {
+      await sendEmail(
+        existing[0].email,
+        "Internship Post Rejected",
+        `
+          <h2>Hello ${escapeHtml(existing[0].company_name || "Company")}</h2>
+          <p>Your internship post <b>${escapeHtml(existing[0].title || "Internship")}</b> has been rejected by UIL.</p>
+          <p><b>Reason:</b> ${escapeHtml(reason || "Not specified")}</p>
+        `,
+      );
+    } catch (emailError) {
+      console.error("Internship rejection email failed:", emailError);
+      emailResult = getEmailFailurePayload();
+    }
+
     if (req.user?.UIL_id) {
       await createLog(
         req.user.UIL_id,
@@ -448,8 +528,11 @@ const rejectInternship = async (req, res) => {
 
     res.status(200).json({
       success: true,
-      message: "Internship rejected successfully",
+      message: emailResult.emailSent
+        ? "Internship rejected and company notified"
+        : "Internship rejected, but email notification failed",
       reason: reason || "Not specified",
+      ...emailResult,
     });
   } catch (error) {
     console.error("Reject internship error:", error);
@@ -480,9 +563,16 @@ const companyRequest = async (req, res) => {
         license_url AS company_license_url,
         status,
         account_status
-      FROM company
-      WHERE status = 'pending'
-        AND account_status = 'active'
+      FROM company c
+      WHERE c.status = 'pending'
+        AND c.account_status = 'active'
+        AND c.company_id = (
+          SELECT MIN(c2.company_id)
+          FROM company c2
+          WHERE LOWER(c2.email) = LOWER(c.email)
+            AND c2.status = 'pending'
+            AND c2.account_status = 'active'
+        )
       ORDER BY company_name ASC
     `);
 
@@ -1050,8 +1140,10 @@ const updateCompanyRatingAction = async (req, res) => {
 const inviteCompany = async (req, res) => {
   try {
     const { company_name, email, frontend_url } = req.body;
+    const cleanEmail = normalizeEmail(email);
+    const cleanCompanyName = String(company_name || "").trim();
 
-    if (!company_name || !email) {
+    if (!cleanCompanyName || !cleanEmail) {
       return res.status(400).json({
         success: false,
         message: "Company name and email are required",
@@ -1059,8 +1151,8 @@ const inviteCompany = async (req, res) => {
     }
 
     const [existingCompany] = await db.query(
-      "SELECT company_id, status FROM company WHERE email = ? LIMIT 1",
-      [email],
+      "SELECT company_id, status FROM company WHERE LOWER(email) = ? LIMIT 1",
+      [cleanEmail],
     );
 
     if (existingCompany.length > 0) {
@@ -1075,18 +1167,18 @@ const inviteCompany = async (req, res) => {
       INSERT INTO company (company_name, email, status)
       VALUES (?, ?, 'invited')
       `,
-      [company_name, email],
+      [cleanCompanyName, cleanEmail],
     );
 
     const company_id = result.insertId;
-    const inviteToken = createInviteToken({ company_id, email });
+    const inviteToken = createInviteToken({ company_id, email: cleanEmail });
     const inviteUrl = getFrontendInviteUrl(req, inviteToken, frontend_url);
 
     await sendEmail(
-      email,
+      cleanEmail,
       "Complete your UIL company registration",
       `
-        <h2>Hello ${escapeHtml(company_name)}</h2>
+        <h2>Hello ${escapeHtml(cleanCompanyName)}</h2>
         <p>You have been invited by UIL to complete your company registration.</p>
         <p>Click the link below to finish your registration and set your password:</p>
         <p><a href="${escapeHtml(inviteUrl)}" target="_blank" rel="noopener noreferrer">Complete company registration</a></p>
@@ -1100,7 +1192,7 @@ const inviteCompany = async (req, res) => {
       await createLog(
         req.user.UIL_id,
         "COMPANY_INVITE_SENT",
-        `UIL invited ${company_name} (${email}) to complete registration`,
+        `UIL invited ${cleanCompanyName} (${cleanEmail}) to complete registration`,
       );
     }
 
@@ -1226,6 +1318,19 @@ const completeCompanyRegistration = async (req, res) => {
       });
     }
 
+    const cleanEmail = normalizeEmail(email || invitedCompany.email);
+    const [duplicateCompanies] = await db.query(
+      "SELECT company_id FROM company WHERE LOWER(email) = ? AND company_id <> ? LIMIT 1",
+      [cleanEmail, invitedCompany.company_id],
+    );
+
+    if (duplicateCompanies.length > 0) {
+      return res.status(409).json({
+        success: false,
+        message: "A company with this email already exists",
+      });
+    }
+
     const hashedPassword = await bcrypt.hash(password, 10);
 
     let profileURL = invitedCompany.profile_pic;
@@ -1271,7 +1376,7 @@ const completeCompanyRegistration = async (req, res) => {
         company_type || invitedCompany.company_type,
         industry || invitedCompany.industry,
         website || invitedCompany.website,
-        email || invitedCompany.email,
+        cleanEmail,
         phone_number || invitedCompany.phone_number,
         location || invitedCompany.location,
         city || invitedCompany.city,
@@ -1282,6 +1387,18 @@ const completeCompanyRegistration = async (req, res) => {
         agreed === "true" || agreed === true ? 1 : 0,
         invitedCompany.company_id,
       ],
+    );
+
+    const [uilUsers] = await db.query("SELECT UIL_id FROM UIL");
+    await createNotifications(
+      uilUsers.map((uil) => ({
+        recipientRole: "uil",
+        recipientId: uil.UIL_id,
+        title: "Company registration pending",
+        message: `${company_name || invitedCompany.company_name} completed an invited registration.`,
+        type: "approval",
+        link: "/uil/approvals",
+      })),
     );
 
     res.status(200).json({
@@ -1390,6 +1507,15 @@ const acceptCompany = async (req, res) => {
       emailResult = getEmailFailurePayload();
     }
     // 🔥 Save Log
+    await createNotification({
+      recipientRole: "company",
+      recipientId: company_id,
+      title: "Registration approved",
+      message: "Your company registration has been approved by UIL.",
+      type: "approval",
+      link: "/organization",
+    });
+
     if (req.user?.UIL_id) {
       await createLog(
         req.user.UIL_id,
@@ -1454,7 +1580,7 @@ const rejectCompany = async (req, res) => {
     const { company_id } = req.params;
 
     const [company] = await db.query(
-      "SELECT email, company_name FROM company WHERE company_id = ?",
+      "SELECT email, company_name, status FROM company WHERE company_id = ?",
       [company_id],
     );
 
@@ -1462,6 +1588,13 @@ const rejectCompany = async (req, res) => {
       return res.status(404).json({
         success: false,
         message: "Company not found",
+      });
+    }
+
+    if (company[0].status !== "pending") {
+      return res.status(400).json({
+        success: false,
+        message: "Company is already processed",
       });
     }
 
@@ -1492,6 +1625,15 @@ const rejectCompany = async (req, res) => {
     }
 
     // 🔥 Save Log
+    await createNotification({
+      recipientRole: "company",
+      recipientId: company_id,
+      title: "Registration rejected",
+      message: "Your company registration has been rejected by UIL.",
+      type: "approval",
+      link: "/organization",
+    });
+
     if (req.user?.UIL_id) {
       await createLog(
         req.user.UIL_id,

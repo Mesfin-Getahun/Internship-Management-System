@@ -45,10 +45,59 @@ const buildCsvContent = (rows) => {
   return lines.join("\n");
 };
 
+const ensureFacultyMentorColumns = async () => {
+  const [columns] = await db.query(`
+    SHOW COLUMNS FROM mentor
+    WHERE Field IN ('faculty_id', 'faculty_name', 'account_status', 'deleted_at', 'deleted_by', 'delete_reason', 'must_change_password')
+  `);
+  const existing = new Set(columns.map((column) => column.Field));
+
+  if (!existing.has("faculty_id")) {
+    await db.query("ALTER TABLE mentor ADD COLUMN faculty_id varchar(20) DEFAULT NULL AFTER mentor_id");
+  }
+  if (!existing.has("faculty_name")) {
+    await db.query("ALTER TABLE mentor ADD COLUMN faculty_name varchar(200) DEFAULT NULL AFTER faculty_id");
+  }
+  if (!existing.has("must_change_password")) {
+    await db.query("ALTER TABLE mentor ADD COLUMN must_change_password tinyint(1) DEFAULT 1 AFTER password");
+  }
+  if (!existing.has("account_status")) {
+    await db.query("ALTER TABLE mentor ADD COLUMN account_status ENUM('active', 'inactive') NOT NULL DEFAULT 'active'");
+  }
+  if (!existing.has("deleted_at")) {
+    await db.query("ALTER TABLE mentor ADD COLUMN deleted_at DATETIME NULL");
+  }
+  if (!existing.has("deleted_by")) {
+    await db.query("ALTER TABLE mentor ADD COLUMN deleted_by VARCHAR(100) NULL");
+  }
+  if (!existing.has("delete_reason")) {
+    await db.query("ALTER TABLE mentor ADD COLUMN delete_reason TEXT NULL");
+  }
+};
+
+const buildFacultyMentorDefaultPassword = (fullName, email) =>
+  `${String(fullName || "").trim()}${String(email || "").trim().toLowerCase()}`;
+
+const generateFacultyMentorId = async () => {
+  for (let attempt = 0; attempt < 5; attempt += 1) {
+    const suffix = `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`.toUpperCase();
+    const candidate = `FM-${suffix.slice(-10)}`;
+    const [rows] = await db.query(
+      "SELECT mentor_id FROM mentor WHERE mentor_id = ? LIMIT 1",
+      [candidate],
+    );
+
+    if (rows.length === 0) return candidate;
+  }
+
+  throw new Error("Unable to generate a unique faculty mentor ID");
+};
+
 const assignMentor = async (req, res) => {
   const connection = await db.getConnection();
 
   try {
+    await ensureFacultyMentorColumns();
     const { student_id, mentor_id } = req.body;
     const faculty = req.user.faculty_name;
 
@@ -78,23 +127,28 @@ const assignMentor = async (req, res) => {
 
     // 3️⃣ Check if mentor exists
     const [mentors] = await connection.query(
-      "SELECT mentor_id FROM mentor WHERE mentor_id = ? AND account_status = 'active' FOR UPDATE",
-      [mentor_id],
+      `SELECT mentor_id
+       FROM mentor
+       WHERE mentor_id = ?
+         AND account_status = 'active'
+         AND faculty_id = ?
+       FOR UPDATE`,
+      [mentor_id, req.user.faculty_id],
     );
 
     if (mentors.length === 0) {
       await connection.rollback();
       return res.status(404).json({
         success: false,
-        message: "Active mentor not found",
+        message: "Active mentor not found under your faculty",
       });
     }
 
     // 4️⃣ Assign mentor
     if (String(students[0].assigned_mentor || "") !== String(mentor_id)) {
       const [assignedRows] = await connection.query(
-        "SELECT student_id FROM student WHERE assigned_mentor = ? FOR UPDATE",
-        [mentor_id],
+        "SELECT student_id FROM student WHERE assigned_mentor = ? AND faculty = ? FOR UPDATE",
+        [mentor_id, faculty],
       );
 
       if (assignedRows.length >= MENTOR_STUDENT_LIMIT) {
@@ -321,10 +375,15 @@ const getStudents = async (req, res) => {
 
 const getMentors = async (req, res) => {
   try {
+    await ensureFacultyMentorColumns();
+    const facultyId = req.user.faculty_id;
+
     const [mentors] = await db.query(
       `
       SELECT
         m.mentor_id,
+        m.faculty_id,
+        m.faculty_name,
         m.full_name,
         m.email,
         m.phone_number,
@@ -333,10 +392,13 @@ const getMentors = async (req, res) => {
       FROM mentor m
       LEFT JOIN student s
         ON s.assigned_mentor = m.mentor_id
-      WHERE m.account_status = 'active'
-      GROUP BY m.mentor_id, m.full_name, m.email, m.phone_number, m.account_status
+       AND s.faculty = ?
+      WHERE m.faculty_id = ?
+        AND m.account_status = 'active'
+      GROUP BY m.mentor_id, m.faculty_id, m.faculty_name, m.full_name, m.email, m.phone_number, m.account_status
       ORDER BY m.full_name
       `,
+      [req.user.faculty_name, facultyId],
     );
 
     res.status(200).json({
@@ -424,6 +486,187 @@ const facultyViewReports = async (req, res) => {
     res.status(500).json({
       success: false,
       message: "Failed to fetch faculty reports",
+    });
+  }
+};
+
+const createMentor = async (req, res) => {
+  try {
+    await ensureFacultyMentorColumns();
+
+    const fullName = String(req.body?.full_name || "").trim();
+    const email = String(req.body?.email || "").trim().toLowerCase();
+    const phoneNumber = String(req.body?.phone_number || "").trim() || null;
+    const mentorId = String(req.body?.mentor_id || "").trim() || (await generateFacultyMentorId());
+
+    if (!fullName || !email) {
+      return res.status(400).json({
+        success: false,
+        message: "Mentor name and email are required",
+      });
+    }
+
+    const [existing] = await db.query(
+      "SELECT mentor_id FROM mentor WHERE mentor_id = ? OR LOWER(email) = ? LIMIT 1",
+      [mentorId, email],
+    );
+
+    if (existing.length > 0) {
+      return res.status(409).json({
+        success: false,
+        message: "A faculty mentor with this ID or email already exists",
+      });
+    }
+
+    const defaultPassword = buildFacultyMentorDefaultPassword(fullName, email);
+    const hashedPassword = await bcrypt.hash(defaultPassword, 10);
+
+    await db.query(
+      `INSERT INTO mentor
+       (mentor_id, faculty_id, faculty_name, full_name, email, phone_number, password, must_change_password, account_status)
+       VALUES (?, ?, ?, ?, ?, ?, ?, TRUE, 'active')`,
+      [
+        mentorId,
+        req.user.faculty_id,
+        req.user.faculty_name,
+        fullName,
+        email,
+        phoneNumber,
+        hashedPassword,
+      ],
+    );
+
+    res.status(201).json({
+      success: true,
+      message: "Faculty mentor registered successfully",
+      mentor: {
+        mentor_id: mentorId,
+        faculty_id: req.user.faculty_id,
+        faculty_name: req.user.faculty_name,
+        full_name: fullName,
+        email,
+        phone_number: phoneNumber,
+        account_status: "active",
+        assigned_students_count: 0,
+      },
+      default_password_rule: "full_name + email",
+    });
+  } catch (error) {
+    console.error("Create faculty mentor error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to register faculty mentor",
+    });
+  }
+};
+
+const updateMentor = async (req, res) => {
+  try {
+    await ensureFacultyMentorColumns();
+
+    const { mentor_id } = req.params;
+    const [existingRows] = await db.query(
+      "SELECT * FROM mentor WHERE mentor_id = ? AND faculty_id = ? LIMIT 1",
+      [mentor_id, req.user.faculty_id],
+    );
+
+    if (existingRows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: "Faculty mentor not found under your faculty",
+      });
+    }
+
+    const existing = existingRows[0];
+    const fullName = String(req.body?.full_name || "").trim() || existing.full_name;
+    const email = String(req.body?.email || "").trim().toLowerCase() || existing.email;
+    const phoneNumber =
+      req.body?.phone_number === undefined
+        ? existing.phone_number
+        : String(req.body.phone_number || "").trim() || null;
+    const resetPassword = req.body?.reset_password === true || req.body?.reset_password === "true";
+
+    const [duplicates] = await db.query(
+      "SELECT mentor_id FROM mentor WHERE LOWER(email) = ? AND mentor_id <> ? LIMIT 1",
+      [email, mentor_id],
+    );
+
+    if (duplicates.length > 0) {
+      return res.status(409).json({
+        success: false,
+        message: "Another faculty mentor already uses this email",
+      });
+    }
+
+    if (resetPassword) {
+      const defaultPassword = buildFacultyMentorDefaultPassword(fullName, email);
+      const hashedPassword = await bcrypt.hash(defaultPassword, 10);
+      await db.query(
+        `UPDATE mentor
+         SET full_name = ?, email = ?, phone_number = ?, password = ?, must_change_password = TRUE
+         WHERE mentor_id = ? AND faculty_id = ?`,
+        [fullName, email, phoneNumber, hashedPassword, mentor_id, req.user.faculty_id],
+      );
+    } else {
+      await db.query(
+        `UPDATE mentor
+         SET full_name = ?, email = ?, phone_number = ?
+         WHERE mentor_id = ? AND faculty_id = ?`,
+        [fullName, email, phoneNumber, mentor_id, req.user.faculty_id],
+      );
+    }
+
+    res.status(200).json({
+      success: true,
+      message: resetPassword
+        ? "Faculty mentor updated and password reset"
+        : "Faculty mentor updated successfully",
+    });
+  } catch (error) {
+    console.error("Update faculty mentor error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to update faculty mentor",
+    });
+  }
+};
+
+const deactivateMentor = async (req, res) => {
+  try {
+    await ensureFacultyMentorColumns();
+
+    const { mentor_id } = req.params;
+    const [existingRows] = await db.query(
+      "SELECT mentor_id FROM mentor WHERE mentor_id = ? AND faculty_id = ? LIMIT 1",
+      [mentor_id, req.user.faculty_id],
+    );
+
+    if (existingRows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: "Faculty mentor not found under your faculty",
+      });
+    }
+
+    await db.query(
+      `UPDATE mentor
+       SET account_status = 'inactive',
+           deleted_at = COALESCE(deleted_at, NOW()),
+           deleted_by = ?,
+           delete_reason = COALESCE(delete_reason, 'Deactivated by faculty')
+       WHERE mentor_id = ? AND faculty_id = ?`,
+      [req.user.faculty_id, mentor_id, req.user.faculty_id],
+    );
+
+    res.status(200).json({
+      success: true,
+      message: "Faculty mentor deactivated successfully",
+    });
+  } catch (error) {
+    console.error("Deactivate faculty mentor error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to deactivate faculty mentor",
     });
   }
 };
@@ -578,6 +821,7 @@ const changeMentor = async (req, res) => {
   const connection = await db.getConnection();
 
   try {
+    await ensureFacultyMentorColumns();
     const faculty = req.user.faculty_name;
     const { id: student_id } = req.params;
     const { new_mentor_id } = req.body;
@@ -605,22 +849,27 @@ const changeMentor = async (req, res) => {
     }
 
     const [mentors] = await connection.query(
-      "SELECT mentor_id FROM mentor WHERE mentor_id = ? AND account_status = 'active' FOR UPDATE",
-      [new_mentor_id],
+      `SELECT mentor_id
+       FROM mentor
+       WHERE mentor_id = ?
+         AND account_status = 'active'
+         AND faculty_id = ?
+       FOR UPDATE`,
+      [new_mentor_id, req.user.faculty_id],
     );
 
     if (mentors.length === 0) {
       await connection.rollback();
       return res.status(404).json({
         success: false,
-        message: "Active mentor not found",
+        message: "Active mentor not found under your faculty",
       });
     }
 
     if (String(students[0].assigned_mentor || "") !== String(new_mentor_id)) {
       const [assignedRows] = await connection.query(
-        "SELECT student_id FROM student WHERE assigned_mentor = ? FOR UPDATE",
-        [new_mentor_id],
+        "SELECT student_id FROM student WHERE assigned_mentor = ? AND faculty = ? FOR UPDATE",
+        [new_mentor_id, faculty],
       );
 
       if (assignedRows.length >= MENTOR_STUDENT_LIMIT) {
@@ -844,6 +1093,53 @@ const updateInternshipCompletionStatus = async (req, res) => {
     res.status(500).json({
       success: false,
       message: "Failed to update internship completion status",
+    });
+  }
+};
+
+const approveAllInternshipCompletions = async (req, res) => {
+  try {
+    const faculty = req.user.faculty_name;
+
+    const [result] = await db.query(
+      `
+      UPDATE student_internship si
+      JOIN student s
+        ON si.student_id = s.student_id
+      LEFT JOIN internship i
+        ON si.internship_id = i.internship_id
+      SET si.status = 'completed',
+          si.cohort_status = 'archived',
+          si.end_date = COALESCE(si.end_date, CURRENT_DATE())
+      WHERE s.faculty = ?
+        AND si.cohort_status = 'current'
+        AND LOWER(COALESCE(si.status, '')) NOT IN ('completed', 'complete', 'rejected')
+        AND COALESCE(si.end_date, i.end_date) <= CURDATE()
+        AND EXISTS (
+          SELECT 1
+          FROM internship_evaluation ie
+          WHERE ie.student_id = si.student_id
+            AND ie.internship_id = si.internship_id
+            AND ie.evaluation_id IS NOT NULL
+            AND ie.attendance_pdf_url IS NOT NULL
+        )
+      `,
+      [faculty],
+    );
+
+    res.status(200).json({
+      success: true,
+      message:
+        result.affectedRows > 0
+          ? `${result.affectedRows} internship completion(s) approved successfully`
+          : "No pending internship completions were eligible for approval",
+      approved_count: result.affectedRows || 0,
+    });
+  } catch (error) {
+    console.error("Approve all internship completions error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to approve all internship completions",
     });
   }
 };
@@ -1105,9 +1401,13 @@ export {
   changeMentor,
   getStudents,
   getMentors,
+  createMentor,
+  updateMentor,
+  deactivateMentor,
   facultyViewReports,
   getPaymentData,
   generateStipendReportCsv,
+  approveAllInternshipCompletions,
   updateInternshipCompletionStatus,
   getFacultyProfile,
   evaluation,

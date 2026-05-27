@@ -1,5 +1,6 @@
 import db from "../config/mysql.js";
 import bcrypt from "bcryptjs";
+import { sendEmail } from "../utils/sendEmail.js";
 import generateAssessmentPDF from "../utils/generateAssessmentPDF.js";
 import generateAttendancePDF from "../utils/generateAttendancePDF.js";
 import { uploadToCloudinary } from "../utils/cloudinaryUpload.js";
@@ -36,6 +37,8 @@ const CURRENT_PLACEMENT_STATUSES = [
 function isDuplicateKeyError(error) {
   return error?.code === "ER_DUP_ENTRY" || error?.errno === 1062;
 }
+
+const normalizeEmail = (email) => String(email || "").trim().toLowerCase();
 
 const getInternshipLockedUsage = async (internship_id, company_id) => {
   const [rows] = await db.query(
@@ -1622,6 +1625,16 @@ const registerCompany = async (req, res) => {
       agreed,
     } = req.body;
 
+    const cleanEmail = normalizeEmail(orgEmail);
+    const cleanOrgName = String(orgName || "").trim();
+
+    if (!cleanOrgName || !cleanEmail || !password || !confirmPassword) {
+      return res.status(400).json({
+        success: false,
+        message: "Organization name, email, password, and confirm password are required",
+      });
+    }
+
     if (password !== confirmPassword) {
       return res.status(400).json({
         success: false,
@@ -1637,6 +1650,18 @@ const registerCompany = async (req, res) => {
     }
 
     const agreedValue = agreed === "true" || agreed === true ? 1 : 0;
+
+    const [existingCompany] = await db.query(
+      "SELECT company_id, status FROM company WHERE LOWER(email) = ? LIMIT 1",
+      [cleanEmail],
+    );
+
+    if (existingCompany.length > 0) {
+      return res.status(409).json({
+        success: false,
+        message: "A company with this email already exists. Please use a different email or sign in.",
+      });
+    }
 
     const hashedPassword = await bcrypt.hash(password, 10);
 
@@ -1669,11 +1694,11 @@ const registerCompany = async (req, res) => {
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending')
       `,
       [
-        orgName,
+        cleanOrgName,
         orgType,
         industry,
         website,
-        orgEmail,
+        cleanEmail,
         orgPhone,
         address,
         city,
@@ -1688,8 +1713,34 @@ const registerCompany = async (req, res) => {
     await createLog(
       result.insertId,
       "COMPANY_REGISTERED",
-      `Company registration submitted by ${orgName} (${orgEmail})`,
+      `Company registration submitted by ${cleanOrgName} (${cleanEmail})`,
     );
+
+    const [uilUsers] = await db.query("SELECT UIL_id FROM UIL");
+    await createNotifications(
+      uilUsers.map((uil) => ({
+        recipientRole: "uil",
+        recipientId: uil.UIL_id,
+        title: "Company registration pending",
+        message: `${cleanOrgName} submitted a company registration request.`,
+        type: "approval",
+        link: "/uil/approvals",
+      })),
+    );
+
+    try {
+      await sendEmail(
+        cleanEmail,
+        "Company registration submitted",
+        `
+          <h2>Hello ${cleanOrgName}</h2>
+          <p>Your company registration has been submitted successfully.</p>
+          <p>The UIL office will review your request and notify you when it is approved or rejected.</p>
+        `,
+      );
+    } catch (emailError) {
+      console.error("Company registration confirmation email error:", emailError);
+    }
 
     res.status(201).json({
       success: true,
@@ -1697,6 +1748,12 @@ const registerCompany = async (req, res) => {
     });
   } catch (error) {
     console.error(error);
+    if (isDuplicateKeyError(error)) {
+      return res.status(409).json({
+        success: false,
+        message: "A company with this email already exists. Please use a different email or sign in.",
+      });
+    }
     res.status(500).json({
       success: false,
       message: "Registration failed",

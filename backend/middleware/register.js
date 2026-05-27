@@ -85,17 +85,41 @@ export const createCompanyMentor = async (req, res) => {
 };
 
 export const createFaculty = async (req, res) => {
-  const { faculty_id, faculty_name, email, password } = req.body;
+  try {
+    const { faculty_id, faculty_name, email, password } = req.body;
 
-  const hashedPassword = await bcrypt.hash(password, 10);
+    if (!faculty_id || !faculty_name || !email || !password) {
+      return res.status(400).json({
+        success: false,
+        message: "Faculty ID, faculty name, email, and password are required",
+      });
+    }
 
-  await db.query(
-    `INSERT INTO faculty (faculty_id, faculty_name, email, password)
-     VALUES (?, ?, ?, ?)`,
-    [faculty_id, faculty_name, email, hashedPassword],
-  );
+    const [[exists]] = await db.query(
+      "SELECT faculty_id FROM faculty WHERE faculty_id = ? OR email = ?",
+      [faculty_id, email],
+    );
 
-  res.json({ success: true, message: "Faculty created" });
+    if (exists) {
+      return res.status(409).json({
+        success: false,
+        message: "Faculty account already exists",
+      });
+    }
+
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    await db.query(
+      `INSERT INTO faculty (faculty_id, faculty_name, email, password, must_change_password)
+       VALUES (?, ?, ?, ?, TRUE)`,
+      [faculty_id, faculty_name, email, hashedPassword],
+    );
+
+    res.status(201).json({ success: true, message: "Faculty registered successfully" });
+  } catch (error) {
+    console.error("Faculty registration error:", error);
+    res.status(500).json({ success: false, message: "Failed to register faculty" });
+  }
 };
 
 export const createMentor = async (req, res) => {

@@ -1157,13 +1157,7 @@ const getCompanyRatingOptions = async (req, res) => {
        AND cr.internship_id = si.internship_id
        AND cr.company_id = si.company_id
       WHERE si.student_id = ?
-        AND (
-          LOWER(si.status) IN ('completed', 'complete')
-          OR COALESCE(si.end_date, i.end_date) <= CURDATE()
-          OR ie.evaluation_id IS NOT NULL
-          OR r.faculty_submitted_at IS NOT NULL
-          OR r.status = 'faculty_submitted'
-        )
+        AND LOWER(si.status) IN ('completed', 'complete')
       ORDER BY COALESCE(si.end_date, ie.submitted_at, r.faculty_submitted_at, si.start_date) DESC, si.id DESC
       `,
       [student_id],
@@ -1250,15 +1244,7 @@ const submitCompanyRating = async (req, res) => {
     const completedByStatus = ["completed", "complete"].includes(
       String(placement?.status || "").toLowerCase(),
     );
-    const completedByEndDate = Boolean(
-      placement?.placement_end_date || placement?.internship_end_date,
-    ) && new Date(placement.placement_end_date || placement.internship_end_date) <= new Date();
-    const completedByEvidence =
-      Boolean(placement?.evaluation_id) ||
-      Boolean(placement?.faculty_submitted_at) ||
-      placement?.report_status === REPORT_STATUS.FACULTY_SUBMITTED;
-
-    if (!placement || (!completedByStatus && !completedByEndDate && !completedByEvidence)) {
+    if (!placement || !completedByStatus) {
       return res.status(403).json({
         success: false,
         message: "You can rate a company only after finishing the internship",

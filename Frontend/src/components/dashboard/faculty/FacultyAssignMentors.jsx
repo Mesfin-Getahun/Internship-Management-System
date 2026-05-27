@@ -15,6 +15,15 @@ const FacultyAssignMentors = () => {
   const [selectedDepartment, setSelectedDepartment] = useState('All Departments');
   const [loading, setLoading] = useState(true);
   const [assigningMentorId, setAssigningMentorId] = useState(null);
+  const [mentorForm, setMentorForm] = useState({
+    mentor_id: '',
+    full_name: '',
+    email: '',
+    phone_number: '',
+    reset_password: false,
+  });
+  const [editingMentorId, setEditingMentorId] = useState(null);
+  const [savingMentor, setSavingMentor] = useState(false);
   const { user } = useAuth();
 
   const authConfig = user?.token
@@ -107,6 +116,98 @@ const FacultyAssignMentors = () => {
     }
   };
 
+  const resetMentorForm = () => {
+    setEditingMentorId(null);
+    setMentorForm({
+      mentor_id: '',
+      full_name: '',
+      email: '',
+      phone_number: '',
+      reset_password: false,
+    });
+  };
+
+  const handleEditMentor = (mentor) => {
+    setEditingMentorId(mentor.mentor_id);
+    setMentorForm({
+      mentor_id: mentor.mentor_id || '',
+      full_name: mentor.full_name || '',
+      email: mentor.email || '',
+      phone_number: mentor.phone_number || '',
+      reset_password: false,
+    });
+  };
+
+  const handleMentorFormChange = (event) => {
+    const { name, value, type, checked } = event.target;
+    setMentorForm((prev) => ({
+      ...prev,
+      [name]: type === 'checkbox' ? checked : value,
+    }));
+  };
+
+  const handleSaveMentor = async (event) => {
+    event.preventDefault();
+
+    if (!authConfig) {
+      toast.error('Faculty session expired. Please sign in again.');
+      return;
+    }
+
+    if (!mentorForm.full_name.trim() || !mentorForm.email.trim()) {
+      toast.warn('Mentor name and email are required.');
+      return;
+    }
+
+    try {
+      setSavingMentor(true);
+      const payload = {
+        mentor_id: mentorForm.mentor_id.trim(),
+        full_name: mentorForm.full_name.trim(),
+        email: mentorForm.email.trim(),
+        phone_number: mentorForm.phone_number.trim(),
+        reset_password: mentorForm.reset_password,
+      };
+
+      if (editingMentorId) {
+        await axios.put(
+          `${import.meta.env.VITE_BACKEND_URL}/api/faculty/mentors/${encodeURIComponent(editingMentorId)}`,
+          payload,
+          authConfig,
+        );
+        toast.success('Faculty mentor updated successfully.');
+      } else {
+        await axios.post(`${import.meta.env.VITE_BACKEND_URL}/api/faculty/mentors`, payload, authConfig);
+        toast.success('Faculty mentor registered. Default password is name + email.');
+      }
+
+      resetMentorForm();
+      await fetchAssignmentData();
+    } catch (err) {
+      console.error(err);
+      toast.error(err.response?.data?.message || 'Failed to save faculty mentor.');
+    } finally {
+      setSavingMentor(false);
+    }
+  };
+
+  const handleDeleteMentor = async (mentorId) => {
+    if (!authConfig || !mentorId) return;
+
+    try {
+      await axios.delete(
+        `${import.meta.env.VITE_BACKEND_URL}/api/faculty/mentors/${encodeURIComponent(mentorId)}`,
+        authConfig,
+      );
+      toast.success('Faculty mentor deactivated. History remains in the database.');
+      if (editingMentorId === mentorId) resetMentorForm();
+      await fetchAssignmentData();
+    } catch (err) {
+      console.error(err);
+      toast.error(err.response?.data?.message || 'Failed to deactivate faculty mentor.');
+    }
+  };
+
   return (
     <div className="animate-fade-in space-y-8 pb-10">
       <ToastContainer theme="dark" position="bottom-right" />
@@ -114,6 +215,79 @@ const FacultyAssignMentors = () => {
         <h2 className="text-3xl font-bold text-slate-800 dark:text-white tracking-tight">Assign Mentors</h2>
         <p className="text-slate-500 text-sm mt-1">Connect students with academic mentors for technical guidance.</p>
       </header>
+
+      <form onSubmit={handleSaveMentor} className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-100 dark:border-slate-800 shadow-sm p-6">
+        <div className="mb-5 flex items-center justify-between gap-4">
+          <div>
+            <h3 className="font-bold text-slate-800 dark:text-white">
+              {editingMentorId ? 'Edit Faculty Mentor' : 'Register Faculty Mentor'}
+            </h3>
+            <p className="text-[10px] text-slate-400 font-bold uppercase mt-1 tracking-widest">
+              Default password: mentor name + email
+            </p>
+          </div>
+          {editingMentorId && (
+            <button
+              type="button"
+              onClick={resetMentorForm}
+              className="rounded-xl border border-slate-200 px-4 py-2 text-xs font-bold text-slate-500 hover:bg-slate-50 dark:border-slate-700 dark:hover:bg-slate-800"
+            >
+              Cancel Edit
+            </button>
+          )}
+        </div>
+        <div className="grid gap-4 md:grid-cols-4">
+          <input
+            name="mentor_id"
+            value={mentorForm.mentor_id}
+            onChange={handleMentorFormChange}
+            disabled={Boolean(editingMentorId)}
+            placeholder="Mentor ID (optional)"
+            className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:opacity-60 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+          />
+          <input
+            name="full_name"
+            value={mentorForm.full_name}
+            onChange={handleMentorFormChange}
+            placeholder="Full name"
+            className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+          />
+          <input
+            name="email"
+            type="email"
+            value={mentorForm.email}
+            onChange={handleMentorFormChange}
+            placeholder="Email"
+            className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+          />
+          <input
+            name="phone_number"
+            value={mentorForm.phone_number}
+            onChange={handleMentorFormChange}
+            placeholder="Phone"
+            className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+          />
+        </div>
+        <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <label className="inline-flex items-center gap-2 text-xs font-bold text-slate-500">
+            <input
+              name="reset_password"
+              type="checkbox"
+              checked={mentorForm.reset_password}
+              onChange={handleMentorFormChange}
+              className="h-4 w-4 rounded border-slate-300 text-indigo-600"
+            />
+            Reset password to name + email
+          </label>
+          <button
+            type="submit"
+            disabled={savingMentor}
+            className="rounded-xl bg-indigo-600 px-5 py-3 text-xs font-black uppercase tracking-widest text-white transition-all hover:bg-indigo-700 disabled:opacity-60"
+          >
+            {savingMentor ? 'Saving...' : editingMentorId ? 'Update Mentor' : 'Register Mentor'}
+          </button>
+        </div>
+      </form>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
         {/* Left Panel: Students */}
@@ -192,17 +366,34 @@ const FacultyAssignMentors = () => {
                     <h4 className="font-bold text-slate-800 dark:text-white text-lg">{m.full_name || m.name}</h4>
                     <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider mt-1">{m.email || 'Mentor account'}</p>
                   </div>
-                  <button 
-                    onClick={() => handleAssign(mentorId)}
-                    disabled={load >= 10 || selectedStudents.length === 0 || wouldExceedLimit || assigningMentorId === mentorId}
-                    className={`px-5 py-2.5 rounded-xl text-xs font-bold transition-all shadow-lg active:scale-95 uppercase tracking-wider ${
-                      load >= 10 || selectedStudents.length === 0 || wouldExceedLimit || assigningMentorId === mentorId
-                        ? 'bg-slate-100 dark:bg-slate-800 text-slate-400 shadow-none cursor-not-allowed border border-slate-200 dark:border-slate-700' 
-                        : 'bg-indigo-600 text-white hover:bg-indigo-700 shadow-indigo-500/20 border border-indigo-600'
-                    }`}
-                  >
-                    {assigningMentorId === mentorId ? 'Assigning...' : wouldExceedLimit ? `${remainingSlots} slot(s) left` : 'Assign'}
-                  </button>
+                  <div className="flex flex-wrap justify-end gap-2">
+                    <button
+                      type="button"
+                      onClick={() => handleEditMentor(m)}
+                      className="rounded-xl border border-slate-200 px-3 py-2 text-[10px] font-black uppercase tracking-widest text-slate-500 transition-all hover:bg-slate-50 dark:border-slate-700 dark:hover:bg-slate-900"
+                    >
+                      Edit
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleDeleteMentor(mentorId)}
+                      className="rounded-xl border border-rose-100 bg-rose-50 px-3 py-2 text-[10px] font-black uppercase tracking-widest text-rose-600 transition-all hover:bg-rose-100 dark:border-rose-900/40 dark:bg-rose-950/30"
+                    >
+                      Delete
+                    </button>
+                    <button 
+                      type="button"
+                      onClick={() => handleAssign(mentorId)}
+                      disabled={load >= 10 || selectedStudents.length === 0 || wouldExceedLimit || assigningMentorId === mentorId}
+                      className={`px-5 py-2.5 rounded-xl text-xs font-bold transition-all shadow-lg active:scale-95 uppercase tracking-wider ${
+                        load >= 10 || selectedStudents.length === 0 || wouldExceedLimit || assigningMentorId === mentorId
+                          ? 'bg-slate-100 dark:bg-slate-800 text-slate-400 shadow-none cursor-not-allowed border border-slate-200 dark:border-slate-700' 
+                          : 'bg-indigo-600 text-white hover:bg-indigo-700 shadow-indigo-500/20 border border-indigo-600'
+                      }`}
+                    >
+                      {assigningMentorId === mentorId ? 'Assigning...' : wouldExceedLimit ? `${remainingSlots} slot(s) left` : 'Assign'}
+                    </button>
+                  </div>
                 </div>
                 <div className="space-y-2">
                   <div className="flex justify-between text-[10px] font-bold uppercase tracking-widest">

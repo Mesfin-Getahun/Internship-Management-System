@@ -14,6 +14,13 @@ const changeRouter = express.Router();
 
 const normalizeRole = (role) => String(role || "").trim().toLowerCase();
 
+const normalizeResetRole = (role) => {
+  const normalized = normalizeRole(role);
+  if (normalized === "organization") return "company";
+  if (normalized === "org_supervisor") return "company_mentor";
+  return normalized;
+};
+
 const SELF_SERVICE_RESET_ROLES = new Set(["company", "company_mentor", "admin"]);
 
 const getRoleLabel = (role) => {
@@ -50,7 +57,7 @@ const resolvePasswordChangeSession = (req) => {
 
 changeRouter.post("/forgot", async (req, res) => {
   try {
-    const role = normalizeRole(req.body?.role);
+    const role = normalizeResetRole(req.body?.role);
     const identifier = String(req.body?.identifier || "").trim();
     const roleConfig = resolveAccountRole(role);
 

@@ -363,6 +363,9 @@ const FacultyOrgEvaluations = () => {
                           }`}>
                             Presentation: {e.presentation_status || 'pending'}
                           </p>
+                          <p className="mt-2 text-[10px] font-semibold leading-relaxed text-slate-500 dark:text-slate-400">
+                            Attendance {e.faculty_attendance_mark ?? '-'}/10 | Company {e.total_mark ?? '-'}/40 | Mentor {e.mentor_report_mark ?? '-'}/20 | Evaluators {e.final_presentation_mark ?? '-'}/30
+                          </p>
                         </div>
                       </td>
                       <td className="p-4">

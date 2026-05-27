@@ -1,8 +1,11 @@
 import express from "express";
 import {
   assignMentor,
+  approveAllInternshipCompletions,
   changeMentor,
   companyEvaluation,
+  createMentor,
+  deactivateMentor,
   deleteMentor,
   gradeAttendance,
   getStudents,
@@ -14,6 +17,7 @@ import {
   evaluation,
   updateInternshipCompletionStatus,
   uploadStudents,
+  updateMentor,
 } from "../controller/facultyController.js";
 import {
   assignPresentationEvaluators,
@@ -106,6 +110,9 @@ facultyRoute.get("/students", authFaculty, getStudents);
  *         description: Faculty mentor list returned successfully
  */
 facultyRoute.get("/mentors", authFaculty, getMentors);
+facultyRoute.post("/mentors", authFaculty, createMentor);
+facultyRoute.put("/mentors/:mentor_id", authFaculty, updateMentor);
+facultyRoute.delete("/mentors/:mentor_id", authFaculty, deactivateMentor);
 facultyRoute.get("/evaluators", authFaculty, listFacultyEvaluators);
 facultyRoute.post("/evaluators", authFaculty, createEvaluator);
 facultyRoute.post(
@@ -198,6 +205,11 @@ facultyRoute.put("/changeMentor/:id", authFaculty, changeMentor);
 facultyRoute.get("/reports", authFaculty, facultyViewReports);
 facultyRoute.get("/payments", authFaculty, getPaymentData);
 facultyRoute.get("/stipend-report.csv", authFaculty, generateStipendReportCsv);
+facultyRoute.post(
+  "/internship-completion/approve-all",
+  authFaculty,
+  approveAllInternshipCompletions,
+);
 facultyRoute.put(
   "/internship-completion/:placement_id",
   authFaculty,

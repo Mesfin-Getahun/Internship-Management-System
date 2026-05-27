@@ -13,7 +13,10 @@ import companyMentorRoute from "./routes/companyMentorRoute.js";
 import evaluatorRoute from "./routes/evaluatorRoute.js";
 import notificationRoute from "./routes/notificationRoute.js";
 import { startCompanyMentorFeedbackReminderJob } from "./utils/companyMentorFeedbackReminder.js";
-import { registerStudent } from "./middleware/register.js";
+import {
+  createFaculty,
+  registerStudent,
+} from "./middleware/register.js";
 import { checkMaintenanceMode } from "./middleware/Maintenance.js";
 import {
   authLimiter,
@@ -72,6 +75,7 @@ app.use("/api/admin", adminDashboardRoute);
 app.use("/api/notifications", notificationRoute);
 
 app.use("/api/registerStudent", registerStudent);
+app.post("/api/registerFaculty", createFaculty);
 
 app.use("/api/login", authLimiter, router);
 app.use("/api/change-password", authLimiter, changeRouter);

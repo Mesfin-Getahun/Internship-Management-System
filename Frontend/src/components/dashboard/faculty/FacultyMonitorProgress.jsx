@@ -125,6 +125,14 @@ const FacultyMonitorProgress = () => {
       const completedByDate = !progressState.dormant && progressState.label === 'Completed';
       const completedByStatus = ['completed', 'complete'].includes(internshipStatus);
       const completionRejected = internshipStatus === 'rejected';
+      const hasSubmittedAttendance = Boolean(evaluation?.attendance_pdf_url);
+      const hasCompletedEvaluation = Boolean(evaluation?.evaluation_id);
+      const readyForCompletionReview =
+        !completedByStatus &&
+        !completionRejected &&
+        completedByDate &&
+        hasSubmittedAttendance &&
+        hasCompletedEvaluation;
 
       if (completionRejected) {
         status = 'Rejected';
@@ -132,15 +140,7 @@ const FacultyMonitorProgress = () => {
       } else if (completedByStatus) {
         status = 'Approved';
         progress = 100;
-      } else if (!progressState.dormant && report?.file_url && evaluation?.evaluation_id) {
-        status = 'Pending Approval';
-      } else if (
-        !progressState.dormant &&
-        (['signed', 'approved', 'faculty_submitted'].includes(reportStatus) || report?.faculty_submitted_at)
-      ) {
-        status = 'Approved';
-      }
-      if (completedByDate && !completedByStatus && !completionRejected) {
+      } else if (readyForCompletionReview) {
         status = 'Pending Approval';
         progress = 100;
       }
@@ -155,7 +155,7 @@ const FacultyMonitorProgress = () => {
         attendance,
         evaluation: evaluationStatus,
         status,
-        canReviewCompletion: status === 'Pending Approval' && Boolean(student.student_internship_id),
+        canReviewCompletion: readyForCompletionReview && Boolean(student.student_internship_id),
         progressMessage: progressState.message,
       };
     });
@@ -188,6 +188,11 @@ const FacultyMonitorProgress = () => {
       student.mentor.toLowerCase().includes(query),
     );
   }, [searchTerm, sortedStudents]);
+
+  const pendingApprovalCount = useMemo(
+    () => progressRows.filter((student) => student.canReviewCompletion).length,
+    [progressRows],
+  );
 
   const requestSort = (key) => {
     let direction = 'ascending';
@@ -232,6 +237,28 @@ const FacultyMonitorProgress = () => {
     }
   };
 
+  const handleApproveAll = async () => {
+    if (!user?.token || pendingApprovalCount === 0) return;
+
+    try {
+      setActionLoadingId('approve-all');
+      setError('');
+      setMessage('');
+      const res = await axios.post(
+        `${import.meta.env.VITE_BACKEND_URL}/api/faculty/internship-completion/approve-all`,
+        {},
+        { headers: { Authorization: `Bearer ${user.token}` } },
+      );
+      setMessage(res.data?.message || 'All eligible internship completions were approved.');
+      await fetchProgressData();
+    } catch (err) {
+      console.error(err);
+      setError(err.response?.data?.message || 'Failed to approve all internship completions.');
+    } finally {
+      setActionLoadingId('');
+    }
+  };
+
   return (
     <div className="animate-fade-in space-y-8 pb-12">
       <header>
@@ -241,15 +268,31 @@ const FacultyMonitorProgress = () => {
 
       <div className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 shadow-sm rounded-3xl p-8">
         <div className="mb-6">
-          <div className="relative max-w-md">
-            <FontAwesomeIcon icon={faSearch} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
-            <input
-              type="text"
-              placeholder="Search by student, company, or mentor..."
-              value={searchTerm}
-              onChange={(event) => setSearchTerm(event.target.value)}
-              className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg py-3 pl-10 pr-4 text-slate-800 dark:text-white focus:ring-2 focus:ring-emerald-500"
-            />
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+            <div className="relative max-w-md flex-1">
+              <FontAwesomeIcon icon={faSearch} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
+              <input
+                type="text"
+                placeholder="Search by student, company, or mentor..."
+                value={searchTerm}
+                onChange={(event) => setSearchTerm(event.target.value)}
+                className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg py-3 pl-10 pr-4 text-slate-800 dark:text-white focus:ring-2 focus:ring-emerald-500"
+              />
+            </div>
+            <button
+              type="button"
+              onClick={handleApproveAll}
+              disabled={pendingApprovalCount === 0 || Boolean(actionLoadingId)}
+              className="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-5 py-3 text-xs font-black uppercase tracking-widest text-white transition-all hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              <FontAwesomeIcon
+                icon={actionLoadingId === 'approve-all' ? faSpinner : faCheckCircle}
+                spin={actionLoadingId === 'approve-all'}
+              />
+              {actionLoadingId === 'approve-all'
+                ? 'Approving...'
+                : `Approve All (${pendingApprovalCount})`}
+            </button>
           </div>
           {message && (
             <div className="mt-4 rounded-xl bg-emerald-50 px-4 py-3 text-sm font-bold text-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-300">

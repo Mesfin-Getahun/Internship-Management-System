@@ -25,6 +25,7 @@ const OrganizationSignUp = () => {
     agreed: false,
   });
   const [errors, setErrors] = useState({});
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const updateFormData = (data) => {
     setFormData((prev) => ({ ...prev, ...data }));
@@ -69,8 +70,10 @@ const OrganizationSignUp = () => {
     try {
       e?.preventDefault?.();
 
+      if (isSubmitting) return;
+
       if (validateStep()) {
-        console.log("Submitting registration:", formData);
+        setIsSubmitting(true);
 
         const formDataToSend = new FormData();
 
@@ -105,6 +108,12 @@ const OrganizationSignUp = () => {
       }
     } catch (error) {
       console.log(error.response?.data || error.message);
+      setErrors((prev) => ({
+        ...prev,
+        submit: error.response?.data?.message || "Registration failed. Please try again.",
+      }));
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -148,6 +157,12 @@ const OrganizationSignUp = () => {
                 />
               )}
 
+              {errors.submit && (
+                <p className="mt-6 rounded-lg bg-red-50 px-4 py-3 text-sm font-semibold text-red-600">
+                  {errors.submit}
+                </p>
+              )}
+
               <div className="mt-12 flex justify-between items-center pt-8 border-t border-slate-100">
                 <button
                   type="button"
@@ -173,10 +188,10 @@ const OrganizationSignUp = () => {
                 ) : (
                   <button
                     type="submit"
-                    onClick={handleSubmit}
+                    disabled={isSubmitting}
                     className="flex items-center gap-2 bg-green-600 text-white px-10 py-2.5 rounded-lg font-semibold hover:bg-green-700 transition-all shadow-lg shadow-green-600/20"
                   >
-                    Submit Registration ✉️
+                    {isSubmitting ? "Submitting..." : "Submit Registration"}
                   </button>
                 )}
               </div>
