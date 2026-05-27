@@ -13,6 +13,8 @@ import Badge from "../components/ui/Badge";
 import { getCurrentSession } from "../services/authService";
 import Button from "../components/ui/Button";
 import { cancelStudentApplication, getMyInternship, getPaymentApplication, getStudentFeedbacks, submitPaymentForm } from "../services/studentService";
+import { getInternshipProgressState } from "../utils/internshipProgress";
+import { formatDate, formatDateRange } from "../utils/dateFormat";
 
 function formatStatusLabel(status) {
   if (!status) {
@@ -29,14 +31,6 @@ function formatStatusLabel(status) {
     .split("_")
     .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
     .join(" ");
-}
-
-function formatDateRange(startDate, endDate) {
-  if (!startDate && !endDate) {
-    return "Schedule not available";
-  }
-
-  return [startDate, endDate].filter(Boolean).join(" to ");
 }
 
 export default function HomeScreen() {
@@ -179,9 +173,10 @@ export default function HomeScreen() {
   const statusOrganization = activeInternship?.company_name || latestApplication?.company_name || "No company assigned";
   const statusPosition = activeInternship?.title || latestApplication?.title || "Waiting for application";
   const statusDuration = formatDateRange(
-    activeInternship?.start_date || latestApplication?.start_date,
-    activeInternship?.end_date || latestApplication?.end_date
+    activeInternship?.placement_start_date || activeInternship?.start_date || latestApplication?.start_date,
+    activeInternship?.placement_end_date || activeInternship?.end_date || latestApplication?.end_date
   );
+  const progressState = getInternshipProgressState(activeInternship || {});
 
   return (
     <Screen withTabs>
@@ -199,6 +194,7 @@ export default function HomeScreen() {
           organization={statusOrganization}
           position={statusPosition}
           duration={statusDuration}
+          progressState={progressState}
         />
 
         <View className="mb-5">
@@ -244,7 +240,7 @@ export default function HomeScreen() {
             report={{
               message: latestFeedback.overall_comment || latestFeedback.suggestions || "Feedback received from your mentor.",
               supervisorName: latestFeedback.source_name || "Mentor",
-              date: latestFeedback.created_at || "Recently",
+              date: formatDate(latestFeedback.created_at, "Recently"),
             }}
           />
         ) : (
@@ -269,7 +265,7 @@ export default function HomeScreen() {
                   <Badge status={formatStatusLabel(application.status)} />
                 </View>
                 <Text className="text-sm text-slate-500">{application.company_name}</Text>
-                <Text className="mt-2 text-xs text-slate-400">Applied on {application.applied_date}</Text>
+                <Text className="mt-2 text-xs text-slate-400">Applied on {formatDate(application.applied_date)}</Text>
                 {application.status?.toLowerCase() === "pending" ? (
                   <View className="mt-3">
                     <Button

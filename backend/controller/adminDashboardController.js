@@ -1,4 +1,5 @@
 import { spawn } from "child_process";
+import bcrypt from "bcryptjs";
 import fs from "fs";
 import os from "os";
 import path from "path";
@@ -254,6 +255,30 @@ const getResetRoleLabel = (role) => {
   }
 };
 
+const verifyPasswordResetWasStored = async ({
+  table,
+  idColumn,
+  accountId,
+  temporaryPassword,
+}) => {
+  const [rows] = await db.query(
+    `SELECT password, must_change_password FROM \`${table}\` WHERE \`${idColumn}\` = ? LIMIT 1`,
+    [accountId],
+  );
+
+  if (rows.length === 0) {
+    return false;
+  }
+
+  const storedPasswordMatches = await bcrypt.compare(
+    temporaryPassword,
+    rows[0].password,
+  );
+  const requiresPasswordChange = Number(rows[0].must_change_password) === 1;
+
+  return storedPasswordMatches && requiresPasswordChange;
+};
+
 export const resetUserPassword = async (req, res) => {
   try {
     const role = String(req.params.role || "").trim().toLowerCase();
@@ -293,6 +318,21 @@ export const resetUserPassword = async (req, res) => {
       return res.status(404).json({
         success: false,
         message: `${getResetRoleLabel(role)} not found.`,
+      });
+    }
+
+    const resetWasStored = await verifyPasswordResetWasStored({
+      table,
+      idColumn,
+      accountId: account.account_id,
+      temporaryPassword,
+    });
+
+    if (!resetWasStored) {
+      return res.status(500).json({
+        success: false,
+        message:
+          "Password reset could not be confirmed. Please try resetting the password again.",
       });
     }
 

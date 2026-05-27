@@ -55,6 +55,37 @@ const resolvePasswordChangeSession = (req) => {
   };
 };
 
+const verifyChangedPassword = async ({ table, idColumn, id, newPassword }) => {
+  const [rows] = await db.query(
+    `SELECT password, must_change_password FROM \`${table}\` WHERE \`${idColumn}\` = ? LIMIT 1`,
+    [id],
+  );
+
+  if (rows.length === 0) {
+    return false;
+  }
+
+  const passwordMatches = await bcrypt.compare(newPassword, rows[0].password);
+  const setupCompleted = Number(rows[0].must_change_password) === 0;
+
+  return passwordMatches && setupCompleted;
+};
+
+const findResetAccountByIdentifier = async ({ table, idColumn, identifier }) => {
+  const [rows] = await db.query(
+    `
+    SELECT \`${idColumn}\` AS account_id, email
+    FROM \`${table}\`
+    WHERE \`${idColumn}\` = ? OR email = ?
+    ORDER BY CASE WHEN \`${idColumn}\` = ? THEN 0 ELSE 1 END
+    LIMIT 1
+    `,
+    [identifier, identifier, identifier],
+  );
+
+  return rows[0] || null;
+};
+
 changeRouter.post("/forgot", async (req, res) => {
   try {
     const role = normalizeResetRole(req.body?.role);
@@ -69,19 +100,19 @@ changeRouter.post("/forgot", async (req, res) => {
     }
 
     const { table, idColumn } = roleConfig;
-    const [rows] = await db.query(
-      `SELECT ${idColumn} AS account_id, email FROM \`${table}\` WHERE ${idColumn} = ? OR email = ? LIMIT 1`,
-      [identifier, identifier],
-    );
+    const account = await findResetAccountByIdentifier({
+      table,
+      idColumn,
+      identifier,
+    });
 
-    if (rows.length === 0) {
+    if (!account) {
       return res.status(404).json({
         success: false,
         message: "Account not found for that role and identifier.",
       });
     }
 
-    const account = rows[0];
     const temporaryPassword = generateTemporaryPassword();
     const resetResult = await resetAccountPassword({
       table,
@@ -180,7 +211,7 @@ changeRouter.post("/", async (req, res) => {
 
     const { table, idColumn } = roleConfig;
     const [rows] = await db.query(
-      `SELECT password FROM ${table} WHERE ${idColumn} = ? LIMIT 1`,
+      `SELECT password FROM \`${table}\` WHERE \`${idColumn}\` = ? LIMIT 1`,
       [id],
     );
 
@@ -191,7 +222,17 @@ changeRouter.post("/", async (req, res) => {
       });
     }
 
-    const passwordMatches = await bcrypt.compare(currentPassword, rows[0].password);
+    const currentPasswordValue = String(currentPassword);
+    const candidateCurrentPasswords = Array.from(
+      new Set([currentPasswordValue, currentPasswordValue.trim()]),
+    );
+    const passwordMatches = (
+      await Promise.all(
+        candidateCurrentPasswords.map((candidate) =>
+          bcrypt.compare(candidate, rows[0].password),
+        ),
+      )
+    ).some(Boolean);
 
     if (!passwordMatches) {
       return res.status(400).json({
@@ -203,11 +244,25 @@ changeRouter.post("/", async (req, res) => {
     const hashedPassword = await bcrypt.hash(newPassword, 10);
 
     await db.query(
-      `UPDATE ${table} 
+      `UPDATE \`${table}\`
        SET password = ?, must_change_password = FALSE
-       WHERE ${idColumn} = ?`,
+       WHERE \`${idColumn}\` = ?`,
       [hashedPassword, id],
     );
+
+    const passwordWasChanged = await verifyChangedPassword({
+      table,
+      idColumn,
+      id,
+      newPassword,
+    });
+
+    if (!passwordWasChanged) {
+      return res.status(500).json({
+        success: false,
+        message: "Password change could not be confirmed. Please try again.",
+      });
+    }
 
     res.json({ success: true, message: "Password updated successfully" });
   } catch (error) {

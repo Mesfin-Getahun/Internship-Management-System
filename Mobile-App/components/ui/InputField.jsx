@@ -23,7 +23,9 @@ export default function InputField({
     <View className={className}>
       {label ? <Text className="mb-2 ml-1 text-sm font-semibold text-slate-600 dark:text-slate-300">{label}</Text> : null}
       <View
-        className={`flex-row items-center rounded-2xl border bg-white px-4 py-4 dark:bg-slate-900 ${
+        className={`flex-row items-center rounded-2xl border px-4 py-4 ${
+          editable ? "bg-white dark:bg-slate-900" : "bg-slate-100 dark:bg-slate-800"
+        } ${
           error
             ? "border-rose-400"
             : isFocused
@@ -40,7 +42,7 @@ export default function InputField({
           />
         ) : null}
         <TextInput
-          className="flex-1 text-base text-slate-800 dark:text-slate-100"
+          className={`flex-1 text-base ${editable ? "text-slate-800 dark:text-slate-100" : "text-slate-500 dark:text-slate-400"}`}
           placeholder={placeholder}
           placeholderTextColor="#94A3B8"
           value={value}

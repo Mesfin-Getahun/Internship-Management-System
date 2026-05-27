@@ -6,6 +6,7 @@ import Card from "../components/ui/Card";
 import Badge from "../components/ui/Badge";
 import Loader from "../components/common/Loader";
 import { getRecommendationLetter } from "../services/studentService";
+import { formatDateTime } from "../utils/dateFormat";
 
 export default function DocumentsScreen() {
   const [recommendation, setRecommendation] = useState(null);
@@ -39,7 +40,7 @@ export default function DocumentsScreen() {
     issuedBy: "UIL Office",
     status: isAvailable ? "Available" : "Not Available",
     updatedAt: recommendation?.updated_at
-      ? `Published: ${new Date(recommendation.updated_at).toLocaleString()}`
+      ? `Published: ${formatDateTime(recommendation.updated_at)}`
       : "Waiting for UIL attachment",
     description: isAvailable
       ? "UIL has published a recommendation letter for students. You can open or download it below."

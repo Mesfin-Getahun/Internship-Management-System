@@ -4,7 +4,7 @@ import { FontAwesome } from "@expo/vector-icons";
 import Card from "../ui/Card";
 import Badge from "../ui/Badge";
 
-export default function StatusCard({ status, organization, position, duration }) {
+export default function StatusCard({ status, organization, position, duration, progressState }) {
   const accent =
     status === "Waiting"
       ? "bg-amber-400"
@@ -28,6 +28,22 @@ export default function StatusCard({ status, organization, position, duration })
         </View>
         <Badge status={status} />
       </View>
+
+      {progressState ? (
+        <View className="mb-4 rounded-2xl bg-slate-50 p-4">
+          <View className="mb-2 flex-row items-center justify-between">
+            <Text className="text-sm font-bold text-slate-800">{progressState.label}</Text>
+            <Text className="text-sm font-bold text-blue-600">{progressState.progress}%</Text>
+          </View>
+          <View className="h-3 overflow-hidden rounded-full bg-white">
+            <View
+              className={`h-full rounded-full ${progressState.dormant ? "bg-slate-400" : "bg-blue-500"}`}
+              style={{ width: `${progressState.progress}%` }}
+            />
+          </View>
+          <Text className="mt-2 text-xs leading-5 text-slate-500">{progressState.message}</Text>
+        </View>
+      ) : null}
 
       <View className="rounded-2xl bg-slate-50 p-4">
         <View className="mb-2 flex-row items-center">

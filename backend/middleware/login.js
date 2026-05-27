@@ -34,6 +34,21 @@ const createPasswordSetupToken = ({ id, role }) =>
 const isInactiveAccount = (record) =>
   String(record?.account_status || "active").toLowerCase() === "inactive";
 
+const findAccountByIdentifier = async ({ table, idColumn, identifier }) => {
+  const [rows] = await db.query(
+    `
+    SELECT *
+    FROM \`${table}\`
+    WHERE \`${idColumn}\` = ? OR email = ?
+    ORDER BY CASE WHEN \`${idColumn}\` = ? THEN 0 ELSE 1 END
+    LIMIT 1
+    `,
+    [identifier, identifier, identifier],
+  );
+
+  return rows[0] || null;
+};
+
 router.post("/", async (req, res) => {
   const { id, email, password } = req.body;
 
@@ -59,14 +74,9 @@ router.post("/", async (req, res) => {
 
       const { table, idColumn, normalizedRole: role } = config;
 
-      const [rows] = await db.query(
-        `SELECT * FROM ${table} WHERE ${idColumn} = ? OR email = ? LIMIT 1`,
-        [identifier, identifier]
-      );
+      const user = await findAccountByIdentifier({ table, idColumn, identifier });
+      if (!user) return null;
 
-      if (rows.length === 0) return null;
-
-      const user = rows[0];
       const match = await bcrypt.compare(password, user.password);
 
       if (!match) return null;
@@ -139,14 +149,13 @@ router.post("/", async (req, res) => {
       if (!identifier) return null;
       await ensureMustChangePasswordColumn("company");
 
-      const [rows] = await db.query(
-        "SELECT * FROM company WHERE email = ? OR company_id = ? LIMIT 1",
-        [identifier, identifier]
-      );
+      const company = await findAccountByIdentifier({
+        table: "company",
+        idColumn: "company_id",
+        identifier,
+      });
+      if (!company) return null;
 
-      if (rows.length === 0) return null;
-
-      const company = rows[0];
       const match = await bcrypt.compare(password, company.password);
 
       if (!match) return null;

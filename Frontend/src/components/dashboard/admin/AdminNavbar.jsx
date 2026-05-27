@@ -38,6 +38,7 @@ const AdminNavbar = ({ title, onMenuClick }) => {
     { keywords: ['backup', 'data', 'export'], path: '/admin/data-backup' },
     { keywords: ['log', 'logs', 'audit'], path: '/admin/logs' },
     { keywords: ['monitor', 'monitoring', 'platform', 'maintenance'], path: '/admin/monitoring' },
+    { keywords: ['user', 'users', 'password', 'reset', 'student', 'faculty', 'mentor', 'uil'], path: '/admin/user-passwords' },
   ]), []);
 
   const handleSearchSubmit = (event) => {
@@ -50,8 +51,16 @@ const AdminNavbar = ({ title, onMenuClick }) => {
     );
 
     if (match) {
+      if (match.path === '/admin/user-passwords') {
+        navigate(`${match.path}?q=${encodeURIComponent(query)}`);
+        return;
+      }
+
       navigate(match.path);
+      return;
     }
+
+    navigate(`/admin/user-passwords?q=${encodeURIComponent(query)}`);
   };
 
   return (
@@ -66,7 +75,7 @@ const AdminNavbar = ({ title, onMenuClick }) => {
             value={searchValue}
             onChange={(event) => setSearchValue(event.target.value)}
             type="text" 
-            placeholder="Search system sections like logs, backup, monitoring..." 
+            placeholder="Search sections or users..."
             className="w-full bg-slate-50 border border-slate-200 rounded-xl py-2.5 pl-10 pr-4 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
           />
         </form>

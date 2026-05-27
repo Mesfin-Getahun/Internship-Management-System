@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import axios from "axios";
+import { useSearchParams } from "react-router-dom";
 import { toast, ToastContainer } from "react-toastify";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faKey, faSearch, faSpinner } from "@fortawesome/free-solid-svg-icons";
@@ -16,8 +17,9 @@ const roleLabels = {
 
 const UserPasswordResets = () => {
   const { user } = useAuth();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [users, setUsers] = useState([]);
-  const [search, setSearch] = useState("");
+  const [search, setSearch] = useState(() => searchParams.get("q") || "");
   const [roleFilter, setRoleFilter] = useState("all");
   const [loading, setLoading] = useState(true);
   const [resettingKey, setResettingKey] = useState("");
@@ -42,6 +44,24 @@ const UserPasswordResets = () => {
     else setLoading(false);
   }, [user?.token]);
 
+  useEffect(() => {
+    const query = searchParams.get("q") || "";
+    setSearch(query);
+  }, [searchParams]);
+
+  const handleSearchChange = (value) => {
+    setSearch(value);
+    const nextParams = new URLSearchParams(searchParams);
+
+    if (value.trim()) {
+      nextParams.set("q", value);
+    } else {
+      nextParams.delete("q");
+    }
+
+    setSearchParams(nextParams, { replace: true });
+  };
+
   const resettableUsers = useMemo(
     () => users.filter((item) => resettableRoles.has(String(item.role || "").toLowerCase())),
     [users],
@@ -49,15 +69,19 @@ const UserPasswordResets = () => {
 
   const filteredUsers = useMemo(() => {
     const query = search.trim().toLowerCase();
+    const queryTerms = query.split(/\s+/).filter(Boolean);
 
     return resettableUsers.filter((item) => {
       const role = String(item.role || "").toLowerCase();
       if (roleFilter !== "all" && role !== roleFilter) return false;
       if (!query) return true;
 
-      return [item.id, item.full_name, item.email, item.faculty, item.department, role]
+      const searchableText = [item.id, item.full_name, item.email, item.faculty, item.department, role, roleLabels[role]]
         .filter(Boolean)
-        .some((value) => String(value).toLowerCase().includes(query));
+        .map((value) => String(value).toLowerCase())
+        .join(" ");
+
+      return queryTerms.every((term) => searchableText.includes(term));
     });
   }, [resettableUsers, roleFilter, search]);
 
@@ -104,7 +128,7 @@ const UserPasswordResets = () => {
             <FontAwesomeIcon icon={faSearch} className="absolute left-4 top-3.5 text-slate-400" />
             <input
               value={search}
-              onChange={(event) => setSearch(event.target.value)}
+              onChange={(event) => handleSearchChange(event.target.value)}
               placeholder="Search by name, ID, email, role..."
               className="w-full rounded-xl border border-slate-200 bg-slate-50 py-3 pl-11 pr-4 text-sm font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
             />

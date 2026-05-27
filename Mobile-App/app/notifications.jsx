@@ -6,6 +6,7 @@ import Card from "../components/ui/Card";
 import Loader from "../components/common/Loader";
 import EmptyState from "../components/common/EmptyState";
 import { getStudentFeedbacks } from "../services/studentService";
+import { formatDateTime } from "../utils/dateFormat";
 
 function getFeedbackIcon(sourceRole) {
   return sourceRole === "company_mentor" ? "building" : "user";
@@ -93,7 +94,7 @@ export default function NotificationsScreen() {
                           {item.source_name || item.company_mentor_name || "Company Mentor"}
                         </Text>
                         <Text className="text-xs text-slate-400">
-                          {item.created_at ? new Date(item.created_at).toLocaleDateString() : "Recent"}
+                          {formatDateTime(item.created_at, "Recent")}
                         </Text>
                       </View>
                       <Text className="mt-1 text-xs font-semibold uppercase tracking-[1.2px] text-violet-500">
@@ -148,7 +149,7 @@ export default function NotificationsScreen() {
                           {item.source_name || item.mentor_name || "Faculty Mentor"}
                         </Text>
                         <Text className="text-xs text-slate-400">
-                          {item.created_at ? new Date(item.created_at).toLocaleDateString() : "Recent"}
+                          {formatDateTime(item.created_at, "Recent")}
                         </Text>
                       </View>
                       <Text className="mt-1 text-xs font-semibold uppercase tracking-[1.2px] text-violet-500">

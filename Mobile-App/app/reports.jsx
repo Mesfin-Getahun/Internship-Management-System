@@ -8,6 +8,7 @@ import Card from "../components/ui/Card";
 import Button from "../components/ui/Button";
 import { getMyInternship, getStudentReports, submitSignedReportToFaculty, uploadInternshipReport } from "../services/studentService";
 import { appendAssetToFormData, pickPdfDocument } from "../utils/documentUpload";
+import { formatDate } from "../utils/dateFormat";
 
 function formatReportStatus(status) {
   if (!status) {
@@ -209,7 +210,7 @@ export default function ReportsScreen() {
               </View>
 
               <Text className="text-xs text-slate-400">
-                Submitted: {report.submitted_at || report.created_at || "Not available"}
+                Submitted: {formatDate(report.submitted_at || report.created_at)}
               </Text>
 
               <View className="mt-4 flex-row flex-wrap">

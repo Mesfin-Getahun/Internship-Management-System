@@ -5,6 +5,8 @@ import Screen from "../components/common/Screen";
 import Loader from "../components/common/Loader";
 import Card from "../components/ui/Card";
 import { getMyInternship } from "../services/studentService";
+import { getInternshipProgressState } from "../utils/internshipProgress";
+import { formatDate } from "../utils/dateFormat";
 
 function InfoCard({ iconName, label, value, subValue }) {
   return (
@@ -53,6 +55,8 @@ export default function InternshipStatusScreen() {
   const activeStatus = (internship?.status || "").toLowerCase();
   const hasActivePlacement =
     internship && (activeStatus === "in progress" || activeStatus === "accepted" || activeStatus === "active");
+  const progressState = getInternshipProgressState(internship || {});
+  const progressColor = progressState.dormant ? "bg-slate-400" : "bg-blue-500";
 
   return (
     <Screen withTabs>
@@ -102,6 +106,24 @@ export default function InternshipStatusScreen() {
             </View>
 
             <View className="mt-6 grid gap-3">
+              <View className="rounded-[22px] bg-slate-50 p-4">
+                <View className="mb-3 flex-row items-center justify-between">
+                  <Text className="text-xs font-semibold uppercase tracking-[1.2px] text-slate-400">Progress</Text>
+                  <View className={`rounded-full px-3 py-1 ${progressState.dormant ? "bg-slate-100" : "bg-green-100"}`}>
+                    <Text className={`text-xs font-bold ${progressState.dormant ? "text-slate-700" : "text-green-700"}`}>
+                      {progressState.label}
+                    </Text>
+                  </View>
+                </View>
+                <View className="mb-2 flex-row items-center justify-between">
+                  <Text className="text-sm font-bold text-slate-800">Internship timeline</Text>
+                  <Text className="text-sm font-bold text-blue-600">{progressState.progress}%</Text>
+                </View>
+                <View className="h-3 overflow-hidden rounded-full bg-white">
+                  <View className={`h-full rounded-full ${progressColor}`} style={{ width: `${progressState.progress}%` }} />
+                </View>
+                <Text className="mt-3 text-xs leading-5 text-slate-500">{progressState.message}</Text>
+              </View>
               <InfoCard iconName="building" label="Organization" value={internship.company_name} />
               <InfoCard
                 iconName="user"
@@ -130,7 +152,7 @@ export default function InternshipStatusScreen() {
                 <Text className="mt-2 text-xs uppercase tracking-[1.2px] text-slate-400">
                   Status: {application.status}
                 </Text>
-                <Text className="mt-1 text-xs text-slate-400">Applied on {application.applied_date}</Text>
+                <Text className="mt-1 text-xs text-slate-400">Applied on {formatDate(application.applied_date)}</Text>
               </View>
             ))
           ) : (

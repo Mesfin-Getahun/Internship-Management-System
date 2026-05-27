@@ -18,6 +18,12 @@ export function getMyInternship() {
   });
 }
 
+export function getStudentProfile() {
+  return apiRequest("/api/student/profile", {
+    requiresAuth: true,
+  });
+}
+
 export function getStudentReports() {
   return apiRequest("/api/student/reports", {
     requiresAuth: true,
@@ -83,6 +89,7 @@ export function applyForInternship(internshipId, formData) {
     body: formData,
     isFormData: true,
     requiresAuth: true,
+    timeoutMs: 60000,
   });
 }
 

@@ -557,6 +557,8 @@ const applyInternships = async (req, res) => {
     );
 
     // ✅ store URLs directly
+    const applicationStatement = String(statement || "").trim() || null;
+
     await db.query(
       `INSERT INTO application
        (student_id, internship_id, applied_date, status, statement, cv_file, academic_doc)
@@ -565,7 +567,7 @@ const applyInternships = async (req, res) => {
         student_id,
         internship_id,
         APPLICATION_STATUS.PENDING,
-        statement,
+        applicationStatement,
         cvUrl,
         academicUrl,
       ]
@@ -812,6 +814,56 @@ const serializeList = (value) => {
   return value ?? null;
 };
 
+const nullableText = (value) => {
+  if (value === undefined) return undefined;
+  if (value === null) return null;
+  const trimmed = String(value).trim();
+  return trimmed || null;
+};
+
+const nullableNumber = (value) => {
+  if (value === undefined) return undefined;
+  if (value === null || String(value).trim() === "") return null;
+  const numberValue = Number(value);
+  return Number.isFinite(numberValue) ? numberValue : null;
+};
+
+const nullableInteger = (value) => {
+  const numberValue = nullableNumber(value);
+  if (numberValue === undefined || numberValue === null) return numberValue;
+  return Number.isInteger(numberValue) ? numberValue : Math.trunc(numberValue);
+};
+
+const ensureStudentAcademicColumns = async () => {
+  const [columns] = await db.query(`
+    SHOW COLUMNS FROM student
+    WHERE Field IN ('gender', 'date_of_birth', 'program', 'academic_year', 'current_semester', 'cgpa', 'expected_graduation_year')
+  `);
+  const existing = new Set(columns.map((column) => column.Field));
+
+  if (!existing.has("gender")) {
+    await db.query("ALTER TABLE student ADD COLUMN gender varchar(20) DEFAULT NULL AFTER phone_number");
+  }
+  if (!existing.has("date_of_birth")) {
+    await db.query("ALTER TABLE student ADD COLUMN date_of_birth date DEFAULT NULL AFTER gender");
+  }
+  if (!existing.has("program")) {
+    await db.query("ALTER TABLE student ADD COLUMN program varchar(30) DEFAULT NULL AFTER department");
+  }
+  if (!existing.has("academic_year")) {
+    await db.query("ALTER TABLE student ADD COLUMN academic_year varchar(20) DEFAULT NULL AFTER program");
+  }
+  if (!existing.has("current_semester")) {
+    await db.query("ALTER TABLE student ADD COLUMN current_semester varchar(20) DEFAULT NULL AFTER academic_year");
+  }
+  if (!existing.has("cgpa")) {
+    await db.query("ALTER TABLE student ADD COLUMN cgpa decimal(3,2) DEFAULT NULL AFTER current_semester");
+  }
+  if (!existing.has("expected_graduation_year")) {
+    await db.query("ALTER TABLE student ADD COLUMN expected_graduation_year int DEFAULT NULL AFTER cgpa");
+  }
+};
+
 const parseProfileList = (value) => {
   if (Array.isArray(value)) return value.filter(Boolean);
   if (!value) return [];
@@ -851,16 +903,78 @@ const getComputedProfileStatus = (student) => {
   return hasRequiredText && hasSkills ? "complete" : "incomplete";
 };
 
+const formatDateOnly = (value) => {
+  if (!value) return null;
+  if (typeof value === "string") return value.slice(0, 10);
+  if (value instanceof Date && !Number.isNaN(value.getTime())) {
+    const month = String(value.getMonth() + 1).padStart(2, "0");
+    const day = String(value.getDate()).padStart(2, "0");
+    return `${value.getFullYear()}-${month}-${day}`;
+  }
+  return String(value).slice(0, 10);
+};
+
+const toSafeStudentProfile = (student = {}) => {
+  const { password: _password, ...safeStudent } = student;
+  return {
+    ...safeStudent,
+    date_of_birth: formatDateOnly(safeStudent.date_of_birth),
+  };
+};
+
+const getProfile = async (req, res) => {
+  try {
+    await ensureStudentAcademicColumns();
+
+    const student_id = req.user.student_id;
+    if (!student_id) {
+      return res.status(401).json({ success: false, message: "Unauthorized" });
+    }
+
+    const [[student]] = await db.query(
+      "SELECT * FROM student WHERE student_id = ? LIMIT 1",
+      [student_id],
+    );
+
+    if (!student) {
+      return res.status(404).json({
+        success: false,
+        message: "Student not found",
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      student: toSafeStudentProfile(student),
+    });
+  } catch (error) {
+    console.error("Fetch student profile error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to fetch student profile",
+    });
+  }
+};
+
 const updateProfile = async (req, res) => {
   try {
+    await ensureStudentAcademicColumns();
+
     const student_id = req.user.student_id; // from auth middleware
     const {
       full_name,
       email,
       phone_number,
+      gender,
+      date_of_birth,
       password,
       skills,
       preferred_location,
+      program,
+      academic_year,
+      current_semester,
+      cgpa,
+      expected_graduation_year,
       technical_skills,
       soft_skills,
       languages,
@@ -892,11 +1006,34 @@ const updateProfile = async (req, res) => {
       hashedPassword = await bcrypt.hash(password, 10);
     }
 
+    const nextGender = nullableText(gender);
+    const nextDateOfBirth = nullableText(date_of_birth);
+    const nextProgram = nullableText(program);
+    const nextAcademicYear = nullableText(academic_year);
+    const nextCurrentSemester = nullableText(current_semester);
+    const nextCgpa = nullableNumber(cgpa);
+    const nextExpectedGraduationYear = nullableInteger(expected_graduation_year);
+
     const nextProfile = {
       ...existing[0],
       full_name: full_name || existing[0].full_name,
       email: email || existing[0].email,
       phone_number: phone_number || existing[0].phone_number,
+      gender: nextGender === undefined ? existing[0].gender : nextGender,
+      date_of_birth:
+        nextDateOfBirth === undefined ? existing[0].date_of_birth : nextDateOfBirth,
+      program: nextProgram === undefined ? existing[0].program : nextProgram,
+      academic_year:
+        nextAcademicYear === undefined ? existing[0].academic_year : nextAcademicYear,
+      current_semester:
+        nextCurrentSemester === undefined
+          ? existing[0].current_semester
+          : nextCurrentSemester,
+      cgpa: nextCgpa === undefined ? existing[0].cgpa : nextCgpa,
+      expected_graduation_year:
+        nextExpectedGraduationYear === undefined
+          ? existing[0].expected_graduation_year
+          : nextExpectedGraduationYear,
       skills: skills ?? existing[0].skills,
       technical_skills: technical_skills ?? existing[0].technical_skills,
       soft_skills: soft_skills ?? existing[0].soft_skills,
@@ -909,8 +1046,15 @@ const updateProfile = async (req, res) => {
         full_name = ?,
         email = ?,
         phone_number = ?,
+        gender = ?,
+        date_of_birth = ?,
         skills = ?,
         preferred_location = ?,
+        program = ?,
+        academic_year = ?,
+        current_semester = ?,
+        cgpa = ?,
+        expected_graduation_year = ?,
         technical_skills = ?,
         soft_skills = ?,
         languages = ?,
@@ -926,8 +1070,15 @@ const updateProfile = async (req, res) => {
       full_name || existing[0].full_name,
       email || existing[0].email,
       phone_number || existing[0].phone_number,
+      nextProfile.gender,
+      nextProfile.date_of_birth,
       skills ?? existing[0].skills,
       preferred_location ?? existing[0].preferred_location,
+      nextProfile.program,
+      nextProfile.academic_year,
+      nextProfile.current_semester,
+      nextProfile.cgpa,
+      nextProfile.expected_graduation_year,
       serializeList(technical_skills ?? existing[0].technical_skills),
       serializeList(soft_skills ?? existing[0].soft_skills),
       serializeList(languages ?? existing[0].languages),
@@ -951,10 +1102,17 @@ const updateProfile = async (req, res) => {
         full_name,
         email,
         phone_number,
+        gender,
+        date_of_birth,
         profile_status,
         skills,
         preferred_location,
         department,
+        program,
+        academic_year,
+        current_semester,
+        cgpa,
+        expected_graduation_year,
         assigned_mentor,
         faculty,
         must_change_password,
@@ -972,7 +1130,7 @@ const updateProfile = async (req, res) => {
     res.status(200).json({
       success: true,
       message: "Profile updated successfully",
-      student: updatedStudent,
+      student: toSafeStudentProfile(updatedStudent),
     });
   } catch (error) {
     console.error("Update profile error:", error);
@@ -1881,4 +2039,5 @@ export {
   getRecommendationLetter,
   getCompanyRatingOptions,
   submitCompanyRating,
+  getProfile,
 };

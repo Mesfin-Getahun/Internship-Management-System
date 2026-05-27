@@ -40,6 +40,7 @@ export async function login({ identifier, password }) {
       id: resolveUserId(data.user, data.role),
       role: data.role,
       identifier,
+      setupToken: data.setupToken,
     };
 
     return {
@@ -69,8 +70,13 @@ export async function login({ identifier, password }) {
   };
 }
 
-export async function completeFirstLogin(newPassword) {
-  if (!pendingFirstLogin?.id || !pendingFirstLogin?.role || !pendingFirstLogin?.identifier) {
+export async function completeFirstLogin(currentPassword, newPassword) {
+  if (
+    !pendingFirstLogin?.id ||
+    !pendingFirstLogin?.role ||
+    !pendingFirstLogin?.identifier ||
+    !pendingFirstLogin?.setupToken
+  ) {
     throw new Error("Your first-login session expired. Please sign in again.");
   }
 
@@ -79,7 +85,9 @@ export async function completeFirstLogin(newPassword) {
     body: {
       id: pendingFirstLogin.id,
       role: pendingFirstLogin.role,
+      currentPassword,
       newPassword,
+      setupToken: pendingFirstLogin.setupToken,
     },
   });
 

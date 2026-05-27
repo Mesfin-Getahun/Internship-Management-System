@@ -139,7 +139,7 @@ const ChangePassword = () => {
       });
 
       const reloginResponse = await axios.post(`${import.meta.env.VITE_BACKEND_URL}/api/login`, {
-        id: user?.email || String(id),
+        id: String(id),
         email: user?.email || String(id),
         password: passwords.new,
       });
@@ -162,7 +162,13 @@ const ChangePassword = () => {
         navigate(getHomeRoute(authenticatedUser));
       }, 800);
     } catch (err) {
-      setError(err.response?.data?.message || err.message || 'Failed to update password.');
+      const status = err.response?.status;
+      const message = err.response?.data?.message || err.message;
+      setError(
+        status === 401 && message === 'Invalid credentials'
+          ? 'Password was changed, but automatic sign-in failed. Please sign in again using your student ID and new password.'
+          : message || 'Failed to update password.',
+      );
     } finally {
       setIsSubmitting(false);
     }

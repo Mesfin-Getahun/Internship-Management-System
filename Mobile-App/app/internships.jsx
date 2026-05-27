@@ -6,17 +6,17 @@ import Loader from "../components/common/Loader";
 import EmptyState from "../components/common/EmptyState";
 import Card from "../components/ui/Card";
 import Button from "../components/ui/Button";
-import InputField from "../components/ui/InputField";
 import {
   applyForInternship,
   getStudentInternships,
   getSuggestedInternships,
 } from "../services/studentService";
 import { appendAssetToFormData, pickPdfDocument } from "../utils/documentUpload";
+import { formatDateRange } from "../utils/dateFormat";
 
 function formatDuration(item) {
   if (item.start_date && item.end_date) {
-    return `${item.start_date} to ${item.end_date}`;
+    return formatDateRange(item.start_date, item.end_date);
   }
 
   return item.duration || "Duration not specified";
@@ -29,7 +29,6 @@ export default function InternshipsScreen() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [activeApplyId, setActiveApplyId] = useState(null);
-  const [statement, setStatement] = useState("");
   const [cvFile, setCvFile] = useState(null);
   const [academicDocFile, setAcademicDocFile] = useState(null);
   const [submittingId, setSubmittingId] = useState(null);
@@ -69,7 +68,6 @@ export default function InternshipsScreen() {
 
   const resetApplicationForm = () => {
     setActiveApplyId(null);
-    setStatement("");
     setCvFile(null);
     setAcademicDocFile(null);
     setSubmittingId(null);
@@ -99,7 +97,6 @@ export default function InternshipsScreen() {
     setSubmittingId(internshipId);
 
     const formData = new FormData();
-    formData.append("statement", statement);
     appendAssetToFormData(formData, "cv", cvFile);
     appendAssetToFormData(formData, "academic_doc", academicDocFile);
 
@@ -224,7 +221,6 @@ export default function InternshipsScreen() {
                     }
 
                     setActiveApplyId(internshipId);
-                    setStatement("");
                     setCvFile(null);
                     setAcademicDocFile(null);
                   }}
@@ -234,14 +230,9 @@ export default function InternshipsScreen() {
               {activeApplyId === internshipId ? (
                 <View className="mt-4 rounded-[22px] bg-slate-50 p-4">
                   <Text className="mb-3 text-base font-bold text-slate-800">Apply for this internship</Text>
-                  <InputField
-                    label="Statement"
-                    iconName="file-text"
-                    placeholder="Write a short statement for your application"
-                    value={statement}
-                    onChangeText={setStatement}
-                    className="mb-4"
-                  />
+                  <Text className="mb-4 text-sm leading-6 text-slate-500">
+                    Upload your CV and academic document as PDF files.
+                  </Text>
 
                   <TouchableOpacity
                     className="mb-3 rounded-2xl border border-dashed border-slate-300 bg-white px-4 py-4"

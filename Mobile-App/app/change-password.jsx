@@ -42,7 +42,7 @@ export default function ChangePasswordScreen() {
     setLoading(true);
     setError("");
 
-    completeFirstLogin(newPassword)
+    completeFirstLogin(currentPassword, newPassword)
       .then(() => {
         setLoading(false);
 

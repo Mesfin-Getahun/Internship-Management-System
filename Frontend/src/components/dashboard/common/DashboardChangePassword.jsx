@@ -83,6 +83,7 @@ const DashboardChangePassword = ({ description }) => {
     newPassword: "",
     confirmPassword: "",
   });
+  const [feedback, setFeedback] = useState({ type: "", message: "" });
   const [submitting, setSubmitting] = useState(false);
   const [resetSubmitting, setResetSubmitting] = useState(false);
 
@@ -95,13 +96,16 @@ const DashboardChangePassword = ({ description }) => {
 
   const handleSubmit = async (event) => {
     event.preventDefault();
+    setFeedback({ type: "", message: "" });
 
     if (formData.newPassword.length < 8) {
+      setFeedback({ type: "error", message: "New password must be at least 8 characters." });
       toast.warn("New password must be at least 8 characters.");
       return;
     }
 
     if (formData.newPassword !== formData.confirmPassword) {
+      setFeedback({ type: "error", message: "New passwords do not match." });
       toast.warn("New passwords do not match.");
       return;
     }
@@ -110,6 +114,7 @@ const DashboardChangePassword = ({ description }) => {
     const role = getBackendRole(user?.role);
 
     if (!id || !role) {
+      setFeedback({ type: "error", message: "Unable to identify your account. Please sign in again." });
       toast.error("Unable to identify your account. Please sign in again.");
       return;
     }
@@ -137,10 +142,13 @@ const DashboardChangePassword = ({ description }) => {
         newPassword: "",
         confirmPassword: "",
       });
+      setFeedback({ type: "success", message: "Password changed successfully." });
       toast.success("Password changed successfully.");
     } catch (error) {
       console.error(error);
-      toast.error(error.response?.data?.message || "Failed to change password.");
+      const message = error.response?.data?.message || "Failed to change password.";
+      setFeedback({ type: "error", message });
+      toast.error(message);
     } finally {
       setSubmitting(false);
     }
@@ -150,8 +158,10 @@ const DashboardChangePassword = ({ description }) => {
     const id = getUserId(user);
     const role = getBackendRole(user?.role);
     const identifier = user?.email || id;
+    setFeedback({ type: "", message: "" });
 
     if (!identifier || !role || !canUseForgotPassword) {
+      setFeedback({ type: "error", message: "Forgot password is not available for this account." });
       toast.error("Forgot password is not available for this account.");
       return;
     }
@@ -163,14 +173,16 @@ const DashboardChangePassword = ({ description }) => {
         identifier,
       });
       const tempPassword = res.data?.temporary_password;
-      toast.success(
-        tempPassword
-          ? `${res.data?.message || "Temporary password generated."} Temporary password: ${tempPassword}`
-          : res.data?.message || "Temporary password sent to your email.",
-      );
+      const message = tempPassword
+        ? `${res.data?.message || "Temporary password generated."} Temporary password: ${tempPassword}`
+        : res.data?.message || "Temporary password sent to your email.";
+      setFeedback({ type: "success", message });
+      toast.success(message);
     } catch (error) {
       console.error(error);
-      toast.error(error.response?.data?.message || "Failed to reset password.");
+      const message = error.response?.data?.message || "Failed to reset password.";
+      setFeedback({ type: "error", message });
+      toast.error(message);
     } finally {
       setResetSubmitting(false);
     }
@@ -236,6 +248,18 @@ const DashboardChangePassword = ({ description }) => {
             required
           />
         </div>
+
+        {feedback.message && (
+          <div
+            className={`rounded-xl border px-4 py-3 text-sm font-semibold ${
+              feedback.type === "success"
+                ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                : "border-rose-200 bg-rose-50 text-rose-700"
+            }`}
+          >
+            {feedback.message}
+          </div>
+        )}
 
         <button
           type="submit"

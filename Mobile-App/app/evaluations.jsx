@@ -6,6 +6,7 @@ import Loader from "../components/common/Loader";
 import EmptyState from "../components/common/EmptyState";
 import Card from "../components/ui/Card";
 import { getStudentEvaluations } from "../services/studentService";
+import { formatDateTime } from "../utils/dateFormat";
 
 function openDocument(fileUrl) {
   if (!fileUrl) {
@@ -84,7 +85,7 @@ export default function EvaluationsScreen() {
               </View>
 
               <Text className="text-xs text-slate-400">
-                Published: {evaluation.created_at || "Not available"}
+                Published: {formatDateTime(evaluation.created_at)}
               </Text>
 
               <View className="mt-4 flex-row flex-wrap">

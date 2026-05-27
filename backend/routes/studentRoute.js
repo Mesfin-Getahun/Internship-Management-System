@@ -17,6 +17,7 @@ import {
   suggestedInternships,
   getCompanyRatingOptions,
   submitCompanyRating,
+  getProfile,
 } from "../controller/studentController.js";
 import { uploadApplicationFiles } from "../middleware/uploadApplicationFiles.js";
 import { uploadPDF } from "../middleware/uploadPDF.js";
@@ -141,6 +142,7 @@ studentRoute.get("/myInternship", authStudent, myInternship);
 studentRoute.get("/reports", authStudent, getStudentReports);
 studentRoute.get("/evaluations", authStudent, getStudentEvaluations);
 studentRoute.get("/paymentApplication", authStudent, getPaymentApplication);
+studentRoute.get("/profile", authStudent, getProfile);
 
 /**
  * @swagger

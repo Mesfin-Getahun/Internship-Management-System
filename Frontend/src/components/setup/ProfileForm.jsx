@@ -47,12 +47,27 @@ const parseList = (value) => {
   return [];
 };
 
+const formatDateInput = (value) => {
+  if (!value) return '';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return String(value).slice(0, 10);
+  return date.toISOString().slice(0, 10);
+};
+
 const normalizeStudentData = (studentData = {}) => ({
   ...studentData,
   fullName: studentData.fullName || studentData.full_name || '',
   studentId: studentData.studentId || studentData.student_id || '',
   universityEmail: studentData.universityEmail || studentData.email || '',
   phoneNumber: studentData.phoneNumber || studentData.phone_number || '',
+  gender: studentData.gender || '',
+  dateOfBirth: formatDateInput(studentData.dateOfBirth || studentData.date_of_birth),
+  program: studentData.program || '',
+  academicYear: studentData.academicYear || studentData.academic_year || '',
+  currentSemester: studentData.currentSemester || studentData.current_semester || '',
+  gpa: studentData.gpa || studentData.cgpa || '',
+  expectedGraduationYear:
+    studentData.expectedGraduationYear || studentData.expected_graduation_year || '',
   technicalSkills: parseList(studentData.technicalSkills || studentData.technical_skills || studentData.skills),
   softSkills: parseList(studentData.softSkills || studentData.soft_skills),
   languages: parseList(studentData.languages),

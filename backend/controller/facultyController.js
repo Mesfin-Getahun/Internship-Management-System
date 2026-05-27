@@ -75,8 +75,74 @@ const ensureFacultyMentorColumns = async () => {
   }
 };
 
+const ensureStudentCsvProfileColumns = async () => {
+  const [columns] = await db.query(`
+    SHOW COLUMNS FROM student
+    WHERE Field IN ('gender', 'date_of_birth', 'program', 'academic_year', 'current_semester', 'cgpa', 'expected_graduation_year')
+  `);
+  const existing = new Set(columns.map((column) => column.Field));
+
+  if (!existing.has("gender")) {
+    await db.query("ALTER TABLE student ADD COLUMN gender varchar(20) DEFAULT NULL AFTER phone_number");
+  }
+  if (!existing.has("date_of_birth")) {
+    await db.query("ALTER TABLE student ADD COLUMN date_of_birth date DEFAULT NULL AFTER gender");
+  }
+  if (!existing.has("program")) {
+    await db.query("ALTER TABLE student ADD COLUMN program varchar(30) DEFAULT NULL AFTER department");
+  }
+  if (!existing.has("academic_year")) {
+    await db.query("ALTER TABLE student ADD COLUMN academic_year varchar(20) DEFAULT NULL AFTER program");
+  }
+  if (!existing.has("current_semester")) {
+    await db.query("ALTER TABLE student ADD COLUMN current_semester varchar(20) DEFAULT NULL AFTER academic_year");
+  }
+  if (!existing.has("cgpa")) {
+    await db.query("ALTER TABLE student ADD COLUMN cgpa decimal(3,2) DEFAULT NULL AFTER current_semester");
+  }
+  if (!existing.has("expected_graduation_year")) {
+    await db.query("ALTER TABLE student ADD COLUMN expected_graduation_year int DEFAULT NULL AFTER cgpa");
+  }
+};
+
 const buildFacultyMentorDefaultPassword = (fullName, email) =>
   `${String(fullName || "").trim()}${String(email || "").trim().toLowerCase()}`;
+
+const getCsvValue = (row, keys, fallback = null) => {
+  for (const key of keys) {
+    const value = row[key];
+    if (value !== undefined && value !== null && String(value).trim() !== "") {
+      return String(value).trim();
+    }
+  }
+
+  return fallback;
+};
+
+const normalizeDateOnlyValue = (value) => {
+  if (!value) return null;
+
+  if (value instanceof Date && !Number.isNaN(value.getTime())) {
+    return value.toISOString().slice(0, 10);
+  }
+
+  const raw = String(value).trim();
+  if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) return raw;
+
+  const parsed = new Date(raw);
+  return Number.isNaN(parsed.getTime()) ? null : parsed.toISOString().slice(0, 10);
+};
+
+const normalizeCgpa = (value) => {
+  const cgpa = Number(value);
+  if (!Number.isFinite(cgpa)) return null;
+  return Math.max(0, Math.min(4, Math.round(cgpa * 100) / 100));
+};
+
+const normalizeGraduationYear = (value) => {
+  const year = Number.parseInt(value, 10);
+  return Number.isInteger(year) ? year : null;
+};
 
 const generateFacultyMentorId = async () => {
   for (let attempt = 0; attempt < 5; attempt += 1) {
@@ -300,6 +366,8 @@ const companyEvaluation = async (req, res) => {
 
 const getStudents = async (req, res) => {
   try {
+    await ensureStudentCsvProfileColumns();
+
     const faculty = req.user.faculty_name;
 
     const [students] = await db.query(
@@ -308,7 +376,15 @@ const getStudents = async (req, res) => {
         s.student_id,
         s.full_name,
         s.email,
+        s.phone_number,
+        s.gender,
+        s.date_of_birth,
         s.department,
+        s.program,
+        s.academic_year,
+        s.current_semester,
+        s.cgpa,
+        s.expected_graduation_year,
         CASE
           WHEN NULLIF(TRIM(COALESCE(s.full_name, '')), '') IS NOT NULL
            AND NULLIF(TRIM(COALESCE(s.email, '')), '') IS NOT NULL
@@ -1347,6 +1423,8 @@ const evaluation = async (req, res) => {
 
 const uploadStudents = async (req, res) => {
   try {
+    await ensureStudentCsvProfileColumns();
+
     const faculty_name = req.user.faculty_name;
     const file = req.file;
 
@@ -1373,6 +1451,22 @@ const uploadStudents = async (req, res) => {
       const full_name = (first_name + " " + last_name).trim() || row.full_name || row.Name || row.name;
       const email = row.email || row.Email || null;
       const department = row.department || row.Department || faculty_name; // Default to faculty if not provided
+      const phoneNumber = getCsvValue(row, ["phone_number", "phone number", "Phone Number", "phone", "Phone"]);
+      const gender = getCsvValue(row, ["gender", "Gender"]);
+      const dateOfBirth = normalizeDateOnlyValue(
+        getCsvValue(row, ["date_of_birth", "Date of birth", "Date Of Birth", "DOB", "dob"]),
+      );
+      const program = getCsvValue(row, ["program", "Program"]);
+      const academicYear = getCsvValue(row, ["academic_year", "academic year", "Academic Year"]);
+      const currentSemester = getCsvValue(row, ["current_semester", "current semester", "Current Semester"]);
+      const cgpa = normalizeCgpa(getCsvValue(row, ["cgpa", "CGPA", "GPA", "gpa"]));
+      const expectedGraduationYear = normalizeGraduationYear(
+        getCsvValue(row, [
+          "expected_graduation_year",
+          "Expected Graduation Year",
+          "expected graduation year",
+        ]),
+      );
       
       if (!student_id || !first_name) {
         skippedCount++;
@@ -1391,9 +1485,24 @@ const uploadStudents = async (req, res) => {
 
       await db.query(
         `INSERT INTO student 
-         (student_id, full_name, email, password, department, faculty, must_change_password) 
-         VALUES (?, ?, ?, ?, ?, ?, 1)`,
-        [student_id, full_name, email, hashedPassword, department, faculty_name]
+         (student_id, full_name, email, phone_number, gender, date_of_birth, password, department, program, academic_year, current_semester, cgpa, expected_graduation_year, faculty, must_change_password)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)`,
+        [
+          student_id,
+          full_name,
+          email,
+          phoneNumber,
+          gender,
+          dateOfBirth,
+          hashedPassword,
+          department,
+          program,
+          academicYear,
+          currentSemester,
+          cgpa,
+          expectedGraduationYear,
+          faculty_name,
+        ]
       );
       insertedCount++;
     }

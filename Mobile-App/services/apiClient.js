@@ -57,6 +57,7 @@ export async function apiRequest(
   { method = "GET", body, headers = {}, isFormData = false, requiresAuth = false, timeoutMs = 15000 } = {}
 ) {
   const requestHeaders = { ...headers };
+  requestHeaders.Accept = requestHeaders.Accept || "application/json";
 
   if (!isFormData) {
     requestHeaders["Content-Type"] = requestHeaders["Content-Type"] || "application/json";

@@ -154,7 +154,15 @@ const FacultyManageStudentsLive = () => {
         ['Student ID', student.student_id],
         ['Full Name', student.full_name],
         ['Email', student.email],
+        ['Phone Number', student.phone_number],
+        ['Gender', student.gender],
+        ['Date of Birth', student.date_of_birth ? new Date(student.date_of_birth).toLocaleDateString() : null],
         ['Department', student.department],
+        ['Program', student.program],
+        ['Academic Year', student.academic_year],
+        ['Current Semester', student.current_semester],
+        ['CGPA', student.cgpa],
+        ['Expected Graduation Year', student.expected_graduation_year],
         ['Profile Status', profileStatus.label],
         ['University Mentor', student.university_mentor_name || 'Not Assigned'],
       ],
@@ -347,6 +355,9 @@ const FacultyManageStudentsLive = () => {
                         {student.student_id} | {student.department || 'No Department'}
                       </div>
                       <div className="text-xs text-slate-500 mt-1">{student.email || 'No email provided'}</div>
+                      <div className="text-[11px] text-slate-500 mt-1">
+                        CGPA {student.cgpa || 'N/A'} | Year {student.academic_year || 'N/A'} | Sem {student.current_semester || 'N/A'}
+                      </div>
                     </td>
                     <td className="p-5 text-center">
                       <div className="text-sm font-black text-slate-700 dark:text-slate-300">
