@@ -307,9 +307,11 @@ UILroute.get("/verifyCompanyInvite/:token", verifyCompanyInvite);
  *               profileFile:
  *                 type: string
  *                 format: binary
+ *                 description: Company profile image (PNG, JPG, or WEBP)
  *               licenseFile:
  *                 type: string
  *                 format: binary
+ *                 description: Official business license PDF
  *     responses:
  *       200:
  *         description: Registration completed successfully

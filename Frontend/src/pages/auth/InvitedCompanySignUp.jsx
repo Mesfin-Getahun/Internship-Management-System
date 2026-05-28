@@ -5,6 +5,7 @@ import OrgInfoStep from "../../components/signup/OrgInfoStep";
 import DocumentUploadStep from "../../components/signup/DocumentUploadStep";
 import SignUpSuccess from "../../components/signup/SignUpSuccess";
 import axios from "axios";
+import { isImageFile, isPdfFile } from "../../utils/fileValidation";
 
 const InvitedCompanySignUp = () => {
   const [step, setStep] = useState(1);
@@ -61,6 +62,12 @@ const InvitedCompanySignUp = () => {
     } else if (step === 2) {
       if (!formData.licenseFile)
         newErrors.licenseFile = "Business license is required";
+      else if (!isPdfFile(formData.licenseFile)) {
+        newErrors.licenseFile = "Business license must be a PDF file";
+      }
+      if (formData.profileFile && !isImageFile(formData.profileFile)) {
+        newErrors.profileFile = "Company profile must be an image file";
+      }
       if (!formData.agreed) newErrors.agreed = "You must agree to the terms";
     }
     setErrors(newErrors);

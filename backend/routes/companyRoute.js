@@ -47,11 +47,11 @@ const companyRoute = express.Router();
  *               profileFile:
  *                 type: string
  *                 format: binary
- *                 description: Company profile document
+ *                 description: Company profile image (PNG, JPG, or WEBP)
  *               licenseFile:
  *                 type: string
  *                 format: binary
- *                 description: Official business license
+ *                 description: Official business license PDF
  *               orgName:
  *                 type: string
  *               orgEmail:

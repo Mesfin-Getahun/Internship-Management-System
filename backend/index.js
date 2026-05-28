@@ -102,7 +102,10 @@ app.use((err, req, res, next) => {
 
   if (
     err.code?.startsWith?.("LIMIT_") ||
-    err.message === "Unsupported file type"
+    err.message === "Unsupported file type" ||
+    err.message === "Company profile must be an image file" ||
+    err.message === "Company license must be a PDF file" ||
+    err.message === "Unsupported upload field"
   ) {
     return res.status(400).json({
       success: false,

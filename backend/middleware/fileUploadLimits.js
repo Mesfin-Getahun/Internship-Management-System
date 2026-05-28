@@ -5,8 +5,7 @@ const MB = 1024 * 1024;
 
 const allowedMimeTypes = {
   pdf: new Set(["application/pdf"]),
-  imageOrPdf: new Set([
-    "application/pdf",
+  image: new Set([
     "image/jpeg",
     "image/png",
     "image/webp",
@@ -39,6 +38,30 @@ const fileFilterFor = (allowedTypes) => (req, file, cb) => {
   cb(new Error("Unsupported file type"));
 };
 
+const companyDocumentFileFilter = (req, file, cb) => {
+  if (file.fieldname === "profileFile") {
+    if (allowedMimeTypes.image.has(file.mimetype)) {
+      cb(null, true);
+      return;
+    }
+
+    cb(new Error("Company profile must be an image file"));
+    return;
+  }
+
+  if (file.fieldname === "licenseFile") {
+    if (allowedMimeTypes.pdf.has(file.mimetype)) {
+      cb(null, true);
+      return;
+    }
+
+    cb(new Error("Company license must be a PDF file"));
+    return;
+  }
+
+  cb(new Error("Unsupported upload field"));
+};
+
 export const pdfUpload = multer({
   storage,
   limits: { fileSize: 5 * MB, files: 1 },
@@ -54,7 +77,7 @@ export const applicationFilesUpload = multer({
 export const companyDocumentUpload = multer({
   storage,
   limits: { fileSize: 5 * MB, files: 2 },
-  fileFilter: fileFilterFor(allowedMimeTypes.imageOrPdf),
+  fileFilter: companyDocumentFileFilter,
 });
 
 export const supportingDocumentUpload = multer({

@@ -6,7 +6,7 @@ const DocumentUploadStep = ({ formData, updateFormData, errors }) => {
     if (file) updateFormData({ [field]: file });
   };
 
-  const FileUploadField = ({ label, field, required = false }) => (
+  const FileUploadField = ({ label, field, required = false, accept, helpText }) => (
     <div className="space-y-2">
       <label className="block text-sm font-medium text-slate-700">
         {label} {required && <span className="text-red-500">*</span>}
@@ -22,7 +22,7 @@ const DocumentUploadStep = ({ formData, updateFormData, errors }) => {
           type="file"
           onChange={(e) => handleFileChange(field, e)}
           className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-          accept=".pdf,.doc,.docx"
+          accept={accept}
         />
         <div className="flex flex-col items-center">
           {formData[field] ? (
@@ -46,12 +46,15 @@ const DocumentUploadStep = ({ formData, updateFormData, errors }) => {
                 Drag & drop or click to upload
               </p>
               <p className="text-xs text-slate-400 mt-1">
-                PDF, DOCX up to 10MB
+                {helpText}
               </p>
             </>
           )}
         </div>
       </div>
+      {errors[field] && (
+        <p className="text-xs text-red-500 font-medium">{errors[field]}</p>
+      )}
     </div>
   );
 
@@ -59,12 +62,20 @@ const DocumentUploadStep = ({ formData, updateFormData, errors }) => {
     <div className="space-y-8 animate-fade-in">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
         <div className="md:col-span-2">
-          <FileUploadField label="Business License" field="licenseFile" required />
+          <FileUploadField
+            label="Business License"
+            field="licenseFile"
+            required
+            accept="application/pdf,.pdf"
+            helpText="PDF only, up to 5MB"
+          />
         </div>
         <div className="md:col-span-2">
           <FileUploadField
             label="Company Profile (Optional)"
             field="profileFile"
+            accept="image/png,image/jpeg,image/webp,.png,.jpg,.jpeg,.webp"
+            helpText="PNG, JPG, or WEBP image only, up to 5MB"
           />
         </div>
       </div>
