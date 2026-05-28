@@ -28,6 +28,7 @@ import {
   validateMinimumInternshipDuration,
   validateAttendanceRecordsForInternship,
 } from "../utils/internshipRules.js";
+import { ensureMustChangePasswordColumn } from "../utils/passwordReset.js";
 
 const CURRENT_PLACEMENT_STATUSES = [
   PLACEMENT_STATUS.ACCEPTED,
@@ -1696,6 +1697,7 @@ const registerCompany = async (req, res) => {
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
+    await ensureMustChangePasswordColumn("company");
 
     /* ===== Upload Files ===== */
 
@@ -1722,8 +1724,8 @@ const registerCompany = async (req, res) => {
       `
       INSERT INTO company
       (company_name, company_type, industry, website, email, phone_number,
-       location, city, region, password, profile_pic, license_url, agreed, status)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending')
+       location, city, region, password, must_change_password, profile_pic, license_url, agreed, status)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, FALSE, ?, ?, ?, 'pending')
       `,
       [
         cleanOrgName,

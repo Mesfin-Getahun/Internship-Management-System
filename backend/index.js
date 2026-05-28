@@ -13,10 +13,7 @@ import companyMentorRoute from "./routes/companyMentorRoute.js";
 import evaluatorRoute from "./routes/evaluatorRoute.js";
 import notificationRoute from "./routes/notificationRoute.js";
 import { startCompanyMentorFeedbackReminderJob } from "./utils/companyMentorFeedbackReminder.js";
-import {
-  createFaculty,
-  registerStudent,
-} from "./middleware/register.js";
+import { createFaculty, registerStudent } from "./middleware/register.js";
 import { checkMaintenanceMode } from "./middleware/Maintenance.js";
 import {
   authLimiter,

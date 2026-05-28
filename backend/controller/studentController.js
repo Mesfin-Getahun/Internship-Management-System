@@ -95,11 +95,66 @@ const splitTerms = (value) => {
 
   return raw
     .split(/[,;|/]+/)
-    .map((term) => term.trim().toLowerCase().replace(/\s+/g, " "))
+    .flatMap((term) => expandProfileTerm(term))
     .filter(Boolean);
 };
 
 const uniqueTerms = (terms) => Array.from(new Set(terms.filter(Boolean)));
+
+const TERM_ALIASES = new Map([
+  ["js", "javascript"],
+  ["java script", "javascript"],
+  ["nodejs", "node js"],
+  ["reactjs", "react"],
+  ["mongodb", "mongo db"],
+  ["cs", "computer science"],
+  ["it", "information technology"],
+  ["ict", "information technology"],
+  ["is", "information systems"],
+  ["se", "software engineering"],
+]);
+
+const STOP_PROFILE_TERMS = new Set([
+  "a",
+  "an",
+  "and",
+  "for",
+  "in",
+  "of",
+  "or",
+  "the",
+  "to",
+  "with",
+]);
+
+const normalizeProfileTerm = (value) => {
+  const normalized = String(value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/&/g, " and ")
+    .replace(/[^a-z0-9]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  const compact = normalized.replace(/\s+/g, "");
+
+  return (
+    TERM_ALIASES.get(normalized) ||
+    TERM_ALIASES.get(compact) ||
+    normalizeDepartment(normalized)
+  );
+};
+
+const expandProfileTerm = (value) => {
+  const normalized = normalizeProfileTerm(value);
+  if (!normalized) return [];
+
+  const words = normalized
+    .split(" ")
+    .map((term) => normalizeProfileTerm(term))
+    .filter((term) => term.length > 1 && !STOP_PROFILE_TERMS.has(term));
+
+  return [normalized, ...words];
+};
 
 const SOFTWARE_RELATED_DEPARTMENTS = new Set([
   "computer science",
@@ -128,9 +183,15 @@ const SOFTWARE_PROFILE_TERMS = [
   "system",
 ];
 
+const splitDepartmentList = (department) =>
+  String(department || "")
+    .split(/[,;|/]+/)
+    .map((term) => normalizeDepartment(term))
+    .filter(Boolean);
+
 const departmentProfileTerms = (department) => {
   const normalized = normalizeDepartment(department);
-  const departmentTerms = splitTerms(department);
+  const departmentTerms = splitDepartmentList(department);
   const departmentsToCheck = departmentTerms.length > 0 ? departmentTerms : [normalized];
 
   if (
@@ -157,7 +218,7 @@ const getStudentProfileTerms = (student = {}) =>
 const internshipMatchesStudentProfile = (internship = {}, student = {}) => {
   const studentDepartment = normalizeDepartment(student.department);
   const internshipDepartment = normalizeDepartment(internship.department);
-  const internshipDepartmentTerms = splitTerms(internship.department);
+  const internshipDepartmentTerms = splitDepartmentList(internship.department);
   const profileTerms = getStudentProfileTerms(student);
   const internshipTerms = uniqueTerms([
     internshipDepartment,

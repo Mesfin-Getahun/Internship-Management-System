@@ -50,8 +50,29 @@ const TWO_MONTH_DEPARTMENTS = new Set([
   "information technology education",
 ]);
 
-const normalizeDepartment = (department = "") =>
-  String(department).trim().toLowerCase().replace(/\s+/g, " ");
+const DEPARTMENT_ALIASES = new Map([
+  ["cs", "computer science"],
+  ["c s", "computer science"],
+  ["it", "information technology"],
+  ["i t", "information technology"],
+  ["ict", "information technology"],
+  ["is", "information systems"],
+  ["i s", "information systems"],
+  ["se", "software engineering"],
+  ["s e", "software engineering"],
+]);
+
+const normalizeDepartment = (department = "") => {
+  const normalized = String(department)
+    .trim()
+    .toLowerCase()
+    .replace(/&/g, " and ")
+    .replace(/[^a-z0-9]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  return DEPARTMENT_ALIASES.get(normalized) || normalized;
+};
 
 const splitDepartmentTerms = (department = "") =>
   String(department || "")
