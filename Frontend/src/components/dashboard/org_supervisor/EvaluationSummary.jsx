@@ -1,11 +1,13 @@
-import React from 'react';
+import React, { useState } from 'react';
 import jsPDF from 'jspdf';
-import 'jspdf-autotable';
+import autoTable from 'jspdf-autotable';
 import { toast } from 'react-toastify';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faFileDownload, faCheckCircle, faPrint } from '@fortawesome/free-solid-svg-icons';
+import { faCheckCircle, faSpinner } from '@fortawesome/free-solid-svg-icons';
 
 const EvaluationSummary = ({ student, attendanceData, performanceData, onBack, onSubmitHook }) => {
+    const [isSubmitting, setIsSubmitting] = useState(false);
+    const [isSubmitted, setIsSubmitted] = useState(false);
 
     const calculateAttendanceMark = (totalAbsent) => {
         if (totalAbsent === 0) return 10;
@@ -17,15 +19,25 @@ const EvaluationSummary = ({ student, attendanceData, performanceData, onBack, o
 
     const attendanceMark = calculateAttendanceMark(attendanceData.totalAbsent);
     const performanceMark = performanceData.totalMark;
-    const totalCompanyResult = (performanceMark / 70) * 30; // As per form, this is 30%
-    const finalGrade = attendanceMark + totalCompanyResult;
+    const finalGrade = attendanceMark + performanceMark;
 
     const generatePDFAndSubmit = async () => {
-        try {
-            // First run the API dispatch hook via parent passing
-            if (onSubmitHook) await onSubmitHook();
+        if (isSubmitting || isSubmitted) return;
 
-            // Next generate the physical offline file payload
+        setIsSubmitting(true);
+
+        try {
+            // First persist the official evaluation in the backend.
+            if (onSubmitHook) await onSubmitHook();
+            setIsSubmitted(true);
+        } catch (e) {
+            console.error(e);
+            setIsSubmitting(false);
+            return;
+        }
+
+        try {
+            // Local download is only a convenience copy; backend upload already happened above.
             const doc = new jsPDF();
 
             // Header
@@ -35,48 +47,50 @@ const EvaluationSummary = ({ student, attendanceData, performanceData, onBack, o
             doc.text(`Bahir Dar Institute of Technology, Bahir Dar University`, 105, 28, { align: 'center' });
 
             // Student Info
-            doc.autoTable({
+            autoTable(doc, {
                 startY: 40,
                 head: [['Student Name', 'Hosting Company', 'Department']],
-                body: [[student.name, student.company || 'N/A', student.department || 'N/A']],
+                body: [[student.student_name || student.name, student.company_name || student.company || 'N/A', student.department || 'N/A']],
                 theme: 'grid'
             });
 
             // Performance Scores
-            doc.autoTable({
+            autoTable(doc, {
                 startY: doc.lastAutoTable.finalY + 10,
                 head: [['Assessment Criteria Form Total', 'Weight', 'Actual Rate']],
                 body: [
-                    [{ content: 'Total Criteria Grade Registered', colSpan: 2 }, { content: `${performanceMark}% / 70%` }]
+                    [{ content: 'Total Company Assessment Registered', colSpan: 2 }, { content: `${performanceMark} / 40` }]
                 ],
                 theme: 'grid'
             });
             
             // Attendance
-            doc.autoTable({
+            autoTable(doc, {
                 startY: doc.lastAutoTable.finalY + 10,
                 head: [['Attendance Details', 'Value']],
                 body: [
                     ['Total Absent Days', attendanceData.totalAbsent],
-                    ['Fill Attendance result (10%)', `${attendanceMark}%`],
+                    ['Attendance result', `${attendanceMark} / 10`],
                 ],
                 theme: 'grid'
             });
 
             // Final Scores
-            doc.autoTable({
+            autoTable(doc, {
                 startY: doc.lastAutoTable.finalY + 10,
                 body: [
-                    [{ content: 'Total Company Assessment result (40%)', styles: { fontStyle: 'bold' } }, { content: `${(totalCompanyResult + attendanceMark).toFixed(2)}%`, styles: { fontStyle: 'bold' } }],
+                    [{ content: 'Company Assessment + Attendance', styles: { fontStyle: 'bold' } }, { content: `${finalGrade.toFixed(2)} / 50`, styles: { fontStyle: 'bold' } }],
                 ],
                 theme: 'striped'
             });
 
-            doc.save(`Assessment-${student.name}.pdf`);
+            doc.save(`Assessment-${student.student_name || student.name}.pdf`);
             toast.success("Grade submitted AND PDF record downloaded successfully!");
         } catch (e) {
             console.error(e);
-            toast.error("Process aborted visually.");
+            toast.warn("Evaluation submitted, but the local PDF download could not be generated.");
+        } finally {
+            setIsSubmitting(false);
         }
     };
 
@@ -99,19 +113,19 @@ const EvaluationSummary = ({ student, attendanceData, performanceData, onBack, o
                 
                 <div className="flex justify-between items-center bg-slate-800 p-4 rounded-xl border border-slate-700">
                     <span className="text-[11px] text-slate-400 font-black uppercase tracking-widest">Performance Form Subtotal:</span>
-                    <span className="text-xl font-bold text-emerald-300 bg-emerald-900/30 px-4 py-1.5 rounded-lg border border-emerald-800">{performanceMark} / 70</span>
+                    <span className="text-xl font-bold text-emerald-300 bg-emerald-900/30 px-4 py-1.5 rounded-lg border border-emerald-800">{performanceMark} / 40</span>
                 </div>
                 
                 <div className="flex justify-between items-center bg-slate-800 p-4 rounded-xl border border-slate-700">
-                    <span className="text-[11px] text-slate-400 font-black uppercase tracking-widest">Corporate Rubric Converted:</span>
-                    <span className="text-xl font-bold text-emerald-300 bg-emerald-900/30 px-4 py-1.5 rounded-lg border border-emerald-800">{totalCompanyResult.toFixed(2)} / 30</span>
+                    <span className="text-[11px] text-slate-400 font-black uppercase tracking-widest">Company Mentor Assessment:</span>
+                    <span className="text-xl font-bold text-emerald-300 bg-emerald-900/30 px-4 py-1.5 rounded-lg border border-emerald-800">{performanceMark} / 40</span>
                 </div>
                 
                 <hr className="border-emerald-900/50 my-8 shadow-inner" />
                 
                 <div className="flex justify-between items-center text-emerald-400 text-3xl bg-emerald-900/40 p-6 rounded-2xl border-2 border-emerald-500/50 shadow-lg shadow-emerald-500/10">
                     <span className="font-black uppercase tracking-tighter">Final Output Matrix</span>
-                    <span className="font-extrabold font-mono bg-emerald-600 text-white px-6 py-2 rounded-xl border border-emerald-400">{finalGrade.toFixed(2)}<span className="text-sm opacity-60 ml-2">/ 40.00</span></span>
+                    <span className="font-extrabold font-mono bg-emerald-600 text-white px-6 py-2 rounded-xl border border-emerald-400">{finalGrade.toFixed(2)}<span className="text-sm opacity-60 ml-2">/ 50.00</span></span>
                 </div>
 
             </div>
@@ -123,10 +137,11 @@ const EvaluationSummary = ({ student, attendanceData, performanceData, onBack, o
                 <div className="text-right">
                     <button
                         onClick={generatePDFAndSubmit}
-                        className="bg-emerald-600 hover:bg-emerald-500 text-white font-black uppercase tracking-widest text-[11px] py-4 px-8 rounded-xl flex items-center gap-3 transition-all shadow-xl shadow-emerald-500/30 active:scale-95 border border-emerald-500"
+                        disabled={isSubmitting || isSubmitted}
+                        className="bg-emerald-600 hover:bg-emerald-500 text-white font-black uppercase tracking-widest text-[11px] py-4 px-8 rounded-xl flex items-center gap-3 transition-all shadow-xl shadow-emerald-500/30 active:scale-95 border border-emerald-500 disabled:cursor-not-allowed disabled:opacity-60"
                     >
-                        <FontAwesomeIcon icon={faCheckCircle} size="lg" />
-                        Transmit & Render PDF Extract
+                        <FontAwesomeIcon icon={isSubmitting ? faSpinner : faCheckCircle} spin={isSubmitting} size="lg" />
+                        {isSubmitted ? 'Evaluation Submitted' : isSubmitting ? 'Submitting...' : 'Transmit & Render PDF Extract'}
                     </button>
                     <p className="text-[9px] font-black uppercase tracking-widest text-slate-500 mt-2 pr-1">Warning: Finalizes university register log.</p>
                 </div>

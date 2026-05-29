@@ -75,7 +75,10 @@ const CompanyInvitation = () => {
 
       setSubmitResult({
         success: true,
-        message: "Company invitation sent successfully!",
+        message:
+          response.data.emailWarning ||
+          response.data.message ||
+          "Company invitation sent successfully!",
         inviteUrl: response.data.inviteUrl,
       });
 

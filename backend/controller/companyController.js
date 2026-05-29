@@ -1475,6 +1475,7 @@ const postEvaluation = async (req, res) => {
       attendanceData,
       startDate: student.placement_start_date || student.internship_start_date,
       endDate: student.placement_end_date || student.internship_end_date,
+      department: student.department,
     });
 
     if (!attendanceValidation.valid) {

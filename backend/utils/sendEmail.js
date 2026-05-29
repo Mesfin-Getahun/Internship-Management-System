@@ -14,7 +14,7 @@ export const sendEmail = async (to, subject, html) => {
   }
 
   const emailUser = process.env.EMAIL_USER;
-  const emailPass = process.env.EMAIL_PASS;
+  const emailPass = process.env.EMAIL_PASS?.replace(/\s+/g, "");
 
   if (!emailUser || !emailPass) {
     const error = new Error("EMAIL_USER and EMAIL_PASS must be configured");

@@ -215,7 +215,7 @@ const postEvaluation = async (req, res) => {
     if (existingEvaluations.length > 0) {
       return res.status(409).json({
         success: false,
-        message: "A final evaluation has already been submitted for this student and internship",
+        message: "This student has already been evaluated for this internship. A company mentor can submit the final evaluation only once.",
       });
     }
 
@@ -223,6 +223,7 @@ const postEvaluation = async (req, res) => {
       attendanceData,
       startDate: student.placement_start_date || student.internship_start_date,
       endDate: student.placement_end_date || student.internship_end_date,
+      department: student.department,
     });
 
     if (!attendanceValidation.valid) {
@@ -324,7 +325,7 @@ const postEvaluation = async (req, res) => {
     if (isDuplicateKeyError(error)) {
       return res.status(409).json({
         success: false,
-        message: "A final evaluation has already been submitted for this student and internship",
+        message: "This student has already been evaluated for this internship. A company mentor can submit the final evaluation only once.",
       });
     }
 

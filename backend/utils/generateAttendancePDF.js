@@ -86,9 +86,9 @@ const generateAttendancePDF = async ({ student, company, attendanceData }) => {
     doc.moveDown(0.5);
     doc.text(`Total Absent Days in the Month: ${absentCount}`);
     doc.moveDown(1);
-    doc.text(`Supervisor/Coach Name & Signature: ________________________`);
+    doc.text(`Supervisor/Coach Name & Signature: ${student.supervisor || "________________________"}`);
     doc.moveDown(1);
-    doc.text(`Company Stamp`);
+    doc.text(`Company Stamp: ${company || "________________________"}`);
     doc.moveDown(2);
   });
 

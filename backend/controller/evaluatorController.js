@@ -537,12 +537,15 @@ const submitPresentationGrade = async (req, res) => {
     );
     const status = getPresentationStatus(grades);
 
-    if (status.status === "agreed") {
+    if (status.status === "agreed" || status.status === "averaged") {
       await createNotification({
         recipientRole: "student",
         recipientId: student_id,
-        title: "Presentation grade agreed",
-        message: `Your presentation evaluators agreed on ${status.finalMark}/30.`,
+        title: "Presentation grade finalized",
+        message:
+          status.status === "agreed"
+            ? `Your presentation evaluators agreed on ${status.finalMark}/30.`
+            : `Your presentation evaluator marks were averaged to ${status.finalMark}/30.`,
         type: "evaluation",
         link: "/student/feedback",
       }).catch(() => null);
@@ -553,8 +556,8 @@ const submitPresentationGrade = async (req, res) => {
       message:
         status.status === "agreed"
           ? "Presentation grade agreed and saved"
-          : status.status === "disputed"
-            ? "Presentation grade saved, but evaluator marks do not match"
+          : status.status === "averaged"
+            ? "Presentation grade saved and averaged"
             : "Presentation grade saved",
       mark,
       presentation_status: status.status,

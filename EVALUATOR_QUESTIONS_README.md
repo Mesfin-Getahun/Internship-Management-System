@@ -534,3 +534,323 @@ Frontend:
 - It stores suggestions in `suggestions`.
 - It maps suggestions by `internship_id` and displays the `match_score`.
 - It also shows labels like `Department Match`, `Profile Match`, or `General Post`, plus matched terms.
+
+## 21. How and where are notifications created and fetched?
+
+Notifications are centralized in the backend utility:
+
+- File: `backend/utils/notificationService.js`
+- Main functions:
+  - `createNotification(...)`
+  - `createNotifications([...])`
+
+How notifications are created:
+1. A backend controller imports `createNotification` or `createNotifications`.
+2. When an important action happens, the controller calls the utility with:
+   - `recipientRole`
+   - `recipientId`
+   - `title`
+   - `message`
+   - `type`
+   - `link`
+3. The utility ensures the `notifications` table exists.
+4. It inserts the notification into the database.
+
+Database table:
+
+```sql
+notifications (
+  notification_id,
+  recipient_role,
+  recipient_id,
+  title,
+  message,
+  type,
+  link,
+  is_read,
+  created_at,
+  read_at
+)
+```
+
+Examples where notifications are created:
+- `backend/controller/companyController.js`
+  - Notifies UIL when a company posts a new internship.
+  - Notifies students when an application is accepted.
+- `backend/controller/UILcontroller.js`
+  - Notifies companies when internship posts are approved or rejected.
+  - Notifies companies/students/faculty for UIL actions.
+- `backend/controller/studentController.js`
+  - Notifies users for student actions like report/application events.
+- `backend/controller/mentorController.js`
+  - Notifies students/faculty for mentor feedback or report actions.
+- `backend/utils/companyMentorFeedbackReminder.js`
+  - Creates reminder notifications.
+
+How notifications are fetched:
+
+Backend route file:
+- `backend/routes/notificationRoute.js`
+
+Registered in:
+- `backend/index.js`
+- Mounted as: `/api/notifications`
+
+Backend controller:
+- `backend/controller/notificationController.js`
+
+Routes:
+- `GET /api/notifications`
+  - Fetches the logged-in user's latest 30 notifications.
+  - Also returns `unread_count`.
+- `PATCH /api/notifications/:notification_id/read`
+  - Marks one notification as read.
+- `PATCH /api/notifications/read-all`
+  - Marks all notifications for the logged-in user as read.
+
+Security:
+- `resolveRecipient` in `backend/controller/notificationController.js` reads the JWT token.
+- It resolves the user's role and id from the token.
+- It only fetches notifications where:
+
+```sql
+recipient_role = logged_in_user_role
+AND recipient_id = logged_in_user_id
+```
+
+Frontend:
+- File: `Frontend/src/components/dashboard/common/NotificationBell.jsx`
+
+How the frontend works:
+1. It calls:
+
+```js
+GET `${VITE_BACKEND_URL}/api/notifications`
+```
+
+2. It sends the login token in the Authorization header.
+3. It stores:
+   - `notifications`
+   - `unreadCount`
+4. It refreshes automatically every 60 seconds.
+5. When a user clicks a notification:
+   - It calls `PATCH /api/notifications/:notification_id/read`.
+   - If the notification has a `link`, it navigates to that page.
+6. The "mark all as read" button calls:
+
+```js
+PATCH `${VITE_BACKEND_URL}/api/notifications/read-all`
+```
+
+## 22. How and where does the company mentor get a reminder for feedback?
+
+Company mentor feedback reminders are created by a backend scheduled job.
+
+Main file:
+- `backend/utils/companyMentorFeedbackReminder.js`
+
+Started from:
+- `backend/index.js`
+
+In `backend/index.js`, the reminder job is imported:
+
+```js
+import { startCompanyMentorFeedbackReminderJob } from "./utils/companyMentorFeedbackReminder.js";
+```
+
+Then it starts when the backend server starts:
+
+```js
+app.listen(PORT, () => {
+  console.log(`Server running on port ${PORT}`);
+  startCompanyMentorFeedbackReminderJob();
+});
+```
+
+How often it runs:
+- First run: 5 seconds after backend startup.
+- Then repeats every 24 hours.
+- Default interval is defined in `companyMentorFeedbackReminder.js`:
+
+```js
+const DEFAULT_INTERVAL_MS = DAY_MS;
+```
+
+What placements it checks:
+
+The job loads active company mentor placements using `fetchActiveCompanyMentorPlacements`.
+
+It checks `student_internship` records where:
+- a company mentor is assigned
+- placement status is `in progress`, `accepted`, or `active`
+- internship has already started
+- internship has not ended yet
+
+SQL condition:
+
+```sql
+WHERE si.company_mentor_id IS NOT NULL
+  AND LOWER(si.status) IN ('in progress', 'accepted', 'active')
+  AND i.start_date IS NOT NULL
+  AND i.start_date <= CURDATE()
+  AND (i.end_date IS NULL OR i.end_date >= CURDATE())
+```
+
+How it knows which week needs feedback:
+
+Function:
+- `getCurrentFeedbackWeek(startDate, endDate, today)`
+
+It calculates:
+- current week number from internship start date
+- week start date
+- week end date
+
+How it avoids duplicate reminders:
+
+Before creating a reminder, it checks two things:
+
+1. Has the company mentor already submitted feedback for this student/internship/week?
+
+Function:
+- `hasFeedbackForWeek(...)`
+
+It checks `mentor_feedback`.
+
+2. Was a reminder already created for this same student/internship/week?
+
+Function:
+- `hasReminderForWeek(...)`
+
+It checks `notifications` where:
+- `recipient_role = 'company_mentor'`
+- `type = 'feedback_reminder'`
+- `link = '/org-supervisor/feedback'`
+
+How the reminder is created:
+
+If no weekly feedback exists and no reminder exists, the job calls:
+
+```js
+createNotification({
+  recipientRole: "company_mentor",
+  recipientId: placement.company_mentor_id,
+  title: "Weekly student feedback due",
+  message: "...",
+  type: "feedback_reminder",
+  link: "/org-supervisor/feedback",
+});
+```
+
+That inserts a row into the `notifications` table.
+
+How the company mentor sees it:
+
+Frontend notification component:
+- `Frontend/src/components/dashboard/common/NotificationBell.jsx`
+
+The notification bell fetches:
+
+```js
+GET /api/notifications
+```
+
+The backend resolves the logged-in user from the JWT token, so the company mentor only sees notifications where:
+
+```sql
+recipient_role = 'company_mentor'
+AND recipient_id = logged_in_company_mentor_id
+```
+
+When the company mentor clicks the reminder:
+- It is marked as read.
+- The frontend navigates to:
+
+```text
+/org-supervisor/feedback
+```
+
+Important related file:
+- `backend/controller/companyMentorController.js`
+
+This controller imports `getCurrentFeedbackWeek` and uses it around weekly feedback submission logic so company mentor feedback aligns with the same week calculation used by the reminder job.
+
+## 23. If the two evaluator results are not the same, how is the value calculated?
+
+The two presentation evaluator marks are stored separately in the backend table:
+
+```sql
+presentation_grade
+```
+
+Each row stores:
+- `student_id`
+- `internship_id`
+- `evaluator_id`
+- `mark`
+
+The main rule is implemented in:
+
+```text
+backend/utils/evaluatorSchema.js
+```
+
+Function:
+
+```js
+getPresentationStatus(grades)
+```
+
+How it works:
+- If only one evaluator submitted, status is `pending` and no final presentation mark is used yet.
+- If both evaluators submitted the same mark, status is `agreed` and that mark becomes the final value.
+- If both evaluators submitted different marks, status is `averaged` and the system uses the average of the two marks as the final value.
+
+Example:
+
+```text
+Evaluator 1 = 24 / 30
+Evaluator 2 = 28 / 30
+Final presentation mark = (24 + 28) / 2 = 26 / 30
+```
+
+Where the average is returned after submission:
+
+```text
+backend/controller/evaluatorController.js
+```
+
+Function:
+
+```js
+submitPresentationGrade
+```
+
+The same averaging rule is also applied in the SQL queries that show totals for faculty and students:
+
+```text
+backend/controller/facultyController.js
+backend/controller/studentController.js
+```
+
+Those queries use:
+
+```sql
+ROUND(AVG(mark), 2)
+```
+
+when two evaluator marks exist but are not identical. The averaged presentation mark is then included in:
+
+```sql
+known_total_mark
+```
+
+Frontend display:
+
+```text
+Frontend/src/pages/dashboard/EvaluatorDashboard.jsx
+Frontend/src/components/dashboard/faculty/FacultyOrgEvaluations.jsx
+Frontend/src/components/dashboard/student/FeedbackAndEvaluation.jsx
+```
+
+The evaluator dashboard shows the status as `averaged` when the final `/30` mark came from different evaluator scores.

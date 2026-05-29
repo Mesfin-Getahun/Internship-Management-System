@@ -4,6 +4,7 @@ import { toast } from 'react-toastify';
 import { useAuth } from '../../../AuthContext';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faCheckCircle, faFilePdf, faSpinner, faTrash } from '@fortawesome/free-solid-svg-icons';
+import PasswordInput from '../../common/PasswordInput.jsx';
 
 const OrgProfileLive = () => {
   const [profile, setProfile] = useState(null);
@@ -165,7 +166,7 @@ const OrgProfileLive = () => {
                 </div>
                 <div className="sm:col-span-2">
                   <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">New Password</label>
-                  <input name="password" type="password" value={formData.password} onChange={handleChange} placeholder="Leave blank to keep current password" className="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                  <PasswordInput name="password" value={formData.password} onChange={handleChange} placeholder="Leave blank to keep current password" className="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500" />
                 </div>
               </div>
               <button disabled={saving} className="mt-4 px-8 py-3 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 transition-all shadow-lg shadow-blue-500/20 disabled:opacity-50">

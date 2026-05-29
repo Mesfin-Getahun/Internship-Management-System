@@ -82,14 +82,23 @@ const getPresentationStatus = (grades) => {
     return { status: "pending", finalMark: null };
   }
 
-  const uniqueMarks = Array.from(new Set(grades.map((grade) => Number(grade.mark))));
+  const marks = grades
+    .map((grade) => Number(grade.mark))
+    .filter((mark) => Number.isFinite(mark));
 
-  if (grades.length >= 2 && uniqueMarks.length === 1) {
+  if (marks.length === 0) {
+    return { status: "pending", finalMark: null };
+  }
+
+  const uniqueMarks = Array.from(new Set(marks));
+
+  if (marks.length >= 2 && uniqueMarks.length === 1) {
     return { status: "agreed", finalMark: uniqueMarks[0] };
   }
 
-  if (grades.length >= 2) {
-    return { status: "disputed", finalMark: null };
+  if (marks.length >= 2) {
+    const average = marks.reduce((total, mark) => total + mark, 0) / marks.length;
+    return { status: "averaged", finalMark: Math.round(average * 100) / 100 };
   }
 
   return { status: "pending", finalMark: null };

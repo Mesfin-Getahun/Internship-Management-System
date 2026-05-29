@@ -34,6 +34,9 @@ const createPasswordSetupToken = ({ id, role }) =>
 const isInactiveAccount = (record) =>
   String(record?.account_status || "active").toLowerCase() === "inactive";
 
+const hasStoredPassword = (record) =>
+  typeof record?.password === "string" && record.password.length > 0;
+
 const findAccountByIdentifier = async ({ table, idColumn, identifier }) => {
   const [rows] = await db.query(
     `
@@ -76,6 +79,7 @@ router.post("/", async (req, res) => {
 
       const user = await findAccountByIdentifier({ table, idColumn, identifier });
       if (!user) return null;
+      if (!hasStoredPassword(user)) return null;
 
       const match = await bcrypt.compare(password, user.password);
 
@@ -155,6 +159,7 @@ router.post("/", async (req, res) => {
         identifier,
       });
       if (!company) return null;
+      if (!hasStoredPassword(company)) return null;
 
       const match = await bcrypt.compare(password, company.password);
 

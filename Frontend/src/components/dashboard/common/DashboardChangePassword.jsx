@@ -4,6 +4,7 @@ import { toast } from "react-toastify";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faKey, faSpinner } from "@fortawesome/free-solid-svg-icons";
 import { useAuth } from "../../../AuthContext";
+import PasswordInput from "../../common/PasswordInput.jsx";
 
 const roleDescriptions = {
   student: "Update your student account password.",
@@ -211,9 +212,8 @@ const DashboardChangePassword = ({ description }) => {
           <label className="block text-xs font-black uppercase tracking-widest text-slate-400 mb-2">
             Current Password
           </label>
-          <input
+          <PasswordInput
             name="currentPassword"
-            type="password"
             value={formData.currentPassword}
             onChange={handleChange}
             className="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
@@ -225,9 +225,8 @@ const DashboardChangePassword = ({ description }) => {
           <label className="block text-xs font-black uppercase tracking-widest text-slate-400 mb-2">
             New Password
           </label>
-          <input
+          <PasswordInput
             name="newPassword"
-            type="password"
             value={formData.newPassword}
             onChange={handleChange}
             className="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
@@ -239,9 +238,8 @@ const DashboardChangePassword = ({ description }) => {
           <label className="block text-xs font-black uppercase tracking-widest text-slate-400 mb-2">
             Confirm Password
           </label>
-          <input
+          <PasswordInput
             name="confirmPassword"
-            type="password"
             value={formData.confirmPassword}
             onChange={handleChange}
             className="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"

@@ -1,4 +1,5 @@
 import React from 'react';
+import PasswordInput from '../common/PasswordInput.jsx';
 
 const LoginForm = ({ email, password, setEmail, setPassword, onSubmit, onRegisterOrg, onForgotPassword }) => {
   return (
@@ -21,8 +22,7 @@ const LoginForm = ({ email, password, setEmail, setPassword, onSubmit, onRegiste
         <label className="block text-slate-700 dark:text-slate-300 font-semibold mb-2 text-sm">
           Password
         </label>
-        <input
-          type="password"
+        <PasswordInput
           autoComplete="current-password"
           placeholder="••••••••"
           value={password}

@@ -1,13 +1,15 @@
 {
   "compilerOptions": {
+    "allowJs": true,
     "baseUrl": ".",
+    "checkJs": false,
+    "jsx": "react-native",
+    "moduleResolution": "bundler",
     "paths": {
-      "@/*": [
-        "./*"
-      ]
-    }
+      "@/*": ["./*"]
+    },
+    "resolveJsonModule": true
   },
-  "exclude": [
-    "node_modules"
-  ]
+  "include": ["**/*.js", "**/*.jsx", ".expo/types/**/*.ts", "expo-env.d.ts"],
+  "exclude": ["node_modules"]
 }

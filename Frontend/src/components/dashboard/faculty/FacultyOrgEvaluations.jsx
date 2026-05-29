@@ -355,8 +355,8 @@ const FacultyOrgEvaluations = () => {
                             <span className="text-xs text-slate-400"> / 100</span>
                           </p>
                           <p className={`mt-1 text-[10px] font-black uppercase tracking-widest ${
-                            e.presentation_status === 'disputed'
-                              ? 'text-rose-500'
+                            e.presentation_status === 'averaged'
+                              ? 'text-blue-500'
                               : e.presentation_status === 'agreed'
                                 ? 'text-emerald-500'
                                 : 'text-amber-500'

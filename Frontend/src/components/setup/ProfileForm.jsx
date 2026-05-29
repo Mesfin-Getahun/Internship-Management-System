@@ -32,6 +32,44 @@ const InputField = ({ name, label, required = false, type = 'text', readOnly = f
   </div>
 );
 
+const toExternalUrl = (value) => {
+  const trimmed = String(value || '').trim();
+  if (!trimmed) return '';
+  return /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
+};
+
+const LinkInputField = ({ name, label, value, onChange }) => {
+  const href = toExternalUrl(value);
+
+  return (
+    <div>
+      <div className="mb-1 flex items-center justify-between gap-3">
+        <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">
+          {label}
+        </label>
+        {href && (
+          <a
+            href={href}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-xs font-bold text-blue-600 hover:underline dark:text-blue-400"
+          >
+            Open link
+          </a>
+        )}
+      </div>
+      <input
+        type="url"
+        name={name}
+        value={value}
+        onChange={onChange}
+        placeholder="https://example.com/profile"
+        className="input-field bg-slate-200 dark:bg-slate-700"
+      />
+    </div>
+  );
+};
+
 // --- Main Form Component ---
 const parseList = (value) => {
   if (Array.isArray(value)) return value;
@@ -169,10 +207,10 @@ const ProfileForm = ({ studentData, onSave, isSetupMode = false }) => {
       <section>
         <SectionHeader title="Professional Information" />
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <InputField name="linkedin" label="LinkedIn URL" value={formData.linkedin} onChange={handleChange} />
-          <InputField name="github" label="GitHub URL" value={formData.github} onChange={handleChange} />
+          <LinkInputField name="linkedin" label="LinkedIn URL" value={formData.linkedin} onChange={handleChange} />
+          <LinkInputField name="github" label="GitHub URL" value={formData.github} onChange={handleChange} />
           <div className="md:col-span-2">
-            <InputField name="portfolio" label="Portfolio URL" value={formData.portfolio} onChange={handleChange} />
+            <LinkInputField name="portfolio" label="Portfolio URL" value={formData.portfolio} onChange={handleChange} />
           </div>
         </div>
       </section>

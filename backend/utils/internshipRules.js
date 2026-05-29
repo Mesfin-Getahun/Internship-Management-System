@@ -162,8 +162,11 @@ const validateAttendanceRecordsForInternship = ({
   attendanceData,
   startDate,
   endDate,
+  department,
 }) => {
-  const expectedMonths = getInternshipMonthCount(startDate, endDate);
+  const expectedMonths = department
+    ? requiredInternshipMonths(department)
+    : getInternshipMonthCount(startDate, endDate);
   const records = attendanceData?.records;
 
   if (!expectedMonths) {

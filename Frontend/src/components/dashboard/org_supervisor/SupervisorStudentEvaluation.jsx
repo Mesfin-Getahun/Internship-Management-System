@@ -75,25 +75,35 @@ const formatDate = (dateValue) => {
     return date.toLocaleDateString();
 };
 
-const getInternshipMonthCount = (startValue, endValue) => {
-    if (!startValue || !endValue) return 1;
+const TWO_MONTH_DEPARTMENTS = new Set([
+    'computer science',
+    'information technology',
+    'information system',
+    'information systems',
+    'cyber security',
+    'cybersecurity',
+    'it education',
+    'information technology education',
+]);
 
-    const startDate = new Date(startValue);
-    const endDate = new Date(endValue);
+const normalizeDepartment = (department = '') =>
+    String(department)
+        .trim()
+        .toLowerCase()
+        .replace(/&/g, ' and ')
+        .replace(/[^a-z0-9]+/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
 
-    if (Number.isNaN(startDate.getTime()) || Number.isNaN(endDate.getTime()) || endDate < startDate) {
-        return 1;
-    }
+const getRequiredInternshipMonths = (department) => {
+    const departments = String(department || '')
+        .split(/[,;|/]+/)
+        .map(normalizeDepartment)
+        .filter(Boolean);
 
-    let months =
-        (endDate.getFullYear() - startDate.getFullYear()) * 12 +
-        (endDate.getMonth() - startDate.getMonth());
+    if (departments.length === 0) return 4;
 
-    if (endDate.getDate() > startDate.getDate()) {
-        months += 1;
-    }
-
-    return Math.max(1, months);
+    return departments.every((item) => TWO_MONTH_DEPARTMENTS.has(item)) ? 2 : 4;
 };
 
 const SupervisorStudentEvaluation = () => {
@@ -111,10 +121,7 @@ const SupervisorStudentEvaluation = () => {
     const [studentProfile, setStudentProfile] = useState(null);
     const [loading, setLoading] = useState(true);
 
-    const internshipMonthCount = getInternshipMonthCount(
-        studentProfile?.placement_start_date || studentProfile?.internship_start_date || studentProfile?.start_date,
-        getPlacementEndDate(studentProfile)
-    );
+    const internshipMonthCount = getRequiredInternshipMonths(studentProfile?.department);
 
     const buildAttendanceRecords = () => {
        const absentDays = attendanceData.absentDays || {};
@@ -227,6 +234,7 @@ const SupervisorStudentEvaluation = () => {
        } catch (err) {
            console.error("Submission trigger failed.", err);
            toast.error(err.response?.data?.message || "Failed to transmit the final grade to the university registry.");
+           throw err;
        }
     };
 

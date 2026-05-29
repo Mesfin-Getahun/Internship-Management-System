@@ -1151,55 +1151,88 @@ const inviteCompany = async (req, res) => {
     }
 
     const [existingCompany] = await db.query(
-      "SELECT company_id, status FROM company WHERE LOWER(email) = ? LIMIT 1",
+      "SELECT company_id, company_name, status FROM company WHERE LOWER(email) = ? LIMIT 1",
       [cleanEmail],
     );
 
-    if (existingCompany.length > 0) {
+    const existingInvite = existingCompany[0];
+    if (existingInvite && existingInvite.status !== "invited") {
       return res.status(400).json({
         success: false,
         message: "A company with this email already exists",
       });
     }
 
-    const [result] = await db.query(
-      `
-      INSERT INTO company (company_name, email, status)
-      VALUES (?, ?, 'invited')
-      `,
-      [cleanCompanyName, cleanEmail],
-    );
+    let company_id = existingInvite?.company_id;
 
-    const company_id = result.insertId;
+    if (existingInvite) {
+      await db.query(
+        "UPDATE company SET company_name = ? WHERE company_id = ?",
+        [cleanCompanyName, company_id],
+      );
+    } else {
+      const [result] = await db.query(
+        `
+        INSERT INTO company (company_name, email, status)
+        VALUES (?, ?, 'invited')
+        `,
+        [cleanCompanyName, cleanEmail],
+      );
+      company_id = result.insertId;
+    }
+
     const inviteToken = createInviteToken({ company_id, email: cleanEmail });
     const inviteUrl = getFrontendInviteUrl(req, inviteToken, frontend_url);
 
-    await sendEmail(
-      cleanEmail,
-      "Complete your UIL company registration",
-      `
-        <h2>Hello ${escapeHtml(cleanCompanyName)}</h2>
-        <p>You have been invited by UIL to complete your company registration.</p>
-        <p>Click the link below to finish your registration and set your password:</p>
-        <p><a href="${escapeHtml(inviteUrl)}" target="_blank" rel="noopener noreferrer">Complete company registration</a></p>
-        <p>This invitation link will expire in 7 days.</p>
-        <br/>
-        <p>Best regards,<br/>Internship Management Team</p>
-      `,
-    );
+    let emailResult = { emailSent: true };
+    try {
+      const sentMail = await sendEmail(
+        cleanEmail,
+        "Complete your UIL company registration",
+        `
+          <h2>Hello ${escapeHtml(cleanCompanyName)}</h2>
+          <p>You have been invited by UIL to complete your company registration.</p>
+          <p>Click the link below to finish your registration and set your password:</p>
+          <p><a href="${escapeHtml(inviteUrl)}" target="_blank" rel="noopener noreferrer">Complete company registration</a></p>
+          <p>This invitation link will expire in 7 days.</p>
+          <br/>
+          <p>Best regards,<br/>Internship Management Team</p>
+        `,
+      );
+
+      if (sentMail?.skipped) {
+        emailResult = {
+          emailSent: false,
+          emailWarning:
+            "Invitation link was created, but email delivery is disabled. Copy the invite link manually.",
+        };
+      }
+    } catch (emailError) {
+      console.error("Company invite email failed:", emailError);
+      emailResult = {
+        emailSent: false,
+        emailWarning:
+          "Invitation link was created, but email could not be sent. Copy the invite link manually.",
+      };
+    }
 
     if (req.user?.UIL_id) {
       await createLog(
         req.user.UIL_id,
         "COMPANY_INVITE_SENT",
         `UIL invited ${cleanCompanyName} (${cleanEmail}) to complete registration`,
-      );
+      ).catch((logError) => {
+        console.error("Company invite log failed:", logError);
+      });
     }
 
-    res.status(201).json({
+    res.status(existingInvite ? 200 : 201).json({
       success: true,
-      message: "Company invitation sent successfully",
+      message: emailResult.emailSent
+        ? "Company invitation sent successfully"
+        : "Company invitation link created, but email was not sent",
       inviteUrl,
+      ...emailResult,
     });
   } catch (error) {
     console.error("Invite company error:", error);

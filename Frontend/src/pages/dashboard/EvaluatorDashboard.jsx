@@ -89,7 +89,7 @@ const EvaluatorAssignments = () => {
   const summary = useMemo(() => ({
     total: assignments.length,
     agreed: assignments.filter((item) => item.presentation_status === 'agreed').length,
-    disputed: assignments.filter((item) => item.presentation_status === 'disputed').length,
+    averaged: assignments.filter((item) => item.presentation_status === 'averaged').length,
   }), [assignments]);
 
   const saveGrade = async (assignment) => {
@@ -123,14 +123,14 @@ const EvaluatorAssignments = () => {
       <ToastContainer theme="colored" position="top-right" autoClose={3500} hideProgressBar />
       <header>
         <h1 className="text-3xl font-bold text-slate-800 dark:text-white">Presentation Evaluation</h1>
-        <p className="mt-1 text-sm text-slate-500">Enter the physical presentation mark. Final `/30` is agreed only when both assigned evaluators submit the same mark.</p>
+        <p className="mt-1 text-sm text-slate-500">Enter the physical presentation mark. Final `/30` is saved when both assigned evaluators submit; unequal marks are averaged.</p>
       </header>
 
       <div className="grid gap-4 md:grid-cols-3">
         {[
           ['Assigned Students', summary.total],
           ['Agreed Grades', summary.agreed],
-          ['Disputed Grades', summary.disputed],
+          ['Averaged Grades', summary.averaged],
         ].map(([label, value]) => (
           <div key={label} className="rounded-3xl border border-slate-100 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
             <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">{label}</p>
@@ -200,8 +200,8 @@ const EvaluatorAssignments = () => {
                         <span className={`rounded-xl px-3 py-2 text-[10px] font-black uppercase tracking-widest ${
                           assignment.presentation_status === 'agreed'
                             ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-300'
-                            : assignment.presentation_status === 'disputed'
-                              ? 'bg-rose-50 text-rose-700 dark:bg-rose-950/30 dark:text-rose-300'
+                            : assignment.presentation_status === 'averaged'
+                              ? 'bg-blue-50 text-blue-700 dark:bg-blue-950/30 dark:text-blue-300'
                               : 'bg-amber-50 text-amber-700 dark:bg-amber-950/30 dark:text-amber-300'
                         }`}>
                           {assignment.presentation_status}

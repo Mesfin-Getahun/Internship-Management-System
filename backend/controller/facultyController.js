@@ -331,11 +331,12 @@ const companyEvaluation = async (req, res) => {
           internship_id,
           CASE
             WHEN COUNT(*) >= 2 AND COUNT(DISTINCT mark) = 1 THEN MAX(mark)
+            WHEN COUNT(*) >= 2 THEN ROUND(AVG(mark), 2)
             ELSE NULL
           END AS final_presentation_mark,
           CASE
             WHEN COUNT(*) >= 2 AND COUNT(DISTINCT mark) = 1 THEN 'agreed'
-            WHEN COUNT(*) >= 2 THEN 'disputed'
+            WHEN COUNT(*) >= 2 THEN 'averaged'
             ELSE 'pending'
           END AS presentation_status
         FROM presentation_grade
@@ -1382,11 +1383,12 @@ const evaluation = async (req, res) => {
           internship_id,
           CASE
             WHEN COUNT(*) >= 2 AND COUNT(DISTINCT mark) = 1 THEN MAX(mark)
+            WHEN COUNT(*) >= 2 THEN ROUND(AVG(mark), 2)
             ELSE NULL
           END AS final_presentation_mark,
           CASE
             WHEN COUNT(*) >= 2 AND COUNT(DISTINCT mark) = 1 THEN 'agreed'
-            WHEN COUNT(*) >= 2 THEN 'disputed'
+            WHEN COUNT(*) >= 2 THEN 'averaged'
             ELSE 'pending'
           END AS presentation_status
         FROM presentation_grade
