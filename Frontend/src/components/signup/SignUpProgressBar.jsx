@@ -1,13 +1,16 @@
 import React from 'react';
 const SignUpProgressBar = ({ currentStep, totalSteps }) => {
-  const steps = ['Org Info', 'Documents'];
+  const defaultSteps = ['Org Info', 'Documents', 'Email OTP'];
+  const steps = defaultSteps.slice(0, totalSteps);
+  const progressWidth =
+    totalSteps <= 1 ? 0 : ((currentStep - 1) / (totalSteps - 1)) * 100;
   return (
     <div className="mb-10">
       <div className="flex justify-between relative">
         <div className="absolute top-1/2 left-0 w-full h-0.5 bg-slate-200 -translate-y-1/2 z-0" />
         <div
           className="absolute top-1/2 left-0 h-0.5 bg-blue-900 -translate-y-1/2 z-0 transition-all duration-500"
-          style={{ width: `${(currentStep - 1) / (totalSteps - 1) * 100}%` }}
+          style={{ width: `${progressWidth}%` }}
         />
         {steps.map((step, index) => {
           const stepNumber = index + 1;

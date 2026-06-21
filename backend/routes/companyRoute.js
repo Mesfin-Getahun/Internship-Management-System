@@ -15,12 +15,13 @@ import {
   deleteCompanyMentor,
   viewApplication,
   activeInternships,
+  requestCompanyRegistrationOtp,
   registerCompany,
   deleteAccount,
 } from "../controller/companyController.js";
 import { authCompany } from "../middleware/auth.js";
 import { companyDocumentUpload } from "../middleware/fileUploadLimits.js";
-import { uploadLimiter } from "../middleware/security.js";
+import { authLimiter, uploadLimiter } from "../middleware/security.js";
 
 /**
  * @swagger
@@ -30,6 +31,8 @@ import { uploadLimiter } from "../middleware/security.js";
  */
 
 const companyRoute = express.Router();
+
+companyRoute.post("/register/request-otp", authLimiter, requestCompanyRegistrationOtp);
 
 /**
  * @swagger

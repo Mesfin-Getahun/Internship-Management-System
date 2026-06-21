@@ -17,6 +17,10 @@ import {
   recordCompanyMentorAssignment,
 } from "../utils/mentorAssignmentHistorySchema.js";
 import {
+  consumeCompanyRegistrationOtp,
+  createCompanyRegistrationOtp,
+} from "../utils/companyRegistrationOtp.js";
+import {
   APPLICATION_STATUS,
   PLACEMENT_STATUS,
   isPendingApplication,
@@ -41,6 +45,17 @@ function isDuplicateKeyError(error) {
 }
 
 const normalizeEmail = (email) => String(email || "").trim().toLowerCase();
+const escapeHtml = (value) =>
+  String(value || "").replace(/[&<>"']/g, (char) => {
+    const entities = {
+      "&": "&amp;",
+      "<": "&lt;",
+      ">": "&gt;",
+      '"': "&quot;",
+      "'": "&#39;",
+    };
+    return entities[char];
+  });
 
 const getInternshipLockedUsage = async (internship_id, company_id) => {
   const [rows] = await db.query(
@@ -1657,6 +1672,7 @@ const registerCompany = async (req, res) => {
       password,
       confirmPassword,
       agreed,
+      otp,
     } = req.body;
 
     const cleanEmail = normalizeEmail(orgEmail);
@@ -1694,6 +1710,15 @@ const registerCompany = async (req, res) => {
       return res.status(409).json({
         success: false,
         message: "A company with this email already exists. Please use a different email or sign in.",
+      });
+    }
+
+    const otpResult = await consumeCompanyRegistrationOtp(cleanEmail, otp);
+
+    if (!otpResult.valid) {
+      return res.status(otpResult.status).json({
+        success: false,
+        message: otpResult.message,
       });
     }
 
@@ -1796,6 +1821,68 @@ const registerCompany = async (req, res) => {
   }
 };
 
+const requestCompanyRegistrationOtp = async (req, res) => {
+  try {
+    const cleanEmail = normalizeEmail(req.body?.orgEmail || req.body?.email);
+    const cleanOrgName = String(req.body?.orgName || req.body?.company_name || "").trim();
+
+    if (!cleanOrgName || !cleanEmail) {
+      return res.status(400).json({
+        success: false,
+        message: "Organization name and email are required to send an OTP.",
+      });
+    }
+
+    if (!/\S+@\S+\.\S+/.test(cleanEmail)) {
+      return res.status(400).json({
+        success: false,
+        message: "Please enter a valid organization email.",
+      });
+    }
+
+    const [existingCompany] = await db.query(
+      "SELECT company_id FROM company WHERE LOWER(email) = ? LIMIT 1",
+      [cleanEmail],
+    );
+
+    if (existingCompany.length > 0) {
+      return res.status(409).json({
+        success: false,
+        message: "A company with this email already exists. Please use a different email or sign in.",
+      });
+    }
+
+    const otpDetails = await createCompanyRegistrationOtp(cleanEmail);
+
+    await sendEmail(
+      cleanEmail,
+      "Company registration OTP",
+      `
+        <h2>Hello ${escapeHtml(cleanOrgName)}</h2>
+        <p>Use this OTP to confirm your company registration:</p>
+        <p style="font-size: 28px; letter-spacing: 6px; font-weight: 700;">${otpDetails.otp}</p>
+        <p>This code expires in ${otpDetails.expiresInMinutes} minutes.</p>
+        <p>If you did not request this registration, you can ignore this email.</p>
+      `,
+    );
+
+    res.status(200).json({
+      success: true,
+      message: "OTP sent to your organization email.",
+      expires_in_minutes: otpDetails.expiresInMinutes,
+    });
+  } catch (error) {
+    console.error("Company registration OTP error:", error);
+    res.status(500).json({
+      success: false,
+      message:
+        error?.code === "EMAIL_CONFIG_MISSING"
+          ? "Email delivery is not configured. Please contact the system administrator."
+          : "Failed to send OTP. Please try again.",
+    });
+  }
+};
+
 export {
   postInternship,
   accept,
@@ -1813,6 +1900,7 @@ export {
   updateProfile,
   viewApplication,
   activeInternships,
+  requestCompanyRegistrationOtp,
   registerCompany,
   deleteAccount,
 };
